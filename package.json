@@ -1,0 +1,24 @@
+{
+  "name": "eyeoverthink-agency",
+  "version": "1.0.0",
+  "description": "Sovereign multi-agent agency platform: local-first hybrid inference (Ollama GPU + on-device Gemini Nano via Firebase AI Logic), self-verifying missions, signed memory, DNA-encoded evolving agents, and a tamper-evident ledger.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "author": "EyeOverThink",
+  "engines": { "node": ">=22.13" },
+  "bin": { "agency": "bin/agency.js" },
+  "main": "src/agency.js",
+  "scripts": {
+    "start": "node bin/agency.js serve",
+    "dev": "node --watch bin/agency.js serve",
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
+    "selftest": "node bin/agency.js selftest",
+    "bench": "node bin/agency.js bench",
+    "mcp": "node bin/agency.js mcp",
+    "web:install": "npm --prefix web install",
+    "web:dev": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build",
+    "build": "npm --prefix web install && npm --prefix web run build"
+  },
+  "keywords": ["agents", "multi-agent", "ollama", "local-first", "firebase-ai-logic", "gemini-nano", "hybrid-ai", "mcp", "ed25519"]
+}

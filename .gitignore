@@ -1,0 +1,25 @@
+# runtime state: database, private keys, API token, exports, spill, workspace
+data/
+*.db
+*.db-wal
+*.db-shm
+*.key.json
+api-token
+
+# dependencies and builds
+node_modules/
+web/node_modules/
+web/dist/
+
+# secrets
+.env
+.env.local
+.env.*.local
+web/.env.local
+
+# os / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

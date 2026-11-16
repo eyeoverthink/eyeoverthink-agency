@@ -1,0 +1,20 @@
+{
+  "name": "eyeoverthink-agency-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Mission control dashboard for EyeOverThink Agency, with the Firebase AI Logic hybrid edge tier.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "firebase": "^13.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^8.3.8"
+  }
+}
