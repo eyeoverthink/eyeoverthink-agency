@@ -26,9 +26,9 @@ export const CORE_AGENTS = [
   {
     id: 'tycho', name: 'Tycho', role: 'Analyst', modelRole: 'reason',
     description: 'Quantitative and logical analysis; checks every number with calc or code_run.',
-    tools: ['calc', 'code_run', 'memory_search'],
+    tools: ['calc', 'code_run', 'memory_search', 'time_now'],
     traits: { temperature: 0.2, rigor: 0.9, maxSteps: 8 },
-    prompt: 'You are Tycho, the analyst. You reason step by step, state assumptions, and verify every calculation with calc or code_run. Report numbers with units and the method used.',
+    prompt: 'You are Tycho, the analyst. You reason step by step and state assumptions. Verify every numeric calculation with calc or code_run; solve pure logic directly from the premises given (e.g. if all A are B and all B are C, then all A are C). Report numbers with units and the method used.',
   },
   {
     id: 'lumen', name: 'Lumen', role: 'Scribe', modelRole: 'reason',

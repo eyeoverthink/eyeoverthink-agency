@@ -3,6 +3,7 @@
 //   McpClient: connects to external stdio MCP servers and registers their tools (approval-gated unless listed safe).
 import { spawn } from 'node:child_process';
 import readline from 'node:readline';
+import path from 'node:path';
 import { truncate, errorMessage } from '../core/util.js';
 
 const PROTOCOL = '2025-06-18';
@@ -87,7 +88,13 @@ export class McpClient {
   }
 
   async connect(timeoutMs = 15000) {
-    this.proc = spawn(this.command, this.args, { env: { ...process.env, ...this.env }, stdio: ['pipe', 'pipe', 'pipe'], shell: process.platform === 'win32', windowsHide: true });
+    // Windows needs a shell to resolve bare commands like `npx` (.cmd shims), but a shell splits absolute
+    // paths that contain spaces ("C:\Program Files\..."), so only use one for non-absolute commands.
+    const useShell = process.platform === 'win32' && !path.isAbsolute(this.command);
+    const quote = (s) => (useShell && /[\s"]/.test(s) ? `"${String(s).replace(/"/g, '\\"')}"` : s);
+    this.proc = spawn(quote(this.command), this.args.map(quote), { env: { ...process.env, ...this.env }, stdio: ['pipe', 'pipe', 'pipe'], shell: useShell, windowsHide: true });
+    this.stderrTail = '';
+    this.proc.stderr.on('data', (d) => { this.stderrTail = (this.stderrTail + d.toString()).slice(-2000); });
     readline.createInterface({ input: this.proc.stdout }).on('line', (line) => {
       let msg;
       try { msg = JSON.parse(line); } catch { return; }
@@ -96,7 +103,10 @@ export class McpClient {
       this.pending.delete(msg.id);
       if (msg.error) p.reject(new Error(msg.error.message)); else p.resolve(msg.result);
     });
-    this.proc.on('exit', () => { for (const p of this.pending.values()) p.reject(new Error(`MCP server ${this.name} exited`)); this.pending.clear(); });
+    this.proc.on('exit', (code) => {
+      for (const p of this.pending.values()) p.reject(new Error(`MCP server ${this.name} exited (code ${code})${this.stderrTail ? `: ${this.stderrTail.trim().split('\n').slice(-3).join(' | ')}` : ''}`));
+      this.pending.clear();
+    });
     await this.request('initialize', { protocolVersion: PROTOCOL, capabilities: {}, clientInfo: { name: 'eyeoverthink-agency', version: '1.0.0' } }, timeoutMs);
     this.proc.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
     return this;

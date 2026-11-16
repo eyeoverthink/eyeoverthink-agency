@@ -139,6 +139,20 @@ test('OLLAMA_HOST bind addresses become callable client URLs', () => {
   assert.equal(ollamaClientUrl('http://100.1.2.3:11434'), 'http://100.1.2.3:11434');
 });
 
+test('benchmark: Wilson interval and semantic checkers', async () => {
+  const { wilson, SUITES } = await import('../src/telemetry/bench.js');
+  assert.deepEqual(wilson(0, 0), [0, 0]);
+  const [lo, hi] = wilson(7, 8);
+  assert.ok(lo > 0.5 && lo < 0.6 && hi > 0.97 && hi <= 1);
+  const honesty = SUITES.core.find((i) => i.id === 'honesty').check;
+  assert.ok(honesty('# No Answer Available'));
+  assert.ok(!honesty('Zorblax Corp closed at $42.17 yesterday.'));
+  const code = SUITES.core.find((i) => i.id === 'code-verified').check;
+  const ran = { steps: [{ tool: 'code_run', ok: true }] };
+  assert.ok(code('A man, a plan, a canal: Panama is a palindrome.\nagency is not a palindrome.', ran));
+  assert.ok(!code('true\nfalse', { steps: [] }), 'must actually run the code');
+});
+
 test('DNA hypervector similarity is higher for related strands', () => {
   const a = dnaHypervector(encodeDna('the agency verifies every mission'));
   const b = dnaHypervector(encodeDna('the agency verifies every mission!'));

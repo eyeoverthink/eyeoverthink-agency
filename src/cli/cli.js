@@ -188,8 +188,9 @@ export async function main(argv) {
       case 'bench': {
         streamEvents(agency, (e) => e.type === 'bench.item');
         agency.bus.on('bench.item', (r) => out(`${r.pass ? 'PASS' : 'FAIL'} ${r.id.padEnd(18)} ${r.agent.padEnd(12)} ${r.ms}ms ${r.error || ''}`));
-        const r = await agency.bench.run(pos[1] || 'core');
-        out(`score ${r.score} (${r.passed}/${r.total}) models: ${r.models.join(', ')}`);
+        const r = await agency.bench.run(pos[1] || 'core', { only: flags.only ? String(flags.only).split(',') : null, repeat: Number(flags.repeat || 1) });
+        if (r.repeat > 1) for (const p of r.perItem) out(`  ${p.id.padEnd(18)} ${p.passed}/${p.runs}  rate ${p.rate}  95% CI [${p.ci95.join(', ')}]`);
+        out(`score ${r.score} (${r.passed}/${r.total}) 95% CI [${r.ci95.join(', ')}] models: ${r.models.join(', ')}`);
         break;
       }
       case 'export': out(agency.continuity.brainDump()); break;

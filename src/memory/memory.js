@@ -156,7 +156,8 @@ export class Memory {
       const pb = this.playbook(agentId);
       if (pb.length) parts.push('## Proven patterns (from your past verified work)\n' + pb.map((p) => `- ${p.content}`).join('\n'));
     }
-    const recalled = await this.recall(query, { k, kinds: ['semantic', 'fact', 'episodic', 'reflection'] });
+    // Automatic injection uses a stricter floor than explicit search: weakly related memories distract small models.
+    const recalled = await this.recall(query, { k, kinds: ['semantic', 'fact', 'episodic', 'reflection'], minScore: 0.3 });
     if (recalled.length) parts.push('## Relevant memory\n' + recalled.map((r) => `- [${r.kind} ${r.id}] ${truncate(r.content, 500)}`).join('\n'));
     let text = parts.join('\n\n');
     if (text.length > maxChars) text = text.slice(0, maxChars) + '\n…';

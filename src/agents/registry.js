@@ -81,9 +81,13 @@ export class AgentRegistry {
 
   seed(knownTools = null) {
     for (const a of CORE_AGENTS) {
-      const existing = this.store.get('SELECT genome FROM agents WHERE id = ?', a.id);
-      if (existing) continue; // never clobber an evolved genome
-      this.upsert({ ...a, tools: knownTools ? a.tools.filter((t) => knownTools.has(t)) : a.tools, source: 'builtin' });
+      const tools = knownTools ? a.tools.filter((t) => knownTools.has(t)) : a.tools;
+      const existing = this.store.get('SELECT genome, tools, system_prompt, description, source FROM agents WHERE id = ?', a.id);
+      if (!existing) { this.upsert({ ...a, tools, source: 'builtin' }); continue; }
+      // Builtins pick up roster improvements (tools, prompt, description) but keep their evolved genome.
+      if (existing.source === 'builtin' && (existing.tools !== JSON.stringify(tools) || existing.system_prompt !== a.prompt || existing.description !== a.description)) {
+        this.upsert({ ...a, tools, genome: existing.genome, source: 'builtin' });
+      }
     }
   }
 

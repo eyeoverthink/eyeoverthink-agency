@@ -101,6 +101,12 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .node.s-done rect { stroke: var(--sage); } .node.s-running rect { stroke: var(--cloud); stroke-dasharray: 5 4; animation: dash 1s linear infinite; }
 .node.s-failed rect, .node.s-skipped rect { stroke: var(--coral); } .node.s-unverified rect { stroke: var(--gold); }
 @keyframes dash { to { stroke-dashoffset: -18; } }
+.streams { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin: 4px 0 14px; }
+.stream { border: 1px solid rgba(140, 180, 212, .45); border-radius: 12px; padding: 10px 12px; background: var(--bg); transition: opacity .6s; }
+.stream b { color: var(--cloud); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; margin-right: 8px; }
+.stream.fin { opacity: .5; border-color: var(--line); }
+.stream pre, .streamtext { margin: 6px 0 0; white-space: pre-wrap; font: 12px/1.5 var(--mono); color: var(--ink); max-height: 160px; overflow: auto; }
+.streamtext:empty { display: none; }
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 6px 0 12px; }
 .tabs button { background: none; color: var(--muted); border-radius: 8px 8px 0 0; padding: 8px 12px; }
 .tabs button.on { color: var(--ink); box-shadow: inset 0 -2px 0 var(--gold); }
@@ -194,10 +200,12 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 .toast.bad { border-color: var(--coral); }
 
 @media (max-width: 960px) {
-  #app { grid-template-columns: 1fr; }
-  .nav { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 10px 16px; gap: 8px; }
+  #app { grid-template-columns: minmax(0, 1fr); }
+  #app > * { min-width: 0; }
+  .nav { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 10px 16px; gap: 8px; min-width: 0; }
   .brand { padding: 0; }
-  nav { flex-direction: row; overflow-x: auto; flex: 1 1 100%; }
+  nav { flex-direction: row; overflow-x: auto; flex: 1 1 100%; min-width: 0; }
+  .vh { flex-direction: column; align-items: flex-start; }
   nav a { white-space: nowrap; }
   .navfoot { display: none; }
   main { padding: 18px 16px 60px; }

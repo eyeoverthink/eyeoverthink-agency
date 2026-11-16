@@ -10,11 +10,16 @@ export class Bus extends EventEmitter {
     this.max = 500;
   }
 
-  /** Publish a typed event. Every event also goes to the '*' channel. */
-  publish(type, payload = {}) {
+  /**
+   * Publish a typed event. Every event also goes to the '*' channel.
+   * Ephemeral events (e.g. token streams) are delivered live but not kept in the replay buffer.
+   */
+  publish(type, payload = {}, { ephemeral = false } = {}) {
     const event = { type, ts: Date.now(), ...payload };
-    this.recent.push(event);
-    if (this.recent.length > this.max) this.recent.splice(0, this.recent.length - this.max);
+    if (!ephemeral) {
+      this.recent.push(event);
+      if (this.recent.length > this.max) this.recent.splice(0, this.recent.length - this.max);
+    }
     this.emit(type, event);
     this.emit('*', event);
     return event;

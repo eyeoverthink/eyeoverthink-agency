@@ -21,6 +21,8 @@ const S = {
   trace: [] as any[],
   pending: 0,
   toast: "",
+  streams: new Map<string, { text: string; done: boolean; missionId?: string; at: number }>(),
+  askAgent: "" as string,
 };
 const edge = new EdgeWorker(() => { if (S.view === "edge") renderView(); });
 
@@ -83,6 +85,7 @@ function renderTokenGate() {
 
 // ---------------- live events ----------------
 function onEvent(e: AgencyEvent) {
+  if (e.type === "agent.stream") return onStream(e);
   S.events.push(e);
   if (S.events.length > 400) S.events.splice(0, S.events.length - 400);
   if (e.type === "approval.request" || e.type === "approval.decide") void refreshPending();
@@ -91,6 +94,45 @@ function onEvent(e: AgencyEvent) {
     appendLog(e);
   }
   if (S.view === "ledger" && e.type === "ledger") void renderView();
+}
+
+/** Make a streaming JSON turn readable: show the "thought" (and tool or final) as they arrive. */
+function readableStream(raw: string): string {
+  const grab = (key: string) => {
+    const m = raw.match(new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)("?)`));
+    return m ? m[1].replace(/\\n/g, "\n").replace(/\\"/g, '"') : "";
+  };
+  const thought = grab("thought"), tool = grab("tool"), final = grab("final");
+  if (!thought && !tool && !final) return raw.slice(-700);
+  return [thought && `💭 ${thought}`, tool && `🔧 ${tool}`, final && `✅ ${final.slice(-500)}`].filter(Boolean).join("\n");
+}
+
+let streamPaint: number | undefined;
+function onStream(e: AgencyEvent) {
+  const key = String(e.agentId);
+  const cur = S.streams.get(key) || { text: "", done: false, at: Date.now() };
+  if (e.reset) { cur.text = ""; cur.done = false; }
+  if (e.delta) cur.text = (cur.text + e.delta).slice(-4000);
+  if (e.done) cur.done = true;
+  cur.missionId = e.missionId;
+  cur.at = Date.now();
+  S.streams.set(key, cur);
+  // setTimeout, not requestAnimationFrame: rAF is paused in background tabs, which would freeze the panel.
+  if (streamPaint === undefined) streamPaint = window.setTimeout(() => { streamPaint = undefined; drawStreams(); }, 100);
+}
+
+function drawStreams() {
+  const box = $("#streams");
+  if (box && S.mission) {
+    const live = [...S.streams.entries()].filter(([, s]) => s.missionId === S.mission.id && (!s.done || Date.now() - s.at < 4000));
+    box.innerHTML = live.length ? live.map(([id, s]) => `<div class="stream ${s.done ? "fin" : ""}"><b>${esc(id)}</b>${s.done ? "" : '<span class="spin"></span>'}<pre>${esc(readableStream(s.text))}</pre></div>`).join("") : "";
+    box.classList.toggle("hide", live.length === 0);
+  }
+  const dlg = $("#dlgstream");
+  if (dlg && S.askAgent) {
+    const s = S.streams.get(S.askAgent);
+    dlg.textContent = s && !s.missionId ? readableStream(s.text) : "";
+  }
 }
 
 let refreshTimer: number | undefined;
@@ -257,6 +299,7 @@ function drawMissionDetail() {
     <h3 class="goal">${esc(m.goal)}</h3>
     ${m.plan?.summary ? `<p class="dim">${esc(m.plan.summary)}${m.plan.fallback ? " (fallback plan)" : ""}</p>` : ""}
     ${dagSvg(m.tasks)}
+    <div id="streams" class="streams hide"></div>
     <div class="tabs"><button data-t="deliv" class="on">Deliverable</button><button data-t="log">Live log</button><button data-t="trace">Trace (${S.trace.length})</button><button data-t="tasks">Tasks</button></div>
     <div class="tab" data-t="deliv">${deliverable}${r?.security ? `<p class="sec risk-${esc(r.security.risk)}">Sentinel risk: <b>${esc(r.security.risk)}</b>${(r.security.findings || []).length ? ` — ${esc(r.security.findings.join("; "))}` : ""}</p>` : ""}${r?.finalCritique ? `<p class="dim">Final critique ${r.finalCritique.score}${r.finalCritique.defects?.length ? `: ${esc(r.finalCritique.defects.join("; "))}` : ""}</p>` : ""}${extras}</div>
     <div class="tab hide" data-t="log"><div id="log" class="log"></div></div>
@@ -268,6 +311,7 @@ function drawMissionDetail() {
   }));
   $("#cancel")?.addEventListener("click", () => guard(() => api(`/api/missions/${m.id}/cancel`, { body: {} }), "Mission cancelled").then(() => scheduleMissionRefresh(m.id)));
   for (const e of S.events.filter((x) => x.missionId === m.id)) appendLog(e);
+  drawStreams();
 }
 
 // ===== Agents & DNA =====
@@ -304,7 +348,7 @@ async function viewAgents() {
           <button class="ghost small" data-export="${a.id}">Export organism</button>
         </div>
       </article>`).join("")}</section>
-    <dialog id="dlg"><form method="dialog"><h3 id="dlgt"></h3><textarea id="dlgin" rows="4"></textarea><div id="dlgout" class="md"></div><div class="row"><button id="dlgrun" class="primary" value="none">Run</button><button value="close" class="ghost">Close</button></div></form></dialog>`;
+    <dialog id="dlg"><form method="dialog"><h3 id="dlgt"></h3><textarea id="dlgin" rows="4"></textarea><pre id="dlgstream" class="streamtext"></pre><div id="dlgout" class="md"></div><div class="row"><button id="dlgrun" class="primary" value="none">Run</button><button value="close" class="ghost">Close</button></div></form></dialog>`;
 
   $("#fgo")!.addEventListener("click", async (e) => {
     const btn = e.currentTarget as HTMLButtonElement;
@@ -325,6 +369,8 @@ async function viewAgents() {
   const dlg = $<HTMLDialogElement>("#dlg")!;
   $$("[data-ask]").forEach((b) => b.addEventListener("click", () => {
     const id = b.dataset.ask!;
+    S.askAgent = id;
+    S.streams.delete(id);
     $("#dlgt")!.textContent = `Ask ${id}`;
     ($<HTMLTextAreaElement>("#dlgin")!).value = "";
     $("#dlgout")!.innerHTML = "";

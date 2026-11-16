@@ -86,6 +86,36 @@ test('agent runtime: tool call -> sealed result -> final; JSON repair; narration
   } finally { await g.cleanup(); }
 });
 
+test('agent runtime: placeholder guard sends back answers with unresolved {{templates}}', async () => {
+  const { agency, cleanup } = await makeAgency((req) => {
+    const u = lastUser(req);
+    if (/placeholder/.test(u)) return { thought: 'fixed', final: 'The current year is 2026.', confidence: 0.9 };
+    if (/Tool result \(time_now/.test(u)) return { thought: 'answer', final: 'The current year is {{ time_now.iso | substr:0,4 }}.', confidence: 0.9 };
+    return { thought: 'check clock', tool: 'time_now', args: {} };
+  });
+  try {
+    const t = agency.agents.get('tycho');
+    const r = await agency.runtime.run({ ...t, traits: { ...t.traits, reflection: 0 } }, 'What year is it?');
+    assert.equal(r.final, 'The current year is 2026.');
+    assert.ok(r.steps.some((s) => s.thought === 'placeholder guard triggered'));
+  } finally { await cleanup(); }
+});
+
+test('agent runtime: echo guard rejects a final that just repeats the tool input', async () => {
+  const { agency, cleanup } = await makeAgency((req) => {
+    const u = lastUser(req);
+    if (/repeats the input/.test(u)) return { thought: 'fixed', final: '371', confidence: 0.9 };
+    if (/Tool result \(calc/.test(u)) return { thought: 'done', final: '17 * 23 + sqrt(144) - pow(2, 5)', confidence: 0.9 };
+    return { thought: 'compute', tool: 'calc', args: { expression: '17 * 23 + sqrt(144) - pow(2, 5)' } };
+  });
+  try {
+    const t = agency.agents.get('tycho');
+    const r = await agency.runtime.run({ ...t, traits: { ...t.traits, reflection: 0 } }, 'Compute it');
+    assert.equal(r.final, '371');
+    assert.ok(r.steps.some((s) => s.thought === 'echo guard triggered'));
+  } finally { await cleanup(); }
+});
+
 test('governance laws and playbook are injected into every agent prompt', async () => {
   let seen = '';
   const { agency, cleanup } = await makeAgency((req) => { seen = systemOf(req); return { thought: 'x', final: 'ok', confidence: 0.9 }; });

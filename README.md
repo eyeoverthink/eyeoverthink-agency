@@ -11,7 +11,8 @@ goal ─► Genesis plans a task graph ─► specialists run in parallel ─►
 
 - **Zero runtime dependencies** for the core (Node ≥ 22.13: `node:sqlite`, `node:crypto` Ed25519, `node:http`).
 - **Free and offline by default.** Ollama on the local GPU; cloud is optional fallback only and never required.
-- **27 automated tests** (deterministic, no GPU needed) + a deterministic benchmark suite + an in-app self-test.
+- **32 automated tests** (deterministic, no GPU needed) + a deterministic benchmark suite with confidence intervals + an in-app self-test.
+- **Measured on a laptop GPU:** 21/24 = **0.875 (95% CI 0.69–0.96)** on the core benchmark with local 7–8B models ([Phase 2](docs/phases/PHASE-2.md)).
 - Apache-2.0.
 
 | Mission Control: live task graph, critic scores, deliverable | Agents & DNA: genomes, traits, fitness |
@@ -145,6 +146,10 @@ One loop for every agent. Each turn, the model returns exactly one JSON object: 
 - **Genome-driven behavior**: temperature, top-p, step budget, reflection rounds, memory depth and temperament come from the agent's DNA.
 - **Harness laws**: JSON repair prompt, budget band warning at 25% remaining, deterministic compaction (old steps replaced by a harness-written checkpoint; last two exchanges kept verbatim), forced final answer at budget exhaustion, self-reflection rounds.
 - **Narration guard**: a final answer that claims a tool ran, when no tool ran, is sent back once.
+- **Placeholder guard**: a final answer with unresolved `{{templates}}` or `<source>` placeholders is sent back once.
+- **Echo guard**: a final answer that just repeats the argument it sent to a tool is sent back once.
+- **Reflection preservation**: a self-review that finds no issues keeps the draft; a revision that drops content is rejected.
+- **Live token streaming**: every model turn streams to the dashboard ("Live thinking") as ephemeral bus events.
 - **Approval parking**: an approval-class tool call parks the agent until a human decides; approval returns a signed writ and the call is re-issued with it.
 - **Delegation** to other agents, depth-limited to 2.
 - Object-valued finals are rendered as Markdown, never raw JSON.
@@ -385,10 +390,13 @@ Example `agency.config.json`:
 ## Testing, benchmarks, self-test
 
 ```bash
-npm test                 # 27 deterministic tests (scripted model; no GPU, no network)
+npm test                                  # 32 deterministic tests (scripted model; no GPU, no network)
 node bin/agency.js selftest
-node bin/agency.js bench # deterministic benchmark on your real local models
+node bin/agency.js bench                  # deterministic benchmark on your real local models
+node bin/agency.js bench core --repeat 3  # per-item pass rates with Wilson 95% intervals
 ```
+
+Single benchmark runs on small local models are noisy: the items that fail change from run to run. Compare configurations with `--repeat` and its confidence intervals, not single scores.
 
 The tests cover DNA/codon/genome/plasmid codecs (including FRAYMUS byte-compatibility), Ed25519 negative controls, ledger tamper detection and Merkle proofs, writ binding and replay, tool allowlists and quarantine, the agent loop (JSON repair, narration guard), governance injection, a full mission with critic-driven self-healing, **resume after a simulated crash**, conditional workflows and deploy keys, mesh signature/replay/trust rules, organism transfer between two agencies, snapshot restore idempotence, and the HTTP API.
 
@@ -417,7 +425,7 @@ Hybrid inference is part of how the product works: private tasks run only on loc
 
 ## Build log
 
-These are the steps taken to build this repository, in order.
+These are the steps taken to build this repository, in order. Per-phase detail is in [docs/phases](docs/phases/README.md). Contest materials are in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) and [docs/DEVPOST.md](docs/DEVPOST.md).
 
 1. **Survey.** Inventoried the FRAYMUS Skill Lab (~21k files), Chandra-FRAYMUS, FRAYMUS-Logic-Chain, Fraymus-OS-One, master-system, the claude-brain continuity notes, fraynix-dreamer-120b, Agent Factory Lite and the AgentForge diagnostic lab. Each was analysed for working code versus documentation-only claims.
 2. **Model inventory.** Found 44 local models. Diagnosed that the running Ollama served none because it lacked `OLLAMA_MODELS`, and that `OLLAMA_HOST=0.0.0.0` is a bind address rather than a client URL. Both are now handled in code.
@@ -430,7 +438,8 @@ These are the steps taken to build this repository, in order.
 9. **Orchestration.** Missions (plan, DAG, critic, retry, replan, synthesis, review, archive, resume), Logic Chain, Consensus with Kuramoto clustering.
 10. **Workflows, Dreamer, Bench, Evolution, Mesh, MCP, Continuity, Autonomy.**
 11. **Interfaces.** HTTP API with SSE, CLI, and the dashboard with the Firebase AI Logic edge worker.
-12. **Verification.** 27 automated tests; self-test; real missions on local models; dashboard verified in a browser. Fixes found this way: the calculator rejected model-style syntax (`Math.sqrt`, `**`); object finals rendered as raw JSON; placeholder citations; the `OLLAMA_HOST` bind address.
+12. **Verification (Phase 1).** 27 automated tests; self-test; real missions on local models; dashboard verified in a browser.
+13. **Proof (Phase 2).** Ran the benchmark on real models and traced each failure. Added four harness guards and repeated trials with confidence intervals. Proved the mesh over HTTP and MCP over stdio, and fixed a Windows spawn bug in the MCP client. Added live token streaming and fixed mobile layout. Wrote the contest demo script and Devpost text. Details: [Phase 2](docs/phases/PHASE-2.md). Fixes found this way: the calculator rejected model-style syntax (`Math.sqrt`, `**`); object finals rendered as raw JSON; placeholder citations; the `OLLAMA_HOST` bind address.
 
 ---
 
@@ -438,18 +447,18 @@ These are the steps taken to build this repository, in order.
 
 **Working and tested:** everything in [Subsystems](#subsystems), except the items below.
 
+**Proven in Phase 2:** the benchmark on real models (with confidence intervals); the mesh between two live HTTP servers, including pairing, trust, a signed task request and its signed result; and the MCP client against the agency's own server running as a real child process.
+
 **Implemented but not exercised end to end in this environment:**
 - **Firebase AI Logic edge execution.** The code type-checks against `firebase@13.3.0` and builds, but running it needs your Firebase project config, an App Check debug token and Chrome with Gemini Nano.
-- **Mesh between two machines.** Envelope verification, replay, tamper and trust rules are covered by in-process tests; HTTP pairing over Tailscale needs two hosts.
-- **MCP client** against external servers. The MCP server side is implemented over stdio.
-- **Evolution and the benchmark on real models.** Both are implemented and wired, but take many GPU minutes per run.
+- **Mesh across two physical machines over Tailscale.** The same code is proven between two local servers.
+- **Evolution on real models.** It is implemented and covered by tests, but takes many GPU minutes per generation.
 
 **Limits to know:**
 - Small local models sometimes need the JSON-repair turn, and their critic verdicts are noisier than large models'. The router lets you put a stronger model on the `critic` role.
 - The Logic Chain review vote needs at least two distinct models to vote. With one model it reports `insufficientVoters`.
 
 **Next:**
-- Streaming tokens to the dashboard.
 - Multi-turn edge jobs, once on-device chat is supported.
 - A workflow canvas editor; the JSON editor exists today.
 - Per-agent model pins in the UI.
