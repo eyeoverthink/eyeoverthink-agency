@@ -88,7 +88,11 @@ export function createServer(agency) {
   add('POST', '/api/agents/:id/enabled', ({ params, body }) => a.agents.setEnabled(params.id, Boolean(body.enabled)));
   add('DELETE', '/api/agents/:id', ({ params }) => ({ removed: a.agents.remove(params.id) }));
   add('POST', '/api/agents/:id/ask', async ({ params, body }) => a.runtime.run(params.id, need(body.task, 'task required'), { privacy: body.privacy }));
-  add('POST', '/api/agents/:id/evolve', async ({ params, body }) => a.evolution.evolve(params.id, { population: Math.min(8, Math.max(2, body.population || 4)) }));
+  // Evolution runs for minutes on a local GPU, so it is a background job; progress arrives as evolution.* events.
+  add('POST', '/api/agents/:id/evolve', ({ params, body }) => a.evolution.start(params.id, {
+    population: body.population || 4, repeats: body.repeats || 2, generations: body.generations || 1, confirm: body.confirm !== false }));
+  add('GET', '/api/evolution/jobs/:id', ({ params }) => found(a.evolution.job(params.id), 'evolution job'));
+  add('POST', '/api/evolution/jobs/:id/cancel', ({ params }) => ({ cancelled: a.evolution.cancel(params.id) }));
   add('GET', '/api/agents/:id/evolution', ({ params }) => a.evolution.history(params.id));
   add('GET', '/api/agents/:id/organism', ({ params }) => a.agents.exportOrganism(params.id, a.memory.playbook(params.id, 10).map((p) => p.content)));
   add('POST', '/api/organisms/import', ({ body }) => a.agents.importOrganism(need(body.plasmid, 'plasmid required')));

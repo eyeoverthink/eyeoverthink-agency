@@ -112,6 +112,8 @@ const MIGRATIONS = [
     INSERT INTO memories_fts(rowid, content, tags) VALUES (new.rowid, new.content, new.tags);
   END;
   `,
+  // v3 — evolution evidence: per-candidate pass rate, interval, seeds and confirmation round
+  `ALTER TABLE evolution ADD COLUMN detail TEXT NOT NULL DEFAULT '{}';`,
 ];
 
 export class Store {

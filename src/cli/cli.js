@@ -9,6 +9,7 @@ import { truncate } from '../core/util.js';
 const HELP = `EyeOverThink Agency — sovereign multi-agent platform
 
 Usage: agency <command> [args] [--flags]
+Global flags: --home <dir> (data directory)  --ollama <url> (Ollama server)
 
   serve [--port N]                 Start API + dashboard (resumes interrupted missions, runs dream/autonomy schedulers)
   status                           Agency status and counts
@@ -22,7 +23,7 @@ Usage: agency <command> [args] [--flags]
   agents forge "<description>"     Design and register a new agent
   agents roster "<business>" "<goal>" [--count 4] [--commit]
   agents import <dir> [dir...]     Import FRAYMUS/Chandra *.md manifests
-  agents evolve <id> [--population 4]
+  agents evolve <id> [--population 4] [--repeats 2] [--generations 1] [--no-confirm]
   agents export <id> <file>        Export an agent as a signed DNA plasmid (organism)
   agents adopt <file>              Import an organism plasmid
 
@@ -76,19 +77,20 @@ export async function main(argv) {
   const { pos, flags } = parse(argv);
   const cmd = pos[0];
   if (!cmd || cmd === 'help' || flags.help) return out(HELP);
+  // --home / --ollama / --port apply to every command (they used to reach only `serve`).
+  const overrides = {};
+  if (flags.port) overrides.port = Number(flags.port);
+  if (flags.home) overrides.home = String(flags.home);
+  if (flags.ollama) overrides.ollama = { url: String(flags.ollama) };
 
   if (cmd === 'mcp') {
-    const agency = new Agency();
+    const agency = new Agency(overrides);
     await agency.boot({ schedulers: false, resume: false });
     new McpServer(agency).start();
     return;
   }
 
   if (cmd === 'serve') {
-    const overrides = {};
-    if (flags.port) overrides.port = Number(flags.port);
-    if (flags.home) overrides.home = String(flags.home);
-    if (flags.ollama) overrides.ollama = { url: String(flags.ollama) };
     const agency = new Agency(overrides);
     await agency.boot();
     const server = createServer(agency);
@@ -106,7 +108,7 @@ export async function main(argv) {
     return;
   }
 
-  const agency = new Agency();
+  const agency = new Agency(overrides);
   await agency.boot({ schedulers: false, resume: false });
   try {
     switch (cmd) {
@@ -151,7 +153,11 @@ export async function main(argv) {
         } else if (sub === 'forge') out(await agency.forge.create(pos.slice(2).join(' ')));
         else if (sub === 'roster') out(await agency.forge.roster({ business: pos[2], goal: pos[3], count: Number(flags.count || 4), commit: Boolean(flags.commit) }));
         else if (sub === 'import') out(agency.agents.importManifests(pos.slice(2), known));
-        else if (sub === 'evolve') out(await agency.evolution.evolve(pos[2], { population: Number(flags.population || 4) }));
+        else if (sub === 'evolve') out(await agency.evolution.run(pos[2], {
+          population: Number(flags.population || 4), repeats: Number(flags.repeats || 2), generations: Number(flags.generations || 1), confirm: !flags['no-confirm'],
+          onProgress: (p) => { if (p.done === p.total || p.done % 3 === 0) process.stderr.write(`gen ${p.generation} ${p.phase} ${p.done}/${p.total}
+`); },
+        }));
         else if (sub === 'export') { const o = agency.agents.exportOrganism(pos[2], agency.memory.playbook(pos[2], 10).map((p) => p.content)); fs.writeFileSync(pos[3], JSON.stringify(o.plasmid)); out(`wrote ${pos[3]} (strand ${o.plasmid.strand.length} nt, gc ${o.plasmid.gc})`); }
         else if (sub === 'adopt') out(agency.agents.importOrganism(JSON.parse(fs.readFileSync(pos[2], 'utf8'))).agent);
         else throw new Error(`unknown agents subcommand ${sub}`);

@@ -89,11 +89,11 @@ export class OllamaProvider {
     return { url: this.url, served: [...served], onDisk: disk, notServed: missing, notes };
   }
 
-  async chat({ model, messages, json = false, temperature = 0.4, topP, maxTokens = 1024, signal, onToken, numCtx }) {
+  async chat({ model, messages, json = false, temperature = 0.4, topP, maxTokens = 1024, signal, onToken, numCtx, seed }) {
     const t0 = Date.now();
     const body = {
       model, messages, stream: true, keep_alive: this.keepAlive,
-      options: { temperature, num_ctx: numCtx || this.numCtx, num_predict: maxTokens, ...(topP ? { top_p: topP } : {}) },
+      options: { temperature, num_ctx: numCtx || this.numCtx, num_predict: maxTokens, ...(topP ? { top_p: topP } : {}), ...(Number.isInteger(seed) ? { seed } : {}) },
     };
     if (json) body.format = 'json';
     const ctrl = new AbortController();
@@ -169,9 +169,9 @@ export class OpenAICompatProvider {
   async listModels() { return this.refresh(); }
   has(model) { return this.models.includes(model); }
 
-  async chat({ model, messages, json = false, temperature = 0.4, topP, maxTokens = 1024, signal }) {
+  async chat({ model, messages, json = false, temperature = 0.4, topP, maxTokens = 1024, signal, seed }) {
     const t0 = Date.now();
-    const body = { model, messages, temperature, max_tokens: maxTokens, ...(topP ? { top_p: topP } : {}) };
+    const body = { model, messages, temperature, max_tokens: maxTokens, ...(topP ? { top_p: topP } : {}), ...(Number.isInteger(seed) ? { seed } : {}) };
     if (json) body.response_format = { type: 'json_object' };
     const data = await httpJson(`${this.url}/chat/completions`, { method: 'POST', body, headers: this.#headers(), timeoutMs: 180000, signal });
     const text = data.choices?.[0]?.message?.content ?? '';

@@ -1,0 +1,130 @@
+{
+  "agentId": "tycho",
+  "generations": [
+    {
+      "agentId": "tycho",
+      "generation": 1,
+      "promoted": true,
+      "reason": "confirmed on fresh seeds (0.97 vs 0.968); pooled 0.969 > 0.883",
+      "items": [
+        "math-exact",
+        "syllogism",
+        "tool-time"
+      ],
+      "repeats": 2,
+      "seeds": [
+        1001,
+        1002
+      ],
+      "incumbent": 0.798,
+      "best": 0.968,
+      "fitness": 0.969,
+      "challengerChanges": [
+        {
+          "trait": "exploration",
+          "from": 0.5,
+          "to": 0.25
+        },
+        {
+          "trait": "verbosity",
+          "from": 0.4,
+          "to": 0.392
+        },
+        {
+          "trait": "caution",
+          "from": 0.5,
+          "to": 0.563
+        }
+      ],
+      "confirmation": {
+        "seeds": [
+          1501,
+          1502
+        ],
+        "incumbent": {
+          "fitness": 0.968,
+          "passRate": 1
+        },
+        "challenger": {
+          "fitness": 0.97,
+          "passRate": 1
+        },
+        "pooled": {
+          "incumbent": 0.883,
+          "challenger": 0.969,
+          "incumbentCi95": [
+            0.646,
+            0.985
+          ],
+          "challengerCi95": [
+            0.757,
+            1
+          ]
+        },
+        "paired": {
+          "wins": 1,
+          "losses": 0,
+          "ties": 11
+        }
+      },
+      "traits": {
+        "temperature": 0.2,
+        "topP": 0.9,
+        "maxSteps": 8,
+        "reflection": 1,
+        "criticStrictness": 0.6,
+        "exploration": 0.25,
+        "verbosity": 0.392,
+        "memoryDepth": 5,
+        "curiosity": 0.5,
+        "caution": 0.563,
+        "rigor": 0.9,
+        "creativity": 0.4
+      },
+      "candidates": [
+        {
+          "incumbent": true,
+          "fitness": 0.798,
+          "passRate": 0.833,
+          "ci95": [
+            0.436,
+            0.97
+          ],
+          "distance": 0
+        },
+        {
+          "incumbent": false,
+          "fitness": 0.968,
+          "passRate": 1,
+          "ci95": [
+            0.61,
+            1
+          ],
+          "distance": 0.042
+        },
+        {
+          "incumbent": false,
+          "fitness": 0.628,
+          "passRate": 0.667,
+          "ci95": [
+            0.3,
+            0.903
+          ],
+          "distance": 0.097
+        },
+        {
+          "incumbent": false,
+          "fitness": 0.967,
+          "passRate": 1,
+          "ci95": [
+            0.61,
+            1
+          ],
+          "distance": 0.069
+        }
+      ]
+    }
+  ],
+  "promotions": 1,
+  "finalFitness": 0.969
+}

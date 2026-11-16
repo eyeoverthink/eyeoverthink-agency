@@ -41,13 +41,13 @@ export class Bench {
   constructor({ store, runtime, agents, router, bus }) { Object.assign(this, { store, runtime, agents, router, bus }); }
 
   /** Run one benchmark item, optionally with an agent override (used by evolution). */
-  async runItem(item, { agentOverride = null, signal } = {}) {
+  async runItem(item, { agentOverride = null, signal, seed } = {}) {
     const base = agentOverride || this.agents.get(item.agent);
     if (!base) return { id: item.id, pass: false, error: `agent ${item.agent} missing`, ms: 0 };
     const agent = { ...base, tools: item.noTools ? [] : [...new Set([...base.tools, ...(item.tools || [])])] };
     const t0 = Date.now();
     try {
-      const r = await this.runtime.run(agent, item.task, { signal });
+      const r = await this.runtime.run(agent, item.task, { signal, seed });
       const pass = Boolean(item.check(String(r.final), r));
       return { id: item.id, category: item.category, agent: base.id, pass, ms: Date.now() - t0, steps: r.steps.length, model: r.model, answer: String(r.final).slice(0, 600) };
     } catch (e) {

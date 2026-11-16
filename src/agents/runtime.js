@@ -26,7 +26,9 @@ export function finalToText(value, depth = 0) {
 
 function renderTraits(t) {
   const lv = (x) => (x >= 0.75 ? 'high' : x <= 0.3 ? 'low' : 'moderate');
-  return `Temperament (from your genome): rigor ${lv(t.rigor)}, caution ${lv(t.caution)}, curiosity ${lv(t.curiosity)}, creativity ${lv(t.creativity)}, verbosity ${lv(t.verbosity)}.`;
+  return `Temperament (from your genome): rigor ${lv(t.rigor)}, caution ${lv(t.caution)}, curiosity ${lv(t.curiosity)}, creativity ${lv(t.creativity)}, verbosity ${lv(t.verbosity)}.` +
+    (t.exploration >= 0.7 ? ' Gather evidence with your tools before committing to an answer.'
+      : t.exploration <= 0.3 ? ' When the task already contains what you need, answer directly instead of calling tools.' : '');
 }
 
 export class AgentRuntime {
@@ -108,6 +110,8 @@ export class AgentRuntime {
       return this.router.chat({
         role: agent.modelRole, messages: msgs, json: true, temperature: traits.temperature, topP: traits.topP,
         maxTokens: 1400, privacy: opts.privacy || 'normal', span, signal: opts.signal,
+        // Fixed seeds make candidate comparisons paired (evolution, benchmarks); each turn gets its own.
+        ...(Number.isInteger(opts.seed) ? { seed: opts.seed * 100 + turn } : {}),
         onToken: (t) => { pending += t; }, ...extra,
       });
     };

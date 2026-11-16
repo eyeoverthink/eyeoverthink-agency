@@ -1,6 +1,6 @@
 # Phase 2: Proof
 
-Previous: [Phase 1](PHASE-1.md) · [Index](README.md)
+Previous: [Phase 1](PHASE-1.md) · Next: [Phase 3](PHASE-3.md) · [Index](README.md)
 
 ## Summary
 Phase 2 turned "implemented" into "proven". It added the following:

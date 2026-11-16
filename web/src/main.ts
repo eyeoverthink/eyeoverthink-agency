@@ -23,6 +23,7 @@ const S = {
   toast: "",
   streams: new Map<string, { text: string; done: boolean; missionId?: string; at: number }>(),
   askAgent: "" as string,
+  evoJob: "" as string,
 };
 const edge = new EdgeWorker(() => { if (S.view === "edge") renderView(); });
 
@@ -86,6 +87,8 @@ function renderTokenGate() {
 // ---------------- live events ----------------
 function onEvent(e: AgencyEvent) {
   if (e.type === "agent.stream") return onStream(e);
+  if (e.type === "evolution.progress") return onEvoProgress(e);
+  if (e.type === "evolution.done" && e.jobId === S.evoJob) void showEvoResult(e.jobId);
   S.events.push(e);
   if (S.events.length > 400) S.events.splice(0, S.events.length - 400);
   if (e.type === "approval.request" || e.type === "approval.decide") void refreshPending();
@@ -321,6 +324,34 @@ function genomeStrip(g: string) {
 }
 const TRAITS = ["temperature", "rigor", "caution", "curiosity", "creativity", "exploration"];
 
+function onEvoProgress(e: AgencyEvent) {
+  if (e.jobId !== S.evoJob) return;
+  const bar = $("#evobar") as HTMLElement | null, txt = $("#evotxt");
+  if (bar) bar.style.width = `${Math.round((100 * e.done) / Math.max(1, e.total))}%`;
+  if (txt) txt.textContent = `gen ${e.generation} · ${e.phase === "confirm" ? "confirming on fresh seeds" : "screening"} · ${e.done}/${e.total} runs`;
+}
+
+async function showEvoResult(jobId: string) {
+  const job = await guard(() => api<any>(`/api/evolution/jobs/${jobId}`));
+  const out = $("#evoout");
+  if (!job || !out) return;
+  S.evoJob = "";
+  $("#evocancel")?.remove();
+  if (job.error) { out.innerHTML = `<p class="err">${esc(job.status)}: ${esc(job.error)}</p>`; return; }
+  const ci = (c: any) => (c ? `[${c[0]}, ${c[1]}]` : "");
+  out.innerHTML = job.result.generations.map((g: any) => `
+    <h3>Generation ${g.generation}: ${g.promoted ? "<b class=\"ok\">PROMOTED</b>" : "kept incumbent"}</h3>
+    <p>${esc(g.reason)}</p>
+    <table class="evotbl"><tr><th>candidate</th><th>fitness</th><th>pass rate</th><th>95% CI</th><th>distance</th></tr>
+      ${g.candidates.map((c: any, i: number) => `<tr><td>${c.incumbent ? "incumbent" : `mutant ${i}`}</td><td>${c.fitness}</td><td>${c.passRate}</td><td class="mono">${ci(c.ci95)}</td><td>${c.distance}</td></tr>`).join("")}</table>
+    ${g.challengerChanges.length ? `<p class="dim">Best challenger's changed genes: ${g.challengerChanges.map((d: any) => `${esc(d.trait)} ${d.from} → ${d.to}`).join(", ")}</p>` : ""}
+    ${g.confirmation ? `<p class="dim">Fresh seeds: challenger ${g.confirmation.challenger.fitness} vs incumbent ${g.confirmation.incumbent.fitness} · paired wins ${g.confirmation.paired.wins}, losses ${g.confirmation.paired.losses}, ties ${g.confirmation.paired.ties}</p>` : ""}`).join("");
+  const txt = $("#evotxt");
+  if (txt) txt.textContent = `done · ${job.result.promotions} promotion(s) · fitness ${job.result.finalFitness}`;
+  const bar = $("#evobar") as HTMLElement | null;
+  if (bar) bar.style.width = "100%";
+}
+
 async function viewAgents() {
   const agents = (await guard(() => api<any[]>("/api/agents"))) || [];
   $("#view")!.innerHTML = `
@@ -334,6 +365,7 @@ async function viewAgents() {
         <div id="rout"></div>
       </details>
     </section>
+    <section class="panel evo" id="evo"${S.evoJob ? "" : " hidden"}></section>
     <section class="cards">${agents.map((a) => `
       <article class="agent">
         <header><div><b>${esc(a.name)}</b><small>${esc(a.role)}</small></div><span class="mono dim">${esc(a.id)}</span></header>
@@ -385,10 +417,15 @@ async function viewAgents() {
     };
   }));
   $$("[data-evolve]").forEach((b) => b.addEventListener("click", async () => {
-    busy(b as HTMLButtonElement, true, "Evolving…");
-    const r = await guard(() => api(`/api/agents/${b.dataset.evolve}/evolve`, { body: { population: 4 } }));
-    busy(b as HTMLButtonElement, false);
-    if (r) { toast(`gen ${r.generation}: best ${r.best} vs incumbent ${r.incumbent} — ${r.promoted ? "PROMOTED" : "kept incumbent"}`); void viewAgents(); }
+    const job = await guard(() => api<any>(`/api/agents/${b.dataset.evolve}/evolve`, { body: { population: 4, repeats: 2 } }));
+    if (!job) return;
+    S.evoJob = job.id;
+    const box = $("#evo")!;
+    box.hidden = false;
+    box.innerHTML = `<h2>Evolving ${esc(job.agentId)}</h2><p class="dim">Every candidate genome runs the same benchmark items with the same seeds. A screening winner must hold up on fresh seeds before it is promoted.</p>
+      <div class="row"><div class="progress"><span id="evobar" style="width:0%"></span></div><span id="evotxt" class="mono dim">starting…</span><button class="ghost small" id="evocancel">Cancel</button></div><div id="evoout"></div>`;
+    $("#evocancel")!.addEventListener("click", () => void guard(() => api(`/api/evolution/jobs/${job.id}/cancel`, { body: {} })));
+    box.scrollIntoView({ behavior: "smooth", block: "start" });
   }));
   $$("[data-export]").forEach((b) => b.addEventListener("click", async () => {
     const r = await guard(() => api(`/api/agents/${b.dataset.export}/organism`));

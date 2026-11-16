@@ -195,7 +195,7 @@ Alternative **modes**:
 
 ### 8. Evolution and benchmarks (`src/evolve/`, `src/telemetry/bench.js`)
 - **Benchmark** items have deterministic checkers (no LLM judge): exact math, verified code (must actually call `code_run`), tool use, DNA encoding (`Hi` → `CAGACGGC`), injection resistance, JSON shape, honesty about unknowable facts.
-- **Evolution**: population = incumbent + mutants + crossovers with the fittest other agent; fitness = benchmark pass rate − step-cost penalty; a new genome is promoted **only if it beats the incumbent's measured fitness**.
+- **Evolution**: population = incumbent + mutants + crossovers with the fittest other agent; fitness = benchmark pass rate − step-cost penalty. Every candidate runs the same items on the **same seeds** (paired comparison). A screening winner must then hold up on **fresh seeds** before it is promoted, which guards against promoting luck (the "winner's curse"). Crashed runs abort the generation instead of being scored. Evolution runs as a background job with live progress (`POST /api/agents/:id/evolve`, `GET /api/evolution/jobs/:id`). See [Phase 3](docs/phases/PHASE-3.md) for a real-model run.
 
 ### 9. Dreamer (`src/dream/dreamer.js`)
 While no mission runs: cluster recent episodes, distill lessons into semantic memory and speculative ideas into reflections, decay unused low-importance memories (archived, never deleted), decay/prune graph edges, re-embed stale vectors, and write a signed journal entry (`data/dreams/NNNN-dream-<kind>.md` + `.sig`, the same sidecar format as the FRAYMUS dream corpus).
@@ -328,7 +328,7 @@ All `/api/*` routes require `Authorization: Bearer <data/api-token>` (SSE accept
 | Area | Routes |
 |---|---|
 | Status | `GET /api/status`, `GET /api/models`, `POST /api/models/refresh`, `GET /api/tools`, `GET /api/config`, `GET /api/events` (SSE) |
-| Agents | `GET/POST /api/agents`, `GET/DELETE /api/agents/:id`, `POST /api/agents/:id/enabled`, `POST /api/agents/:id/ask`, `POST /api/agents/:id/evolve`, `GET /api/agents/:id/evolution`, `GET /api/agents/:id/organism`, `POST /api/organisms/import`, `POST /api/agents/import-manifests`, `POST /api/forge`, `POST /api/forge/roster` |
+| Agents | `GET/POST /api/agents`, `GET/DELETE /api/agents/:id`, `POST /api/agents/:id/enabled`, `POST /api/agents/:id/ask`, `POST /api/agents/:id/evolve` (starts a background job), `GET /api/evolution/jobs/:id`, `POST /api/evolution/jobs/:id/cancel`, `GET /api/agents/:id/evolution`, `GET /api/agents/:id/organism`, `POST /api/organisms/import`, `POST /api/agents/import-manifests`, `POST /api/forge`, `POST /api/forge/roster` |
 | Missions | `GET/POST /api/missions`, `GET /api/missions/:id`, `POST /api/missions/:id/cancel`, `GET /api/missions/:id/trace` |
 | Approvals | `GET /api/approvals?status=`, `POST /api/approvals/:id {approve}` |
 | Memory | `GET/POST /api/memory`, `GET /api/memory/search?q=`, `GET /api/memory/graph`, `GET /api/memory/stats`, `GET /api/memory/:id/verify`, `POST /api/memory/:id/archive` |
@@ -449,10 +449,11 @@ These are the steps taken to build this repository, in order. Per-phase detail i
 
 **Proven in Phase 2:** the benchmark on real models (with confidence intervals); the mesh between two live HTTP servers, including pairing, trust, a signed task request and its signed result; and the MCP client against the agency's own server running as a real child process.
 
+**Proven in Phase 3:** evolution on real models. Tycho's genome was promoted after a fresh-seed confirmation round, and a held-out benchmark of its items went from 7/9 to 9/9. The confidence intervals still overlap ([details](docs/phases/PHASE-3.md)).
+
 **Implemented but not exercised end to end in this environment:**
 - **Firebase AI Logic edge execution.** The code type-checks against `firebase@13.3.0` and builds, but running it needs your Firebase project config, an App Check debug token and Chrome with Gemini Nano.
 - **Mesh across two physical machines over Tailscale.** The same code is proven between two local servers.
-- **Evolution on real models.** It is implemented and covered by tests, but takes many GPU minutes per generation.
 
 **Limits to know:**
 - Small local models sometimes need the JSON-repair turn, and their critic verdicts are noisier than large models'. The router lets you put a stronger model on the `critic` role.
