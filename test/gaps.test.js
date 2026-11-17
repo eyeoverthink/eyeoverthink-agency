@@ -83,7 +83,7 @@ test('three corroborated refusals become a new skill, checked against their answ
     await refuse(A);
     const gaps = cz.gaps('compound_discount');
     assert.equal(gaps.length, 3);
-    assert.ok(gaps.every((g) => g.markers.includes('tax')), 'markers name what the parent skill does not cover');
+    assert.ok(gaps.every((g) => g.markers.includes('tax after % #2')), 'markers name what the parent skill does not cover, and where');
     const sk = cz.list('active').find((s) => s.name === 'discount_then_tax');
     assert.ok(sk, 'admitted automatically once the family had 3 corroborated gaps');
     assert.equal(sk.verification.answerKey, '3/3');

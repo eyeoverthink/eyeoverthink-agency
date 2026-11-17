@@ -127,7 +127,18 @@ export function contested(pos, task) {
 
 /** The words that say what a task's numbers MEAN: role words after role-marked numbers, plus its question words. */
 export function wordingOf(task, kinds) {
-  return [...new Set([...numberTokens(task).filter((t) => kinds.includes(t.kind)).flatMap((t) => t.ctx), ...questionWords(task)])];
+  // Role words carry their position: which occurrence of which number kind they follow. Measured in Phase 14: a
+  // tax-then-split skill had verified "off" (after the 1st %) and "sales tax added" (after the 2nd), so a discount task
+  // ("off" after BOTH) looked fully verified and was routed to it with zero calls. "off" after the 2nd % is new wording.
+  // Occurrences are counted in the task's fullest line: mission prompts restate the goal on other lines (Phase 11).
+  const SIGN = { percent: '%', currency: '$', plain: 'number' };
+  const seen = {};
+  const fullest = String(task).split(/\n+/).reduce((a, b) => (numberTokens(b).length > numberTokens(a).length ? b : a), '');
+  const roles = numberTokens(fullest).filter((t) => kinds.includes(t.kind)).flatMap((t) => {
+    seen[t.kind] = (seen[t.kind] || 0) + 1;
+    return t.ctx.map((w) => `${w} after ${SIGN[t.kind]} #${seen[t.kind]}`);
+  });
+  return [...new Set([...roles, ...questionWords(task)])];
 }
 
 /**

@@ -252,7 +252,7 @@ test('verified wording: unseen wording is not routed; the agent loop answers and
     };
     const r = await A.agency.runtime.run('tycho', TAXED);
     assert.equal(r.skill, undefined);
-    assert.match(A.agency.ledger.list({ limit: 1, kind: 'skill.route_miss' })[0].data.reason, /unverified wording \("tax"\)/);
+    assert.match(A.agency.ledger.list({ limit: 1, kind: 'skill.route_miss' })[0].data.reason, /unverified wording \("tax after % #2"\)/);
     const [sh] = A.agency.ledger.list({ limit: 1, kind: 'skill.shadow' });
     assert.equal(sh.data.agree, false, 'skill says 62.1, the agent says 72.9 (tax added): the wording is refused from now on');
     assert.equal(cz.examples('compound_discount').at(-1).label, 'neg');

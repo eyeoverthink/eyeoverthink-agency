@@ -94,3 +94,15 @@ test('a confirmed failure contests look-alike positives: stored tax misroutes no
   assert.ok(induce(kept, [{ task: rejected }], PRICE).spec.contextBlock.words.includes('tax'), 'with the look-alike disputed, the lesson forms');
   assert.deepEqual(contested(clean, 'A $40 coat is 25% off, then 10% off. What is the final price?').examples, [], 'a rejected ordinary task contests nothing');
 });
+
+test('verified wording is positional: "off" after the 2nd % is new for a skill that only saw tax there (real Phase 14 misroute)', async () => {
+  const { novelWording } = await import('../src/evolve/binder-induction.js');
+  const pos = [
+    { task: 'A $200 dinner is 20% off, then 8% sales tax is added, and the total is split evenly among 4 friends. How much does each friend pay?' },
+    { task: 'A $150 concert package is 10% off, then 6% sales tax is added, and the total is split evenly among 3 friends. How much does each friend pay?' },
+  ];
+  const discount = 'A $240 cabin rental is 25% off, then another 10% off, and the cost is split evenly among 4 friends. How much does each friend pay?';
+  assert.ok(novelWording(pos, discount).includes('off after % #2'));
+  assert.deepEqual(novelWording(pos, 'A $120 pizza order is 25% off, then 8% sales tax is added, and the total is split evenly among 3 friends. How much does each friend pay?'), [], 'same wording in the same places: verified');
+  assert.deepEqual(novelWording(pos, `Mission goal: ${pos[0].task}\nYour task: Price\n${pos[0].task}`), [], 'occurrences counted in the fullest line, so restated mission goals stay verified');
+});

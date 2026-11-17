@@ -180,7 +180,7 @@ test('a composed skill knows its verified wording from birth: unseen wording is 
     assert.equal(cz.examples(sk.name).filter((e) => e.label === 'pos').length, 2);
     const r = await run(A, 'A $100 dinner is 10% off, then a 5% service fee is added, and the total is split evenly among 2 friends. How much does each pay?');
     assert.equal(r.skill, undefined);
-    assert.match(A.agency.ledger.list({ limit: 5, kind: 'skill.route_miss' }).map((x) => x.data.reason).join(' | '), /unverified wording \(.*"service"/);
+    assert.match(A.agency.ledger.list({ limit: 5, kind: 'skill.route_miss' }).map((x) => x.data.reason).join(' | '), /unverified wording \(.*"service after % #2"/);
   } finally { await A.cleanup(); }
 });
 
@@ -210,7 +210,7 @@ test('a trusted chain is trusted only for verified wording: "an 18% tip" is not 
     assert.match(String(ok.skill), / > /, 'same wording: answered by the trusted chain');
     const r = await run(A, 'A $100 dinner is 10% off, then an 18% tip is added, and the total is split evenly among 3 friends. How much does each pay?');
     assert.equal(r.skill, undefined);
-    assert.match(A.agency.ledger.list({ limit: 5, kind: 'skill.route_miss' }).map((x) => x.data.reason).join(' | '), /unverified wording for composition .*"tip"/);
+    assert.match(A.agency.ledger.list({ limit: 5, kind: 'skill.route_miss' }).map((x) => x.data.reason).join(' | '), /unverified wording for composition .*"tip after % #2"/);
   } finally { await A.cleanup(); }
 });
 
