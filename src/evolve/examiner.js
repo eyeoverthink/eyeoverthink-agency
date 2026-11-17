@@ -46,6 +46,12 @@ export function answerKey(match, stdout) {
 
 const norm = (t) => String(t).toLowerCase().replace(/\s+/g, ' ').trim();
 
+/** Do two independently derived answer keys agree? */
+export function sameAnswer(match, a, b) {
+  if (match === 'number') { const x = Number(a), y = Number(b); return Number.isFinite(x) && Number.isFinite(y) && Math.abs(x - y) <= Math.max(1e-6, Math.abs(x) * 1e-6); }
+  return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+}
+
 export class Examiner {
   constructor({ store, router, agents, bench, ledger, bus, sandbox = runSandboxedJs }) {
     Object.assign(this, { store, router, agents, bench, ledger, bus, sandbox });
@@ -87,15 +93,68 @@ export class Examiner {
       if (run.exitCode !== 0 || run.timedOut) { rejected.push('program failed'); continue; }
       const answer = answerKey(match, run.stdout);
       if (answer == null) { rejected.push('ambiguous output'); continue; }
+      // Measured on real models: 5 of 6 examiner programs ran cleanly but answered the WRONG question (off-by-one,
+      // misread ratios). Running a program proves it runs, not that it answers the question. So a second model,
+      // seeing only the question, derives the answer independently; the key is accepted only if both agree.
+      // Second derivation (different role, question only). On disagreement, a third blind derivation by another
+      // role decides: a key is accepted only when two of three independent derivations agree.
+      const keys = [{ by: `examiner:${res.model}`, answer }];
+      const second = await this.#independentKey(task, match, signal, 'code');
+      if (!second.error) keys.push({ by: `code:${second.model}`, answer: second.answer });
+      let finalKey = null, verdict;
+      if (second.error === 'ambiguous question') verdict = 'ambiguous question';
+      else if (!second.error && sameAnswer(match, answer, second.answer)) { finalKey = answer; verdict = 'agreed (2/2)'; }
+      else {
+        const third = await this.#independentKey(task, match, signal, 'reason');
+        if (third.error === 'ambiguous question') verdict = 'ambiguous question';
+        else if (third.error) verdict = second.error ? 'second key failed' : 'keys disagree';
+        else {
+          keys.push({ by: `reason:${third.model}`, answer: third.answer });
+          const agree = keys.filter((k) => sameAnswer(match, k.answer, third.answer));
+          if (agree.length >= 2) { finalKey = third.answer; verdict = `majority (${agree.length}/${keys.length})`; }
+          else verdict = 'keys disagree';
+        }
+      }
+      const stats = { keyCheck: { verdict, keys } };
+      if (finalKey == null) {
+        rejected.push(verdict);
+        // Kept for audit (never used): which derivations disagreed, and how.
+        this.store.run('INSERT INTO exam_items (id, agent_id, task, answer, match, split, status, origin, program, stats, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          newId('ex'), agentId, task, String(answer), match, 'train', 'unverified', `examiner:${res.model}`, program, JSON.stringify(stats), nowIso(), nowIso());
+        continue;
+      }
       seen.add(norm(task));
       const id = newId('ex');
       this.store.run('INSERT INTO exam_items (id, agent_id, task, answer, match, split, status, origin, program, stats, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        id, agentId, task, answer, match, 'train', 'candidate', `examiner:${res.model}`, program, '{}', nowIso(), nowIso());
-      accepted.push({ id, task, answer, match });
+        id, agentId, task, finalKey, match, 'train', 'candidate', `examiner:${res.model}`, program, JSON.stringify(stats), nowIso(), nowIso());
+      accepted.push({ id, task, answer: finalKey, match, verdict });
     }
     this.ledger.append('exam.propose', { agentId, proposed: proposed.length, accepted: accepted.length, rejected, items: accepted.map((a) => ({ id: a.id, taskSha256: sha256(a.task), answerSha256: sha256(a.answer) })) }, 'examiner');
     this.bus?.publish('exam.propose', { agentId, accepted: accepted.length, rejected: rejected.length });
     return { accepted, rejected };
+  }
+
+  /** Second, independent derivation of the answer key: a different model role, the question only, its own program. */
+  async #independentKey(task, match, signal, role = 'code') {
+    let res;
+    try {
+      res = await this.router.chat({
+        role, privacy: 'private', json: true, temperature: 0.1, maxTokens: 900, signal,
+        messages: [
+          { role: 'system', content: 'You verify exam answer keys. Read the question carefully, then write a small JavaScript program that computes the single correct answer from first principles and prints ONLY that answer with console.log. If the question is ambiguous (more than one reasonable answer), set "ambiguous": true. Reply with JSON only: {"ambiguous": false, "program": "<JavaScript>"}' },
+          { role: 'user', content: `Question: ${task}\nAnswer type: ${match === 'number' ? 'a number' : match === 'yesno' ? '"yes" or "no"' : 'a short text'}` },
+        ],
+      });
+    } catch (e) { return { error: 'second key failed' }; }
+    let parsed = {};
+    try { parsed = JSON.parse(String(res.text).match(/\{[\s\S]*\}/)?.[0] || '{}'); } catch { return { error: 'second key failed' }; }
+    if (parsed.ambiguous === true) return { error: 'ambiguous question' };
+    if (!String(parsed.program || '').trim()) return { error: 'second key failed' };
+    const run = await this.sandbox(String(parsed.program), { timeoutMs: 5000 });
+    if (run.exitCode !== 0 || run.timedOut) return { error: 'second key failed' };
+    const answer = answerKey(match, run.stdout);
+    if (answer == null) return { error: 'second key failed' };
+    return { answer, model: res.model };
   }
 
   /**

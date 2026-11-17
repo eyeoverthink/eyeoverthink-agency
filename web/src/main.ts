@@ -3,13 +3,14 @@ import { api, getToken, setToken, subscribe, ApiError, type AgencyEvent } from "
 import { md, esc } from "./md";
 import { isConfigured, missingConfig, prepareOnDevice, generate, nanoAvailability, chromeDesktopOk, edgeIdentity, sha256Hex, explainFirebaseError, type ModeName } from "./hybrid";
 import { EdgeWorker } from "./edge";
+import { viewMap, mapEvent } from "./map";
 // The exact zero-dependency verifier the CLI uses: the dashboard verifies receipts in the browser, never via the server.
 // @ts-ignore -- plain ES module shared with Node (src/core/receipt-verify.js)
 import { verifyReceipt } from "../../src/core/receipt-verify.js";
 
-type View = "missions" | "agents" | "memory" | "workflows" | "ledger" | "approvals" | "models" | "edge" | "lab";
+type View = "missions" | "map" | "agents" | "memory" | "workflows" | "ledger" | "approvals" | "models" | "edge" | "lab";
 const VIEWS: Array<[View, string, string]> = [
-  ["missions", "Mission Control", "◎"], ["agents", "Agents & DNA", "⌬"], ["memory", "Memory & Graph", "◈"], ["workflows", "Workflows", "⇶"],
+  ["missions", "Mission Control", "◎"], ["map", "Sovereignty Map", "◍"], ["agents", "Agents & DNA", "⌬"], ["memory", "Memory & Graph", "◈"], ["workflows", "Workflows", "⇶"],
   ["approvals", "Approvals", "✋"], ["ledger", "Ledger", "⛓"], ["models", "Models", "⚙"], ["edge", "Hybrid Edge", "◐"], ["lab", "Lab", "⚗"],
 ];
 
@@ -56,8 +57,9 @@ async function guard<T>(fn: () => Promise<T>, okMsg?: string): Promise<T | undef
 
 function busy(btn: HTMLButtonElement | null, on: boolean, label?: string) {
   if (!btn) return;
-  if (on) { btn.dataset.label = btn.innerHTML; btn.disabled = true; btn.innerHTML = `<span class="spin"></span>${label || "Working…"}`; }
-  else { btn.disabled = false; btn.innerHTML = btn.dataset.label || btn.innerHTML; }
+  // Keep the ORIGINAL label across chained busy() calls (e.g. "Sealing…" then "Firebase…"), so restore is correct.
+  if (on) { if (btn.dataset.label === undefined) btn.dataset.label = btn.innerHTML; btn.disabled = true; btn.innerHTML = `<span class="spin"></span>${label || "Working…"}`; }
+  else { btn.disabled = false; btn.innerHTML = btn.dataset.label ?? btn.innerHTML; delete btn.dataset.label; }
 }
 
 // ---------------- shell ----------------
@@ -90,6 +92,7 @@ function renderTokenGate() {
 
 // ---------------- live events ----------------
 function onEvent(e: AgencyEvent) {
+  if (S.view === "map") mapEvent(e);
   if (e.type === "agent.stream") return onStream(e);
   if (e.type === "evolution.progress") return onEvoProgress(e);
   if (e.type === "evolution.done" && e.jobId === S.evoJob) void showEvoResult(e.jobId);
@@ -194,7 +197,7 @@ async function renderView() {
   location.hash = S.view;
   const v = $("#view");
   if (!v) return;
-  const map: Record<View, () => Promise<void>> = { missions: viewMissions, agents: viewAgents, memory: viewMemory, workflows: viewWorkflows, ledger: viewLedger, approvals: viewApprovals, models: viewModels, edge: viewEdge, lab: viewLab };
+  const map: Record<View, () => Promise<void>> = { missions: viewMissions, map: () => viewMap($("#view")!, header), agents: viewAgents, memory: viewMemory, workflows: viewWorkflows, ledger: viewLedger, approvals: viewApprovals, models: viewModels, edge: viewEdge, lab: viewLab };
   await map[S.view]();
 }
 

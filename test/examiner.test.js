@@ -2,7 +2,17 @@
 import { makeAgency } from './helpers.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeCheck, answerKey } from '../src/evolve/examiner.js';
+import { makeCheck, answerKey, sameAnswer } from '../src/evolve/examiner.js';
+
+/** Scripted second-key verifier: an independent program per question (or an ambiguity flag). */
+const VERIFIER = [
+  [/first 50 odd numbers/, { program: 'console.log(50*50)' }],
+  [/2\^31 - 1/, { program: 'console.log("yes")' }],
+  [/snail/, { program: 'let h=0,d=0;while(true){d++;h+=3;if(h>=60)break;h-=2}console.log(d)' }],
+  [/discount/, { ambiguous: true, program: 'console.log(80)' }],
+  [/17 \* 23/, { program: 'console.log(391)' }],
+];
+const verifier = (req) => { const q = req.messages[1].content; return (VERIFIER.find(([re]) => re.test(q)) || [null, { program: 'console.log(0)' }])[1]; };
 
 const okFinal = { thought: 'done', final: 'ok', confidence: 0.9 };
 
@@ -20,6 +30,9 @@ test('answer keys: exactly one clean line of output, typed; checkers are determi
   assert.ok(!makeCheck('yesno', 'no')('Yes. Not really.'));
   assert.ok(makeCheck('text', 'Agency')('It decodes to "agency".'));
   assert.ok(!makeCheck('text', 'Agency')('Agencyship'));
+  assert.ok(sameAnswer('number', '0.1', '0.10000000001'));
+  assert.ok(!sameAnswer('number', '57', '58'));
+  assert.ok(sameAnswer('yesno', 'Yes', 'yes'));
 });
 
 test('propose: the model never supplies the answer; programs run in the sandbox, and bad programs are rejected', async () => {
@@ -31,15 +44,26 @@ test('propose: the model never supplies the answer; programs run in the sandbox,
     { task: 'This program prints text where a number is required.', match: 'number', program: 'console.log("forty-two")' },
     { task: 'What is the sum of the first 50 odd numbers? Give the number.', match: 'number', program: 'console.log(2500)' },
     { task: 'This one reads the file system, which the sandbox forbids.', match: 'text', program: 'console.log(require("fs").readFileSync("/etc/hosts","utf8"))' },
+    // Real failure seen on fraymus-prime: the program runs but answers the wrong question (off-by-one).
+    { task: 'A snail climbs 3 cm and slips 2 cm each day in a 60 cm well. On which day does it escape? Give the number.', match: 'number', program: 'console.log(Math.floor(60/1)-3)' },
+    { task: 'A $120 item gets a 12% discount plus another 8% discount. What percent of the price do you pay?', match: 'number', program: 'console.log(80)' },
   ];
-  const A = await makeAgency((req) => (/exam designer/.test(req.messages[0].content) ? { items } : okFinal));
+  const A = await makeAgency((req) => (/exam designer/.test(req.messages[0].content) ? { items } : /verify exam answer keys/.test(req.messages[0].content) ? verifier(req) : okFinal));
   try {
-    const r = await A.agency.examiner.propose('tycho', { count: 7 });
-    assert.deepEqual(r.accepted.map((a) => a.answer), ['2500', 'yes']);
-    assert.deepEqual(r.rejected.sort(), ['ambiguous output', 'ambiguous output', 'duplicate', 'program failed', 'program failed'].sort());
-    assert.equal(A.agency.examiner.list('tycho', 'candidate').length, 2);
+    const r = await A.agency.examiner.propose('tycho', { count: 9 });
+    assert.deepEqual(r.accepted.map((a) => a.answer), ['2500', 'yes', '58'], 'the snail key is CORRECTED to 58: two blind derivations outvote the examiner');
+    assert.equal(r.accepted[2].verdict, 'majority (2/3)');
+    assert.deepEqual(r.rejected.sort(), ['ambiguous output', 'ambiguous output', 'duplicate', 'program failed', 'program failed', 'ambiguous question'].sort());
+    const audit = A.agency.examiner.list('tycho', 'unverified');
+    assert.equal(audit.length, 1, 'rejected proposals are kept for audit, never used');
+    assert.equal(audit[0].stats.keyCheck.verdict, 'ambiguous question');
+    const verifierCalls = A.calls.filter((c) => /verify exam answer keys/.test(c.messages[0].content));
+    assert.ok(verifierCalls.every((c) => ['code', 'reason'].includes(c.role) && c.privacy === 'private'), 'second and third keys come from other roles, locally');
+    assert.ok(verifierCalls.some((c) => c.role === 'reason'), 'a disagreement triggered the third derivation');
+    assert.ok(verifierCalls.every((c) => !JSON.stringify(c.messages).includes('console.log(5')), 'the verifier never sees the examiner program');
+    assert.equal(A.agency.examiner.list('tycho', 'candidate').length, 3);
     const [entry] = A.agency.ledger.list({ limit: 1, kind: 'exam.propose' });
-    assert.equal(entry.data.accepted, 2);
+    assert.equal(entry.data.accepted, 3);
     assert.ok(!JSON.stringify(entry.data).includes('2500'), 'the ledger commits to answers by hash, so the exam is not leaked');
   } finally { await A.cleanup(); }
 });
@@ -72,7 +96,7 @@ test('trial: only frontier items are admitted (alternating train / held-out); sa
 
 test('a Red Queen cycle runs as a persisted background job', async () => {
   const items = [{ task: 'What is 17 * 23? Give the number.', match: 'number', program: 'console.log(17*23)' }];
-  const A = await makeAgency((req) => (/exam designer/.test(req.messages[0].content) ? { items } : okFinal));
+  const A = await makeAgency((req) => (/exam designer/.test(req.messages[0].content) ? { items } : /verify exam answer keys/.test(req.messages[0].content) ? verifier(req) : okFinal));
   try {
     A.agency.examiner.bench = { runItem: async (item, { seed }) => ({ id: item.id, pass: seed % 2 === 0, steps: 1 }) };
     const done = new Promise((res) => A.agency.bus.once('evolution.done', res));

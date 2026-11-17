@@ -15,6 +15,10 @@ test('detectors: find PII and secrets, and leave ordinary numbers alone', () => 
   assert.deepEqual(detect('card 4111 1111 1111 1112').filter((s) => s.type === 'CARD'), [], 'Luhn rejects an invalid card number');
   assert.equal(detect('key sk-abcdefghijklmnopqrstuv123 at 10.0.0.12').map((s) => s.type).join(','), 'SECRET,IP');
   assert.equal(detect('Ship to Project Bluefin now', { terms: ['project bluefin'] })[0].value, 'Project Bluefin', 'owner terms are case-insensitive');
+  // Measured on real models: a 3B local NER returned nothing for these, so structure-based patterns are the floor.
+  const real = 'confirm that Dr. Amara Okafor will see her at 4521 Mission Street, San Francisco. Her patient account is PT-88213; customer number 4400123.';
+  assert.deepEqual(detect(real).map((s) => `${s.type}:${s.value}`), ['PERSON:Dr. Amara Okafor', 'ADDRESS:4521 Mission Street, San Francisco', 'ID:PT-88213', 'ID:4400123']);
+  assert.deepEqual(detect('Comply with ISO-9001 and COVID-19 rules; Dr. and Ms. are titles.'), [], 'standards and bare titles are not PII');
 });
 
 test('seal/unseal: consistent placeholders, tolerant restore, JSON-safe restore', () => {
@@ -146,5 +150,19 @@ test('fail closed: if the local name finder cannot run, nothing crosses (names w
     const res = await A.agency.router.chat({ role: 'fast', model: 'cloud-m', privacy: 'sealed', messages: [{ role: 'user', content: 'Tell Amara Okafor at a@b.io' }] });
     assert.equal(seen.length, 0, 'the remote model was never called');
     assert.equal(res.provider, 'scripted', 'the work fell back to the local model');
+  } finally { await A.cleanup(); }
+});
+
+test('boundary telemetry: every model call reports whether it left the machine and whether it was sealed', async () => {
+  const A = await makeAgency(() => okFinal);
+  try {
+    A.agency.membrane.ner = null;
+    const events = [];
+    A.agency.bus.on('router.call', (e) => events.push(e));
+    A.agency.router.addProvider({ name: 'cloudy', remote: true, has: (m) => m === 'cloud-m', available: async () => true, listModels: async () => ['cloud-m'], chat: async () => ({ text: 'ok', model: 'cloud-m', provider: 'cloudy', latencyMs: 2, usage: { prompt: 1, completion: 1 } }) });
+    await A.agency.router.chat({ role: 'fast', messages: [{ role: 'user', content: 'hi' }] });
+    await A.agency.router.chat({ role: 'fast', model: 'cloud-m', privacy: 'sealed', missionId: 'ms_x', messages: [{ role: 'user', content: 'mail a@b.io' }] });
+    assert.deepEqual(events.map((e) => [e.provider, e.remote, e.sealed]), [['scripted', false, false], ['cloudy', true, true]]);
+    assert.equal(events[1].missionId, 'ms_x');
   } finally { await A.cleanup(); }
 });

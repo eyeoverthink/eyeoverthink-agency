@@ -147,6 +147,8 @@ export class ModelRouter {
         }
         this.breaker(c.key).success();
         this.#account(res);
+        // Live boundary telemetry (ephemeral): where did this call run, and did it leave the machine?
+        this.bus?.publish('router.call', { provider: c.provider.name, model: c.model, role: req.role || 'reason', remote: this.isRemote(c), sealed: Boolean(crossing), overflow: Boolean(c.overflow), inferenceSource: res.inferenceSource || null, missionId: req.missionId || null, ms: res.latencyMs || 0 }, { ephemeral: true });
         if (c.overflow) {
           this.usage.edgeOverflow = (this.usage.edgeOverflow || 0) + 1;
           this.bus?.publish('router.overflow', { role: req.role || 'reason', model: c.model, inferenceSource: res.inferenceSource });

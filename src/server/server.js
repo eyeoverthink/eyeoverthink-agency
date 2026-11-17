@@ -221,6 +221,26 @@ export function createServer(agency) {
   });
   add('GET', '/api/membrane/terms', () => a.membrane.terms());
   add('POST', '/api/membrane/terms', ({ body }) => a.membrane.setTerms(Array.isArray(body.terms) ? body.terms : []));
+  // Sovereignty map: what stayed on this machine and what crossed the boundary, from the signed ledger.
+  add('GET', '/api/sovereignty', () => {
+    const count = (kind) => a.store.get('SELECT COUNT(*) AS n FROM ledger WHERE kind = ?', kind).n;
+    const fire = a.store.all("SELECT data FROM ledger WHERE kind = 'edge.inference'").map((r) => JSON.parse(r.data));
+    const cross = a.store.all("SELECT data FROM ledger WHERE kind = 'membrane.crossing'").map((r) => JSON.parse(r.data));
+    const withheld = {};
+    for (const c of cross) for (const [k, v] of Object.entries(c.withheld || {})) withheld[k] = (withheld[k] || 0) + v;
+    const byModel = a.router.usage.byModel;
+    const local = Object.entries(byModel).filter(([k]) => k.startsWith('ollama:') && !k.endsWith('-cloud')).reduce((s, [, v]) => s + v.calls, 0);
+    return {
+      ledger: a.store.get('SELECT COUNT(*) AS n FROM ledger').n,
+      agents: a.agents.list().map((x) => ({ id: x.id, name: x.name, genome: x.genome, modelRole: x.modelRole })),
+      firebase: { total: fire.length, inCloud: fire.filter((f) => f.inferenceSource === 'IN_CLOUD').length, onDevice: fire.filter((f) => f.inferenceSource === 'ON_DEVICE').length, overflow: fire.filter((f) => f.origin === 'agency-job').length },
+      membrane: { crossings: cross.length, withheld, valuesWithheld: cross.reduce((s, c) => s + (c.total || 0), 0), egressBlocked: count('membrane.egress_blocked') },
+      session: { localCalls: local, overflow: a.router.usage.edgeOverflow || 0, calls: a.router.usage.calls },
+      gpu: { active: a.router.gpu.active, queued: a.router.gpu.queue.length },
+      edgeWorkers: a.edge.liveWorkers().length,
+      receipts: count('receipt.issue'),
+    };
+  });
   add('GET', '/api/membrane/crossings', ({ url }) => a.ledger.list({ limit: Math.min(100, +url.searchParams.get('limit') || 30), kind: 'membrane.crossing' }));
   add('GET', '/api/edge/proof', ({ url }) => {
     const entries = a.ledger.list({ limit: Math.min(200, +url.searchParams.get('limit') || 50), kind: 'edge.inference' });

@@ -44,7 +44,9 @@ export class Agency {
       store: this.store, ledger: this.ledger, bus: this.bus,
       ner: this.cfg.membrane?.ner === false ? null : async (text) => {
         const res = await this.router.chat({
-          role: 'fast', privacy: 'private', json: true, temperature: 0, maxTokens: 400,
+          // 'reason' by default: measured on this machine, the 3B 'fast' model returned no entities for a text with a
+          // name, an address and an account number, while the 'reason' model found all five sensitive spans.
+          role: this.cfg.membrane?.nerRole || 'reason', privacy: 'private', json: true, temperature: 0, maxTokens: 400,
           messages: [
             { role: 'system', content: 'You find personal and confidential details in text. Reply with JSON only: {"entities":[{"text":"<exact substring>","type":"PERSON|ORG|ADDRESS|ACCOUNT|HEALTH|DATE_OF_BIRTH"}]}. Copy each text exactly as it appears. Include people\'s names, private organizations, street addresses, account or customer numbers, and medical details. Return {"entities":[]} if there are none.' },
             { role: 'user', content: String(text).slice(0, 4000) },

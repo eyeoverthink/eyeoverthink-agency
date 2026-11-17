@@ -35,6 +35,11 @@ const DETECTORS = [
   ['SSN', /\b\d{3}-\d{2}-\d{4}\b/g],
   ['PHONE', /(?:\+\d{1,3}[\s.-]?)?(?:\(\d{2,4}\)[\s.-]?|\b\d{2,4}[\s.-])\d{3,4}[\s.-]\d{3,4}\b/g],
   ['IP', /\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b/g],
+  // Structure that needs no model (measured: a 3B local model returned no entities for these; patterns are a floor).
+  ['PERSON', /\b(?:Dr|Mr|Mrs|Ms|Mx|Prof|Sr|Sra|Herr|Frau)\.?\s+[A-Z][a-z'’-]+(?:\s+[A-Z][a-z'’-]+){0,2}/g],
+  ['ADDRESS', /\b\d{1,6}\s+(?:[A-Z][a-z]+\s+){1,4}(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Way|Court|Ct|Place|Pl|Terrace|Parkway|Pkwy|Highway|Hwy)\b\.?(?:,\s*[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)?/g],
+  ['ID', /\b[A-Z]{2,5}-\d{5,}\b/g], // PT-88213 (5+ digits, so standards like ISO-9001 are left alone)
+  ['ID', /(?<=\b(?:account|acct|patient|customer|member|policy|case|invoice)\s*(?:no\.?|number|#|id)?\s*[:#]?\s*)\d{5,}\b/gi], // only the number, not its label
 ];
 
 const VALIDATE = {
