@@ -40,7 +40,7 @@ Every fix moved the verifier toward judging *meaning*. None loosened it toward a
 ![Crystallized skills](../screenshots/crystallized-skills.jpg)
 
 ## Tests
-88 pass. `test/crystallizer.test.js` (9) covers:
+87 pass. `test/crystallizer.test.js` (9) covers:
 - output equality, including unwrapping;
 - a verified skill callable as a tool **with no model call**;
 - the reference seeing the task but never the code;
