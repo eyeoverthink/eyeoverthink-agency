@@ -10,7 +10,10 @@
 // fitness = pass rate − step-cost penalty (≤ 0.1). Every candidate, seed and verdict is stored and ledgered.
 import { newId, nowIso, errorMessage } from '../core/util.js';
 import { mutate, crossover, genomeToTraits, geneticDistance, DEFAULT_TRAITS, GENE_SPEC } from '../core/dna.js';
-import { SUITES, wilson } from '../telemetry/bench.js';
+import { SUITES, wilson, agentItems } from '../telemetry/bench.js';
+
+const BASE_RATE = 0.04;
+const MAX_RATE = 0.12;
 
 const round3 = (x) => Math.round(x * 1000) / 1000;
 
@@ -37,6 +40,21 @@ export function paired(incumbent, challenger) {
   return { wins, losses, ties };
 }
 
+/**
+ * Exact one-sided sign test on paired cells: the probability of at least `wins` wins out of the discordant
+ * cells (wins + losses) if the challenger were no better than the incumbent. Ties carry no information.
+ */
+export function signTest(wins, losses) {
+  const n = wins + losses;
+  if (n === 0) return 1;
+  let p = 0, c = 1; // c = C(n, k), built incrementally from k = 0
+  for (let k = 0; k <= n; k++) {
+    if (k >= wins) p += c;
+    c = (c * (n - k)) / (k + 1);
+  }
+  return round3(p / 2 ** n);
+}
+
 /** Trait-level difference between two genomes (only genes that changed). */
 export function traitDiff(fromGenome, toGenome) {
   const a = genomeToTraits(fromGenome), b = genomeToTraits(toGenome);
@@ -50,11 +68,14 @@ export class Evolution {
     this.active = null;
   }
 
+  /** Training items: the only items selection ever sees. */
   itemsFor(agentId) {
-    const all = Object.values(SUITES).flat();
-    const own = all.filter((i) => i.agent === agentId);
-    return own.length ? own : all.filter((i) => ['reasoning', 'format'].includes(i.category)).map((i) => ({ ...i, agent: agentId }));
+    const own = agentItems(agentId, 'train');
+    return own.length ? own : SUITES.core.filter((i) => ['reasoning', 'format'].includes(i.category)).map((i) => ({ ...i, agent: agentId }));
   }
+
+  /** Held-out items: used only to re-test a finished run, never to choose a genome. */
+  holdoutFor(agentId) { return agentItems(agentId, 'holdout'); }
 
   /** Run every item once per seed for one genome. */
   async evaluate(agent, genome, items, seeds, { signal, onRun } = {}) {
@@ -77,16 +98,24 @@ export class Evolution {
   }
 
   #population(agent, partner, size, mutationRate) {
+    // Distinct by PHENOTYPE, not just sequence: a mutation in the low bits of a gene can decode to the same trait
+    // values (a synonymous mutation). Such a "challenger" behaves exactly like the incumbent, so testing it wastes
+    // GPU runs and promoting it would be pure noise.
     const genomes = [agent.genome];
-    for (let attempts = 0; genomes.length < size && attempts < 200; attempts++) {
+    const phenotypes = new Set([JSON.stringify(genomeToTraits(agent.genome))]);
+    for (let attempts = 0; genomes.length < size && attempts < 400; attempts++) {
       const useCross = partner && genomes.length % 2 === 0;
       const g = useCross ? mutate(crossover(agent.genome, partner.genome), mutationRate / 2).genome : mutate(agent.genome, mutationRate).genome;
-      if (!genomes.includes(g)) genomes.push(g);
+      const p = JSON.stringify(genomeToTraits(g));
+      if (!phenotypes.has(p)) { phenotypes.add(p); genomes.push(g); }
     }
     return genomes;
   }
 
-  async evolve(agentId, { population = 4, mutationRate = 0.04, repeats = 1, confirm = true, minGain = 0.02, signal, onProgress } = {}) {
+  // alpha: the paired sign test must reach p <= alpha before a promotion. Phase 4 measured that a behaviorally
+  // identical copy of the incumbent can "win" 2-0 on the same seeds (seeded GPU runs are not fully repeatable),
+  // so a clean-looking 2-0 (p = 0.25) is not evidence. Default 0.1 needs at least 4 wins and 0 losses.
+  async evolve(agentId, { population = 4, mutationRate = BASE_RATE, repeats = 1, confirm = true, minGain = 0.02, alpha = 0.1, signal, onProgress } = {}) {
     const agent = this.agents.get(agentId);
     if (!agent) throw new Error(`agent ${agentId} not found`);
     population = Math.max(2, Math.min(8, population | 0));
@@ -135,15 +164,19 @@ export class Evolution {
       };
       const gain = round3(pooledCh.fitness - pooledInc.fitness);
       const { wins, losses } = confirmation.paired;
+      const p = signTest(wins, losses);
+      confirmation.signTestP = p;
       if (cc.fitness < ci.fitness) reason = `screening win did not hold on fresh seeds (${cc.fitness} vs ${ci.fitness})`;
       else if (losses > wins) reason = `challenger lost more paired cells than it won (${wins} wins, ${losses} losses)`;
+      // Accuracy claims need evidence beyond run-to-run noise. (All-tie, efficiency-only gains are governed by minGain.)
+      else if (wins + losses > 0 && p > alpha) reason = `paired ${wins} wins, ${losses} losses is not significant (sign test p = ${p} > ${alpha}); treated as noise`;
       // A tie on correctness that differs only by a fraction of a step is noise, not progress (genetic drift).
       else if (gain < minGain) reason = `pooled gain ${gain} is below the minimum ${minGain} (${pooledCh.fitness} vs ${pooledInc.fitness}); treated as a tie`;
-      else { promoted = true; reason = `confirmed on fresh seeds (${cc.fitness} vs ${ci.fitness}); pooled ${pooledCh.fitness} vs ${pooledInc.fitness} (+${gain}); paired ${wins} wins, ${losses} losses`; }
+      else { promoted = true; reason = `confirmed on fresh seeds (${cc.fitness} vs ${ci.fitness}); pooled ${pooledCh.fitness} vs ${pooledInc.fitness} (+${gain}); paired ${wins} wins, ${losses} losses (p = ${p})`; }
     }
 
     for (const s of scored) {
-      const detail = { passRate: s.passRate, passed: s.passed, runs: s.runs, ci95: s.ci95, cost: s.cost, seeds: screenSeeds, items: items.map((i) => i.id),
+      const detail = { passRate: s.passRate, passed: s.passed, runs: s.runs, ci95: s.ci95, cost: s.cost, seeds: screenSeeds, items: items.map((i) => i.id), mutationRate: round3(mutationRate),
         perRun: s.results, ...(s === challenger && confirmation ? { confirmation } : {}) };
       this.store.run('INSERT INTO evolution (id, agent_id, generation, genome, fitness, parent_a, parent_b, promoted, created, detail) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         s.id, agentId, generation, s.genome, s.fitness, s.incumbent ? null : agentId, partner && !s.incumbent ? partner.id : null,
@@ -156,7 +189,7 @@ export class Evolution {
 
     const changes = challenger ? traitDiff(agent.genome, challenger.genome) : [];
     const summary = {
-      agentId, generation, promoted, reason, items: items.map((i) => i.id), repeats, seeds: screenSeeds,
+      agentId, generation, promoted, reason, items: items.map((i) => i.id), repeats, seeds: screenSeeds, mutationRate: round3(mutationRate),
       incumbent: incumbent.fitness, best: challenger?.fitness ?? null, fitness: newFitness,
       challengerChanges: changes, confirmation,
       traits: promoted ? genomeToTraits(challenger.genome) : agent.traits,
@@ -167,25 +200,97 @@ export class Evolution {
     return summary;
   }
 
-  /** Several generations in a row. */
-  async run(agentId, { generations = 1, ...opts } = {}) {
+  /**
+   * Several generations in a row.
+   *  - patience: stop after this many consecutive generations without a promotion (0 = never stop early).
+   *  - adaptive: while no challenger wins, widen the search (mutation rate x1.5 per stalled generation,
+   *    capped); reset to the base rate after a promotion.
+   *  - holdout: if the genome changed, re-test the starting and final genomes on held-out items with fresh
+   *    seeds. This is reported, never used to choose: using it to choose would turn it into training data.
+   */
+  async run(agentId, { generations = 1, patience = 2, adaptive = true, holdout = true, holdoutRepeats = 3, mutationRate = BASE_RATE, ...opts } = {}) {
+    const startAgent = this.agents.get(agentId);
+    if (!startAgent) throw new Error(`agent ${agentId} not found`);
+    const max = Math.max(1, Math.min(20, generations | 0));
     const out = [];
-    for (let g = 0; g < Math.max(1, Math.min(10, generations | 0)); g++) out.push(await this.evolve(agentId, opts));
-    return { agentId, generations: out, promotions: out.filter((r) => r.promoted).length, finalFitness: out.at(-1).fitness };
+    let rate = mutationRate, stalled = 0, stoppedEarly = false;
+    for (let g = 0; g < max; g++) {
+      const r = await this.evolve(agentId, { ...opts, mutationRate: rate });
+      out.push(r);
+      if (r.promoted) { stalled = 0; rate = mutationRate; }
+      else { stalled++; if (adaptive) rate = Math.min(MAX_RATE, rate * 1.5); }
+      if (patience > 0 && stalled >= patience && g < max - 1) { stoppedEarly = true; break; }
+    }
+    const finalAgent = this.agents.get(agentId);
+    const result = {
+      agentId, generations: out, promotions: out.filter((r) => r.promoted).length, finalFitness: out.at(-1).fitness,
+      stoppedEarly, startGenome: startAgent.genome, finalGenome: finalAgent.genome, changes: traitDiff(startAgent.genome, finalAgent.genome),
+    };
+    if (holdout) result.holdout = await this.validateHoldout(agentId, startAgent, finalAgent, { repeats: holdoutRepeats, signal: opts.signal, onProgress: opts.onProgress });
+    return result;
   }
 
-  /** Background job (evolution takes minutes on a local GPU). One at a time: the GPU is the bottleneck. */
-  start(agentId, opts = {}) {
+  /** Out-of-sample check of a finished run: starting vs final genome on held-out items, paired, fresh seeds. */
+  async validateHoldout(agentId, startAgent, finalAgent, { repeats = 3, signal, onProgress } = {}) {
+    const items = this.holdoutFor(agentId);
+    if (!items.length) return { skipped: 'no held-out items for this agent' };
+    if (startAgent.genome === finalAgent.genome) return { skipped: 'genome unchanged, nothing to validate' };
+    repeats = Math.max(1, Math.min(5, repeats | 0));
+    const generation = finalAgent.generation || 0;
+    // 900+ offsets never collide with screening (1..5) or confirmation (501..505) seeds of any generation.
+    const seeds = Array.from({ length: repeats }, (_, r) => generation * 1000 + 900 + r + 1);
+    const total = items.length * repeats * 2;
+    let done = 0;
+    const onRun = () => { done++; onProgress?.({ agentId, generation, phase: 'holdout', done, total }); };
+    const before = await this.evaluate(finalAgent, startAgent.genome, items, seeds, { signal, onRun });
+    const after = await this.evaluate(finalAgent, finalAgent.genome, items, seeds, { signal, onRun });
+    const pr = paired(before.results, after.results);
+    const delta = round3(after.fitness - before.fitness);
+    const verdict = after.passRate > before.passRate && pr.wins > pr.losses ? 'improved out of sample'
+      : after.passRate < before.passRate || pr.losses > pr.wins ? 'worse out of sample (overfit to training items)'
+        : 'no accuracy change out of sample';
+    const res = {
+      items: items.map((i) => i.id), seeds, verdict, delta, paired: pr,
+      before: { fitness: before.fitness, passRate: before.passRate, ci95: before.ci95, perRun: before.results },
+      after: { fitness: after.fitness, passRate: after.passRate, ci95: after.ci95, perRun: after.results },
+    };
+    this.ledger.append('evolution.holdout', { agentId, generation, verdict, delta, paired: pr, before: before.passRate, after: after.passRate }, 'agency');
+    this.bus?.publish('evolution.holdout', { agentId, generation, verdict, delta, before: before.passRate, after: after.passRate });
+    return res;
+  }
+
+  /** Background job (evolution takes minutes on a local GPU). One at a time: the GPU is the bottleneck.
+   *  target: one agent id, or an array of ids evolved one after another (a fleet run). */
+  start(target, opts = {}) {
+    const ids = Array.isArray(target) ? [...new Set(target)] : [target];
+    if (!ids.length) throw new Error('no agents to evolve');
+    for (const id of ids) if (!this.agents.get(id)) throw new Error(`agent ${id} not found`);
     if (this.active) throw new Error(`evolution job ${this.active} is already running`);
-    if (!this.agents.get(agentId)) throw new Error(`agent ${agentId} not found`);
+    const fleet = Array.isArray(target);
     const ctrl = new AbortController();
-    const job = { id: newId('evo'), agentId, status: 'running', started: nowIso(), progress: null, result: null, error: null, ctrl };
+    const job = { id: newId('evo'), agentId: fleet ? ids.join(',') : ids[0], agents: ids, status: 'running', started: nowIso(), progress: null, result: null, error: null, ctrl };
     this.jobs.set(job.id, job);
     this.active = job.id;
-    this.run(agentId, { ...opts, signal: ctrl.signal, onProgress: (p) => { job.progress = p; this.bus?.publish('evolution.progress', { jobId: job.id, ...p }, { ephemeral: true }); } })
-      .then((r) => { job.status = 'done'; job.result = r; this.bus?.publish('evolution.done', { jobId: job.id, agentId, promotions: r.promotions, finalFitness: r.finalFitness }); })
-      .catch((e) => { job.status = ctrl.signal.aborted ? 'cancelled' : 'failed'; job.error = errorMessage(e); this.bus?.publish('evolution.done', { jobId: job.id, agentId, error: job.error }); })
-      .finally(() => { job.finished = nowIso(); this.active = null; });
+    const onProgress = (p) => {
+      job.progress = { ...p, agentIndex: ids.indexOf(p.agentId), agentCount: ids.length };
+      this.bus?.publish('evolution.progress', { jobId: job.id, ...job.progress }, { ephemeral: true });
+    };
+    const work = fleet
+      ? (async () => {
+        const agents = [];
+        for (const id of ids) agents.push(await this.run(id, { ...opts, signal: ctrl.signal, onProgress }));
+        return { fleet: true, agents, promotions: agents.reduce((s, a) => s + a.promotions, 0), finalFitness: Object.fromEntries(agents.map((a) => [a.agentId, a.finalFitness])) };
+      })()
+      : this.run(ids[0], { ...opts, signal: ctrl.signal, onProgress });
+    const agentId = job.agentId;
+    work
+      // Free the slot BEFORE announcing completion, so a listener can start the next job from evolution.done.
+      .then((r) => { job.status = 'done'; job.result = r; }, (e) => { job.status = ctrl.signal.aborted ? 'cancelled' : 'failed'; job.error = errorMessage(e); })
+      .finally(() => {
+        job.finished = nowIso();
+        this.active = null;
+        this.bus?.publish('evolution.done', job.error ? { jobId: job.id, agentId, error: job.error } : { jobId: job.id, agentId, promotions: job.result.promotions, finalFitness: job.result.finalFitness });
+      });
     return this.job(job.id);
   }
 
@@ -201,6 +306,24 @@ export class Evolution {
     if (!j || j.status !== 'running') return false;
     j.ctrl.abort(new Error('cancelled'));
     return true;
+  }
+
+  /** Fitness by generation, oldest first: incumbent, best challenger, promotion, and the search width used. */
+  lineage(agentId) {
+    const rows = this.store.all('SELECT generation, fitness, promoted, parent_a, detail FROM evolution WHERE agent_id = ? ORDER BY generation, created', agentId);
+    const gens = new Map();
+    for (const r of rows) {
+      const d = JSON.parse(r.detail || '{}');
+      const g = gens.get(r.generation) || { generation: r.generation, incumbent: null, best: null, promoted: false, candidates: 0, mutationRate: d.mutationRate ?? null, confirmation: null };
+      g.candidates++;
+      if (r.parent_a == null) g.incumbent = r.fitness;
+      else if (g.best == null || r.fitness > g.best) g.best = r.fitness;
+      if (r.promoted) g.promoted = true;
+      if (d.confirmation) g.confirmation = d.confirmation.pooled;
+      gens.set(r.generation, g);
+    }
+    // Fitness the agent carried out of each generation: pooled score if a confirmation ran, else the screening score of the kept genome.
+    return [...gens.values()].map((g) => ({ ...g, carried: g.confirmation ? (g.promoted ? g.confirmation.challenger : g.confirmation.incumbent) : (g.promoted ? g.best : g.incumbent) }));
   }
 
   history(agentId, limit = 50) {

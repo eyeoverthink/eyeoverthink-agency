@@ -34,7 +34,7 @@ export class Agency {
     this.keyring = new Keyring(this.cfg.keysDir);
     this.ledger = new Ledger(this.store, this.keyring, 'agency', this.bus);
     this.tracer = new Tracer(this.store, this.bus);
-    this.edge = new EdgeHub(this.cfg.edge, this.bus);
+    this.edge = new EdgeHub(this.cfg.edge, this.bus, this.ledger);
     this.router = new ModelRouter(this.cfg, { edgeHub: this.edge, tracer: this.tracer, bus: this.bus });
     this.memory = new Memory({ store: this.store, router: this.router, keyring: this.keyring, ledger: this.ledger, bus: this.bus });
     this.approvals = new Approvals({ store: this.store, keyring: this.keyring, ledger: this.ledger, bus: this.bus });

@@ -1,7 +1,7 @@
 // Edge worker: this browser tab registers with the agency and executes inference jobs through
 // Firebase AI Logic hybrid inference. Private jobs arrive as only_on_device, so their text never leaves the machine.
 import { api } from "./api";
-import { generate, isConfigured, promptApiPresent, type ModeName, type Source } from "./hybrid";
+import { generate, isConfigured, nanoAvailability, edgeIdentity, explainFirebaseError, type ModeName, type Source } from "./hybrid";
 
 export type EdgeState = { running: boolean; workerId: string | null; done: number; failed: number; last: Source | null; lastError: string; onDevice: number; inCloud: number };
 
@@ -14,7 +14,7 @@ export class EdgeWorker {
   async start(): Promise<void> {
     if (this.state.running) return;
     if (!isConfigured()) throw new Error("Firebase AI Logic is not configured; see web/.env.example.");
-    const reg = await api<{ id: string }>("/api/edge/register", { body: { label: navigator.userAgent.match(/Chrome\/\d+/)?.[0] || "browser", onDevice: promptApiPresent() ? "prompt-api-present" : "unavailable" } });
+    const reg = await api<{ id: string }>("/api/edge/register", { body: { label: navigator.userAgent.match(/Chrome\/\d+/)?.[0] || "browser", onDevice: await nanoAvailability(), ...edgeIdentity() } });
     this.state.workerId = reg.id;
     this.state.running = true;
     this.stopFlag = false;
@@ -52,7 +52,7 @@ export class EdgeWorker {
           await api("/api/edge/result", { body: { worker: this.state.workerId, job: job.id, text: out.text, inferenceSource: out.source } });
         } catch (e) {
           this.state.failed++;
-          this.state.lastError = e instanceof Error ? e.message : String(e);
+          this.state.lastError = explainFirebaseError(e);
           await api("/api/edge/result", { body: { worker: this.state.workerId, job: job.id, error: this.state.lastError } }).catch(() => {});
         }
         this.onChange();

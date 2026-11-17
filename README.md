@@ -196,6 +196,7 @@ Alternative **modes**:
 ### 8. Evolution and benchmarks (`src/evolve/`, `src/telemetry/bench.js`)
 - **Benchmark** items have deterministic checkers (no LLM judge): exact math, verified code (must actually call `code_run`), tool use, DNA encoding (`Hi` → `CAGACGGC`), injection resistance, JSON shape, honesty about unknowable facts.
 - **Evolution**: population = incumbent + mutants + crossovers with the fittest other agent; fitness = benchmark pass rate − step-cost penalty. Every candidate runs the same items on the **same seeds** (paired comparison). A screening winner must then hold up on **fresh seeds** before it is promoted, which guards against promoting luck (the "winner's curse"). Crashed runs abort the generation instead of being scored. Evolution runs as a background job with live progress (`POST /api/agents/:id/evolve`, `GET /api/evolution/jobs/:id`). See [Phase 3](docs/phases/PHASE-3.md) for a real-model run.
+- **Bigger runs** ([Phase 4](docs/phases/PHASE-4.md)): the `evolve` suite gives Tycho, Lumen and Helix their own training items plus **held-out items** that selection never sees. A multi-generation run stops early after `patience` generations without a promotion, widens the mutation rate while stalled, and ends by re-testing the starting and final genomes on the held-out items with fresh seeds, so overfitting to the training items is reported instead of hidden. Several agents can evolve in one background job (`POST /api/evolution/fleet`), and each agent card charts its fitness by generation (`GET /api/agents/:id/lineage`).
 
 ### 9. Dreamer (`src/dream/dreamer.js`)
 While no mission runs: cluster recent episodes, distill lessons into semantic memory and speculative ideas into reflections, decay unused low-importance memories (archived, never deleted), decay/prune graph edges, re-embed stale vectors, and write a signed journal entry (`data/dreams/NNNN-dream-<kind>.md` + `.sig`, the same sidecar format as the FRAYMUS dream corpus).
@@ -281,7 +282,8 @@ Data lives in `./data` (override with `AGENCY_HOME`): `agency.db`, `keys/` (priv
 
 The dashboard can serve as an inference node. `web/src/hybrid.ts` imports and calls Firebase AI Logic at runtime: `initializeApp`, `initializeAppCheck`, `getAI(app, { backend: new GoogleAIBackend() })`, `getGenerativeModel` with an official `InferenceMode`, `initializeDeviceModel()` after a click, `generateContent()`, and `response.inferenceSource` (`ON_DEVICE` / `IN_CLOUD`). `web/src/edge.ts` registers the tab with the agency, long-polls for jobs, runs them, and reports which path actually ran.
 
-The agency routes work to it in two ways:
+The agency routes work to it in three ways:
+- **GPU overflow** ([Phase 5](docs/phases/PHASE-5.md)): the local GPU runs one generation at a time. While it is busy, waiting `fast`, `plan`, `critic` and `reason` calls go to a connected edge worker instead of queueing. Private calls overflow only to a worker with Gemini Nano (`ONLY_ON_DEVICE`); seeded benchmark and evolution calls never overflow, so comparisons stay on one model;
 - the router's fallback chain (`edge:prefer_on_device`) when local models are unavailable;
 - **private** work (`privacy: "private"`), which is pinned to `edge:only_on_device`, so the text never leaves the user's machine. The *Private draft* workflow demonstrates this.
 
@@ -291,6 +293,8 @@ Setup ($0, Spark plan):
 3. `cp web/.env.example web/.env.local` and fill in the values. Then `npm run build`.
 4. Chrome desktop 139+ with `chrome://flags/#prompt-api-for-gemini-nano-multimodal-input` enabled.
 5. Dashboard → **Hybrid Edge** → *Prepare on-device model* (must be a click) → *Start serving*.
+
+**Check before the first call:** `node bin/agency.js edge doctor` (also shown on the Hybrid Edge page) validates `web/.env.local` offline with secrets masked, refuses a tracked env file, and catches a dashboard build that predates or lacks the config. **Proof after:** every completed Firebase call, routed or direct, is signed into the ledger as `edge.inference` (inference path, latency, project, SHA-256 of the output; never the prompt or text). See it with `node bin/agency.js edge proof` or the page's proof panel. Step-by-step guide: [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md).
 
 ---
 
@@ -302,7 +306,7 @@ agency status | models | selftest | token
 agency mission "<goal>" [--mode standard|logic_chain|consensus] [--private]
 agency ask <agent> "<task>" [--private]
 agency agents | agents forge "<description>" | agents roster "<business>" "<goal>" [--count 4] [--commit]
-agency agents import <dir>... | agents evolve <id> [--population 4] | agents export <id> <file> | agents adopt <file>
+agency agents import <dir>... | agents evolve <id>[,<id>...] [--generations 3] [--patience 2] | agents export <id> <file> | agents adopt <file>
 agency memory search "<q>" | memory add "<text>" [--kind fact] | memory law "<text>"
 agency ledger verify | ledger tail [N]
 agency approvals | approve <id> | deny <id>
@@ -328,7 +332,7 @@ All `/api/*` routes require `Authorization: Bearer <data/api-token>` (SSE accept
 | Area | Routes |
 |---|---|
 | Status | `GET /api/status`, `GET /api/models`, `POST /api/models/refresh`, `GET /api/tools`, `GET /api/config`, `GET /api/events` (SSE) |
-| Agents | `GET/POST /api/agents`, `GET/DELETE /api/agents/:id`, `POST /api/agents/:id/enabled`, `POST /api/agents/:id/ask`, `POST /api/agents/:id/evolve` (starts a background job), `GET /api/evolution/jobs/:id`, `POST /api/evolution/jobs/:id/cancel`, `GET /api/agents/:id/evolution`, `GET /api/agents/:id/organism`, `POST /api/organisms/import`, `POST /api/agents/import-manifests`, `POST /api/forge`, `POST /api/forge/roster` |
+| Agents | `GET/POST /api/agents`, `GET/DELETE /api/agents/:id`, `POST /api/agents/:id/enabled`, `POST /api/agents/:id/ask`, `POST /api/agents/:id/evolve` (starts a background job), `POST /api/evolution/fleet` (several agents in one job), `GET /api/evolution/active`, `GET /api/evolution/jobs/:id`, `POST /api/evolution/jobs/:id/cancel`, `GET /api/agents/:id/evolution`, `GET /api/agents/:id/lineage`, `GET /api/agents/:id/organism`, `POST /api/organisms/import`, `POST /api/agents/import-manifests`, `POST /api/forge`, `POST /api/forge/roster` |
 | Missions | `GET/POST /api/missions`, `GET /api/missions/:id`, `POST /api/missions/:id/cancel`, `GET /api/missions/:id/trace` |
 | Approvals | `GET /api/approvals?status=`, `POST /api/approvals/:id {approve}` |
 | Memory | `GET/POST /api/memory`, `GET /api/memory/search?q=`, `GET /api/memory/graph`, `GET /api/memory/stats`, `GET /api/memory/:id/verify`, `POST /api/memory/:id/archive` |
@@ -449,10 +453,14 @@ These are the steps taken to build this repository, in order. Per-phase detail i
 
 **Proven in Phase 2:** the benchmark on real models (with confidence intervals); the mesh between two live HTTP servers, including pairing, trust, a signed task request and its signed result; and the MCP client against the agency's own server running as a real child process.
 
+**Proven in Phase 4:** multi-generation fleet evolution on real models (3 agents, 7 generations) with held-out validation. It also showed how noisy the measurement is: the same genome scores about ±0.15 apart between seed sets. That led to a paired sign-test guard on promotion ([details](docs/phases/PHASE-4.md)).
+
+**Proven in Phase 5:** Firebase AI Logic called at runtime against a real project. Direct calls, plus **GPU-overflow calls made by a running mission**, are each signed into the ledger with their inference path (`IN_CLOUD` so far) ([details](docs/phases/PHASE-5.md)).
+
 **Proven in Phase 3:** evolution on real models. Tycho's genome was promoted after a fresh-seed confirmation round, and a held-out benchmark of its items went from 7/9 to 9/9. The confidence intervals still overlap ([details](docs/phases/PHASE-3.md)).
 
 **Implemented but not exercised end to end in this environment:**
-- **Firebase AI Logic edge execution.** The code type-checks against `firebase@13.3.0` and builds, but running it needs your Firebase project config, an App Check debug token and Chrome with Gemini Nano.
+- **Gemini Nano ON_DEVICE.** The cloud path is proven (Phase 5). On-device needs a Chrome where `LanguageModel.availability()` reports `available`; the test browser reported `unavailable` and fell back to the cloud as designed.
 - **Mesh across two physical machines over Tailscale.** The same code is proven between two local servers.
 
 **Limits to know:**

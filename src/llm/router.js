@@ -59,19 +59,23 @@ export class ModelRouter {
   }
 
   /** Resolve the ordered candidate list for a role (or explicit model) given privacy constraints. */
-  async candidates({ role = 'reason', model = null, privacy = 'normal' } = {}) {
+  async candidates({ role = 'reason', model = null, privacy = 'normal', seed } = {}) {
     await Promise.all(this.providers.map((p) => p.refresh?.()));
     const wanted = model ? [model, ...(this.cfg.models[role] || [])] : [...(this.cfg.models[role] || [])];
     const out = [];
     const seen = new Set();
-    const push = (provider, m) => {
+    const push = (provider, m, extra = {}) => {
       const key = `${provider.name}:${m}`;
       if (seen.has(key)) return;
       seen.add(key);
-      if (this.breaker(key).canPass()) out.push({ provider, model: m, key });
+      if (this.breaker(key).canPass()) out.push({ provider, model: m, key, ...extra });
     };
     // Private content: only local GPU or the browser's on-device model.
     const allowCloud = privacy !== 'private';
+    // GPU overflow: the local GPU runs one generation at a time. While it is busy and a dashboard tab is serving as a
+    // Firebase AI Logic edge worker, this call goes to the edge instead of waiting in the GPU queue. Seeded calls
+    // (benchmarks, evolution) and explicit model requests stay local, so paired comparisons keep one model.
+    if (this.#overflowToEdge({ role, model, privacy, seed })) push(this.edge, privacy === 'private' ? 'edge:only_on_device' : 'edge:prefer_on_device', { overflow: true });
     for (const p of this.extra) for (const m of wanted) if (p.has(m)) push(p, m);
     for (const m of wanted) {
       if (String(m).startsWith('edge:') && this.edge?.has(m)) push(this.edge, privacy === 'private' ? 'edge:only_on_device' : m);
@@ -94,6 +98,16 @@ export class ModelRouter {
     return out;
   }
 
+  #overflowToEdge({ role, model, privacy, seed }) {
+    const ov = this.cfg.edge?.overflow;
+    if (!ov?.enabled || model || Number.isInteger(seed) || !this.edge?.hub.available) return false;
+    if (!(ov.roles || []).includes(role)) return false;
+    if (this.gpu.active < this.gpu.max) return false;
+    // Private work may only run ON_DEVICE: overflow it only to a worker that can run Gemini Nano.
+    if (privacy === 'private') return this.edge.hub.liveWorkers().some((w) => w.onDevice === 'available');
+    return true;
+  }
+
   /**
    * Chat with automatic fallback. Throws only if every candidate fails.
    * req: { role, model, privacy, messages, json, temperature, maxTokens, signal, span, onToken }
@@ -113,6 +127,10 @@ export class ModelRouter {
         if (!res.text || !res.text.trim()) throw new Error('empty completion');
         this.breaker(c.key).success();
         this.#account(res);
+        if (c.overflow) {
+          this.usage.edgeOverflow = (this.usage.edgeOverflow || 0) + 1;
+          this.bus?.publish('router.overflow', { role: req.role || 'reason', model: c.model, inferenceSource: res.inferenceSource });
+        }
         span?.end('ok', { latencyMs: res.latencyMs, promptTokens: res.usage.prompt, completionTokens: res.usage.completion, inferenceSource: res.inferenceSource });
         return res;
       } catch (e) {

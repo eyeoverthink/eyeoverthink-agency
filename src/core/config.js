@@ -14,7 +14,11 @@ export const DEFAULTS = Object.freeze({
   // Optional Gemini Developer API free tier (server-side cloud fallback). Never required.
   gemini: { apiKey: '', model: 'gemini-3.5-flash-lite' },
   // Browser edge tier: Firebase AI Logic hybrid (Gemini Nano on-device, cloud fallback) via a connected dashboard.
-  edge: { enabled: true, claimTimeoutMs: 20000, resultTimeoutMs: 180000 },
+  edge: {
+    enabled: true, claimTimeoutMs: 20000, resultTimeoutMs: 180000,
+    // While the local GPU is busy, these roles spill to a connected Firebase AI Logic edge worker instead of queueing.
+    overflow: { enabled: true, roles: ['fast', 'plan', 'critic', 'reason'] },
+  },
   // Role -> ordered model preference. The router skips models that are not installed or whose breaker is open.
   models: {
     reason: ['fraymus-prime:v1', 'niles-fraymus:v9', 'hermes3:latest', 'llama3.1:8b', 'gemma4:latest'],

@@ -1,0 +1,1019 @@
+{
+ "id": "evo_01m7mcfvb43hbmgrw03b3q",
+ "agentId": "helix,lumen,tycho",
+ "agents": [
+  "helix",
+  "lumen",
+  "tycho"
+ ],
+ "status": "done",
+ "started": "2026-11-17T09:12:58.980Z",
+ "progress": {
+  "agentId": "tycho",
+  "generation": 2,
+  "phase": "screening",
+  "done": 56,
+  "total": 84,
+  "agentIndex": 2,
+  "agentCount": 3
+ },
+ "result": {
+  "fleet": true,
+  "agents": [
+   {
+    "agentId": "helix",
+    "generations": [
+     {
+      "agentId": "helix",
+      "generation": 1,
+      "promoted": true,
+      "reason": "confirmed on fresh seeds (0.96 vs 0.84); pooled 0.962 vs 0.84 (+0.122); paired 2 wins, 0 losses",
+      "items": [
+       "dna-tool",
+       "dna-ok",
+       "dna-decode",
+       "memory-roundtrip"
+      ],
+      "repeats": 2,
+      "seeds": [
+       1001,
+       1002
+      ],
+      "mutationRate": 0.04,
+      "incumbent": 0.84,
+      "best": 0.964,
+      "fitness": 0.962,
+      "challengerChanges": [
+       {
+        "trait": "temperature",
+        "from": 0.2,
+        "to": 0.19
+       },
+       {
+        "trait": "exploration",
+        "from": 0.5,
+        "to": 0.508
+       }
+      ],
+      "confirmation": {
+       "seeds": [
+        1501,
+        1502
+       ],
+       "incumbent": {
+        "fitness": 0.84,
+        "passRate": 0.875
+       },
+       "challenger": {
+        "fitness": 0.96,
+        "passRate": 1
+       },
+       "pooled": {
+        "incumbent": 0.84,
+        "challenger": 0.962,
+        "incumbentCi95": [
+         0.64,
+         0.965
+        ],
+        "challengerCi95": [
+         0.806,
+         1
+        ]
+       },
+       "paired": {
+        "wins": 2,
+        "losses": 0,
+        "ties": 14
+       }
+      },
+      "traits": {
+       "temperature": 0.19,
+       "topP": 0.9,
+       "maxSteps": 6,
+       "reflection": 1,
+       "criticStrictness": 0.6,
+       "exploration": 0.508,
+       "verbosity": 0.4,
+       "memoryDepth": 5,
+       "curiosity": 0.5,
+       "caution": 0.5,
+       "rigor": 0.8,
+       "creativity": 0.4
+      },
+      "candidates": [
+       {
+        "incumbent": true,
+        "fitness": 0.84,
+        "passRate": 0.875,
+        "ci95": [
+         0.529,
+         0.978
+        ],
+        "distance": 0
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.961,
+        "passRate": 1,
+        "ci95": [
+         0.676,
+         1
+        ],
+        "distance": 0.014
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.964,
+        "passRate": 1,
+        "ci95": [
+         0.676,
+         1
+        ],
+        "distance": 0.056
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.961,
+        "passRate": 1,
+        "ci95": [
+         0.676,
+         1
+        ],
+        "distance": 0.028
+       }
+      ]
+     },
+     {
+      "agentId": "helix",
+      "generation": 2,
+      "promoted": false,
+      "reason": "screening win did not hold on fresh seeds (0.96 vs 0.963)",
+      "items": [
+       "dna-tool",
+       "dna-ok",
+       "dna-decode",
+       "memory-roundtrip"
+      ],
+      "repeats": 2,
+      "seeds": [
+       2001,
+       2002
+      ],
+      "mutationRate": 0.04,
+      "incumbent": 0.838,
+      "best": 0.963,
+      "fitness": 0.9,
+      "challengerChanges": [
+       {
+        "trait": "temperature",
+        "from": 0.19,
+        "to": 0.112
+       },
+       {
+        "trait": "verbosity",
+        "from": 0.4,
+        "to": 0.402
+       },
+       {
+        "trait": "creativity",
+        "from": 0.4,
+        "to": 0.9
+       }
+      ],
+      "confirmation": {
+       "seeds": [
+        2501,
+        2502
+       ],
+       "incumbent": {
+        "fitness": 0.963,
+        "passRate": 1
+       },
+       "challenger": {
+        "fitness": 0.96,
+        "passRate": 1
+       },
+       "pooled": {
+        "incumbent": 0.9,
+        "challenger": 0.961,
+        "incumbentCi95": [
+         0.717,
+         0.989
+        ],
+        "challengerCi95": [
+         0.806,
+         1
+        ]
+       },
+       "paired": {
+        "wins": 1,
+        "losses": 0,
+        "ties": 15
+       }
+      },
+      "traits": {
+       "temperature": 0.19,
+       "topP": 0.9,
+       "maxSteps": 6,
+       "reflection": 1,
+       "criticStrictness": 0.6,
+       "exploration": 0.508,
+       "verbosity": 0.4,
+       "memoryDepth": 5,
+       "curiosity": 0.5,
+       "caution": 0.5,
+       "rigor": 0.8,
+       "creativity": 0.4
+      },
+      "candidates": [
+       {
+        "incumbent": true,
+        "fitness": 0.838,
+        "passRate": 0.875,
+        "ci95": [
+         0.529,
+         0.978
+        ],
+        "distance": 0
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.963,
+        "passRate": 1,
+        "ci95": [
+         0.676,
+         1
+        ],
+        "distance": 0.056
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.838,
+        "passRate": 0.875,
+        "ci95": [
+         0.529,
+         0.978
+        ],
+        "distance": 0.056
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.838,
+        "passRate": 0.875,
+        "ci95": [
+         0.529,
+         0.978
+        ],
+        "distance": 0.042
+       }
+      ]
+     },
+     {
+      "agentId": "helix",
+      "generation": 3,
+      "promoted": false,
+      "reason": "pooled gain 0.01 is below the minimum 0.02 (0.97 vs 0.96); treated as a tie",
+      "items": [
+       "dna-tool",
+       "dna-ok",
+       "dna-decode",
+       "memory-roundtrip"
+      ],
+      "repeats": 2,
+      "seeds": [
+       3001,
+       3002
+      ],
+      "mutationRate": 0.06,
+      "incumbent": 0.96,
+      "best": 0.97,
+      "fitness": 0.96,
+      "challengerChanges": [
+       {
+        "trait": "temperature",
+        "from": 0.19,
+        "to": 0.189
+       },
+       {
+        "trait": "reflection",
+        "from": 1,
+        "to": 0
+       },
+       {
+        "trait": "exploration",
+        "from": 0.508,
+        "to": 0.696
+       }
+      ],
+      "confirmation": {
+       "seeds": [
+        3501,
+        3502
+       ],
+       "incumbent": {
+        "fitness": 0.96,
+        "passRate": 1
+       },
+       "challenger": {
+        "fitness": 0.97,
+        "passRate": 1
+       },
+       "pooled": {
+        "incumbent": 0.96,
+        "challenger": 0.97,
+        "incumbentCi95": [
+         0.806,
+         1
+        ],
+        "challengerCi95": [
+         0.806,
+         1
+        ]
+       },
+       "paired": {
+        "wins": 0,
+        "losses": 0,
+        "ties": 16
+       }
+      },
+      "traits": {
+       "temperature": 0.19,
+       "topP": 0.9,
+       "maxSteps": 6,
+       "reflection": 1,
+       "criticStrictness": 0.6,
+       "exploration": 0.508,
+       "verbosity": 0.4,
+       "memoryDepth": 5,
+       "curiosity": 0.5,
+       "caution": 0.5,
+       "rigor": 0.8,
+       "creativity": 0.4
+      },
+      "candidates": [
+       {
+        "incumbent": true,
+        "fitness": 0.96,
+        "passRate": 1,
+        "ci95": [
+         0.676,
+         1
+        ],
+        "distance": 0
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.961,
+        "passRate": 1,
+        "ci95": [
+         0.676,
+         1
+        ],
+        "distance": 0.097
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.96,
+        "passRate": 1,
+        "ci95": [
+         0.676,
+         1
+        ],
+        "distance": 0.042
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.97,
+        "passRate": 1,
+        "ci95": [
+         0.676,
+         1
+        ],
+        "distance": 0.097
+       }
+      ]
+     }
+    ],
+    "promotions": 1,
+    "finalFitness": 0.96,
+    "stoppedEarly": false,
+    "startGenome": "ATGACTGGTTATATACCCCCCCCCCCCCGCGCGGAAAAACGCGCGCATATCGAAAAAGAAAAATATATACGCGCGTAA",
+    "finalGenome": "ATGACTAGTTATATACCCCCCCCCCCCCGCGCGGAAGAGCGCGCGCATAACGAAAAAGAAAAATATATACGCGCGTAA",
+    "changes": [
+     {
+      "trait": "temperature",
+      "from": 0.2,
+      "to": 0.19
+     },
+     {
+      "trait": "exploration",
+      "from": 0.5,
+      "to": 0.508
+     }
+    ],
+    "holdout": {
+     "items": [
+      "dna-go",
+      "dna-decode-ok"
+     ],
+     "seeds": [
+      3901,
+      3902,
+      3903
+     ],
+     "verdict": "no accuracy change out of sample",
+     "delta": 0.005,
+     "paired": {
+      "wins": 0,
+      "losses": 0,
+      "ties": 6
+     },
+     "before": {
+      "fitness": 0.965,
+      "passRate": 1,
+      "ci95": [
+       0.61,
+       1
+      ],
+      "perRun": [
+       {
+        "id": "dna-go",
+        "pass": true,
+        "steps": 3,
+        "ms": 12319,
+        "seed": 3901
+       },
+       {
+        "id": "dna-decode-ok",
+        "pass": true,
+        "steps": 4,
+        "ms": 11800,
+        "seed": 3901
+       },
+       {
+        "id": "dna-go",
+        "pass": true,
+        "steps": 4,
+        "ms": 10908,
+        "seed": 3902
+       },
+       {
+        "id": "dna-decode-ok",
+        "pass": true,
+        "steps": 4,
+        "ms": 16175,
+        "seed": 3902
+       },
+       {
+        "id": "dna-go",
+        "pass": true,
+        "steps": 2,
+        "ms": 13275,
+        "seed": 3903
+       },
+       {
+        "id": "dna-decode-ok",
+        "pass": true,
+        "steps": 4,
+        "ms": 15358,
+        "seed": 3903
+       }
+      ]
+     },
+     "after": {
+      "fitness": 0.97,
+      "passRate": 1,
+      "ci95": [
+       0.61,
+       1
+      ],
+      "perRun": [
+       {
+        "id": "dna-go",
+        "pass": true,
+        "steps": 2,
+        "ms": 14339,
+        "seed": 3901
+       },
+       {
+        "id": "dna-decode-ok",
+        "pass": true,
+        "steps": 4,
+        "ms": 13543,
+        "seed": 3901
+       },
+       {
+        "id": "dna-go",
+        "pass": true,
+        "steps": 2,
+        "ms": 12297,
+        "seed": 3902
+       },
+       {
+        "id": "dna-decode-ok",
+        "pass": true,
+        "steps": 4,
+        "ms": 16409,
+        "seed": 3902
+       },
+       {
+        "id": "dna-go",
+        "pass": true,
+        "steps": 2,
+        "ms": 16968,
+        "seed": 3903
+       },
+       {
+        "id": "dna-decode-ok",
+        "pass": true,
+        "steps": 4,
+        "ms": 13806,
+        "seed": 3903
+       }
+      ]
+     }
+    }
+   },
+   {
+    "agentId": "lumen",
+    "generations": [
+     {
+      "agentId": "lumen",
+      "generation": 1,
+      "promoted": false,
+      "reason": "best challenger 0.72 did not beat incumbent 0.72 on screening",
+      "items": [
+       "injection-resist",
+       "json-shape",
+       "csv-exact",
+       "word-limit",
+       "caps-only",
+       "translate-inject"
+      ],
+      "repeats": 2,
+      "seeds": [
+       1001,
+       1002
+      ],
+      "mutationRate": 0.04,
+      "incumbent": 0.72,
+      "best": 0.72,
+      "fitness": 0.72,
+      "challengerChanges": [],
+      "confirmation": null,
+      "traits": {
+       "temperature": 0.6,
+       "topP": 0.9,
+       "maxSteps": 3,
+       "reflection": 1,
+       "criticStrictness": 0.6,
+       "exploration": 0.5,
+       "verbosity": 0.7,
+       "memoryDepth": 5,
+       "curiosity": 0.5,
+       "caution": 0.5,
+       "rigor": 0.6,
+       "creativity": 0.7
+      },
+      "candidates": [
+       {
+        "incumbent": true,
+        "fitness": 0.72,
+        "passRate": 0.75,
+        "ci95": [
+         0.468,
+         0.911
+        ],
+        "distance": 0
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.72,
+        "passRate": 0.75,
+        "ci95": [
+         0.468,
+         0.911
+        ],
+        "distance": 0.028
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.542,
+        "passRate": 0.583,
+        "ci95": [
+         0.32,
+         0.807
+        ],
+        "distance": 0.264
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.72,
+        "passRate": 0.75,
+        "ci95": [
+         0.468,
+         0.911
+        ],
+        "distance": 0.014
+       }
+      ]
+     },
+     {
+      "agentId": "lumen",
+      "generation": 2,
+      "promoted": false,
+      "reason": "screening win did not hold on fresh seeds (0.54 vs 0.637)",
+      "items": [
+       "injection-resist",
+       "json-shape",
+       "csv-exact",
+       "word-limit",
+       "caps-only",
+       "translate-inject"
+      ],
+      "repeats": 2,
+      "seeds": [
+       2001,
+       2002
+      ],
+      "mutationRate": 0.06,
+      "incumbent": 0.553,
+      "best": 0.788,
+      "fitness": 0.595,
+      "challengerChanges": [
+       {
+        "trait": "temperature",
+        "from": 0.6,
+        "to": 0.19
+       },
+       {
+        "trait": "maxSteps",
+        "from": 3,
+        "to": 6
+       },
+       {
+        "trait": "verbosity",
+        "from": 0.7,
+        "to": 0.4
+       },
+       {
+        "trait": "memoryDepth",
+        "from": 5,
+        "to": 3
+       },
+       {
+        "trait": "creativity",
+        "from": 0.7,
+        "to": 0.4
+       }
+      ],
+      "confirmation": {
+       "seeds": [
+        2501,
+        2502
+       ],
+       "incumbent": {
+        "fitness": 0.637,
+        "passRate": 0.667
+       },
+       "challenger": {
+        "fitness": 0.54,
+        "passRate": 0.583
+       },
+       "pooled": {
+        "incumbent": 0.595,
+        "challenger": 0.664,
+        "incumbentCi95": [
+         0.427,
+         0.788
+        ],
+        "challengerCi95": [
+         0.508,
+         0.851
+        ]
+       },
+       "paired": {
+        "wins": 4,
+        "losses": 2,
+        "ties": 18
+       }
+      },
+      "traits": {
+       "temperature": 0.6,
+       "topP": 0.9,
+       "maxSteps": 3,
+       "reflection": 1,
+       "criticStrictness": 0.6,
+       "exploration": 0.5,
+       "verbosity": 0.7,
+       "memoryDepth": 5,
+       "curiosity": 0.5,
+       "caution": 0.5,
+       "rigor": 0.6,
+       "creativity": 0.7
+      },
+      "candidates": [
+       {
+        "incumbent": true,
+        "fitness": 0.553,
+        "passRate": 0.583,
+        "ci95": [
+         0.32,
+         0.807
+        ],
+        "distance": 0
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.553,
+        "passRate": 0.583,
+        "ci95": [
+         0.32,
+         0.807
+        ],
+        "distance": 0.014
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.788,
+        "passRate": 0.833,
+        "ci95": [
+         0.552,
+         0.953
+        ],
+        "distance": 0.278
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.548,
+        "passRate": 0.583,
+        "ci95": [
+         0.32,
+         0.807
+        ],
+        "distance": 0.111
+       }
+      ]
+     }
+    ],
+    "promotions": 0,
+    "finalFitness": 0.595,
+    "stoppedEarly": true,
+    "startGenome": "ATGCTAAGGTATATAACCCCCCCCCCCCGCGCGGAAAAAGTATATCATATCGAAAAAGAAAAAGCGCGCGTATATTAA",
+    "finalGenome": "ATGCTAAGGTATATAACCCCCCCCCCCCGCGCGGAAAAAGTATATCATATCGAAAAAGAAAAAGCGCGCGTATATTAA",
+    "changes": [],
+    "holdout": {
+     "skipped": "genome unchanged, nothing to validate"
+    }
+   },
+   {
+    "agentId": "tycho",
+    "generations": [
+     {
+      "agentId": "tycho",
+      "generation": 1,
+      "promoted": false,
+      "reason": "screening win did not hold on fresh seeds (0.459 vs 0.604)",
+      "items": [
+       "math-exact",
+       "syllogism",
+       "tool-time",
+       "pct-chain",
+       "minutes",
+       "prime-count",
+       "de-morgan"
+      ],
+      "repeats": 2,
+      "seeds": [
+       1001,
+       1002
+      ],
+      "mutationRate": 0.04,
+      "incumbent": 0.671,
+      "best": 0.741,
+      "fitness": 0.638,
+      "challengerChanges": [
+       {
+        "trait": "criticStrictness",
+        "from": 0.6,
+        "to": 0.616
+       },
+       {
+        "trait": "exploration",
+        "from": 0.5,
+        "to": 0.75
+       }
+      ],
+      "confirmation": {
+       "seeds": [
+        1501,
+        1502
+       ],
+       "incumbent": {
+        "fitness": 0.604,
+        "passRate": 0.643
+       },
+       "challenger": {
+        "fitness": 0.459,
+        "passRate": 0.5
+       },
+       "pooled": {
+        "incumbent": 0.638,
+        "challenger": 0.6,
+        "incumbentCi95": [
+         0.493,
+         0.821
+        ],
+        "challengerCi95": [
+         0.458,
+         0.793
+        ]
+       },
+       "paired": {
+        "wins": 4,
+        "losses": 5,
+        "ties": 19
+       }
+      },
+      "traits": {
+       "temperature": 0.2,
+       "topP": 0.9,
+       "maxSteps": 8,
+       "reflection": 1,
+       "criticStrictness": 0.6,
+       "exploration": 0.5,
+       "verbosity": 0.4,
+       "memoryDepth": 5,
+       "curiosity": 0.5,
+       "caution": 0.5,
+       "rigor": 0.9,
+       "creativity": 0.4
+      },
+      "candidates": [
+       {
+        "incumbent": true,
+        "fitness": 0.671,
+        "passRate": 0.714,
+        "ci95": [
+         0.454,
+         0.883
+        ],
+        "distance": 0
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.741,
+        "passRate": 0.786,
+        "ci95": [
+         0.524,
+         0.924
+        ],
+        "distance": 0.042
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.602,
+        "passRate": 0.643,
+        "ci95": [
+         0.388,
+         0.837
+        ],
+        "distance": 0.083
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.531,
+        "passRate": 0.571,
+        "ci95": [
+         0.326,
+         0.786
+        ],
+        "distance": 0.042
+       }
+      ]
+     },
+     {
+      "agentId": "tycho",
+      "generation": 2,
+      "promoted": false,
+      "reason": "best challenger 0.749 did not beat incumbent 0.819 on screening",
+      "items": [
+       "math-exact",
+       "syllogism",
+       "tool-time",
+       "pct-chain",
+       "minutes",
+       "prime-count",
+       "de-morgan"
+      ],
+      "repeats": 2,
+      "seeds": [
+       2001,
+       2002
+      ],
+      "mutationRate": 0.06,
+      "incumbent": 0.819,
+      "best": 0.749,
+      "fitness": 0.819,
+      "challengerChanges": [
+       {
+        "trait": "maxSteps",
+        "from": 8,
+        "to": 10
+       },
+       {
+        "trait": "criticStrictness",
+        "from": 0.6,
+        "to": 0.608
+       },
+       {
+        "trait": "verbosity",
+        "from": 0.4,
+        "to": 0.399
+       },
+       {
+        "trait": "curiosity",
+        "from": 0.5,
+        "to": 0.504
+       }
+      ],
+      "confirmation": null,
+      "traits": {
+       "temperature": 0.2,
+       "topP": 0.9,
+       "maxSteps": 8,
+       "reflection": 1,
+       "criticStrictness": 0.6,
+       "exploration": 0.5,
+       "verbosity": 0.4,
+       "memoryDepth": 5,
+       "curiosity": 0.5,
+       "caution": 0.5,
+       "rigor": 0.9,
+       "creativity": 0.4
+      },
+      "candidates": [
+       {
+        "incumbent": true,
+        "fitness": 0.819,
+        "passRate": 0.857,
+        "ci95": [
+         0.601,
+         0.96
+        ],
+        "distance": 0
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.749,
+        "passRate": 0.786,
+        "ci95": [
+         0.524,
+         0.924
+        ],
+        "distance": 0.056
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.678,
+        "passRate": 0.714,
+        "ci95": [
+         0.454,
+         0.883
+        ],
+        "distance": 0.042
+       },
+       {
+        "incumbent": false,
+        "fitness": 0.747,
+        "passRate": 0.786,
+        "ci95": [
+         0.524,
+         0.924
+        ],
+        "distance": 0.125
+       }
+      ]
+     }
+    ],
+    "promotions": 0,
+    "finalFitness": 0.819,
+    "stoppedEarly": true,
+    "startGenome": "ATGACTGGTTATATAGAAAAACCCCCCCGCGCGGAAAAACGCGCGCATATCGAAAAAGAAAAATGCGCGCGCGCGTAA",
+    "finalGenome": "ATGACTGGTTATATAGAAAAACCCCCCCGCGCGGAAAAACGCGCGCATATCGAAAAAGAAAAATGCGCGCGCGCGTAA",
+    "changes": [],
+    "holdout": {
+     "skipped": "genome unchanged, nothing to validate"
+    }
+   }
+  ],
+  "promotions": 1,
+  "finalFitness": {
+   "helix": 0.96,
+   "lumen": 0.595,
+   "tycho": 0.819
+  }
+ },
+ "error": null,
+ "finished": "2026-11-17T10:27:18.847Z"
+}

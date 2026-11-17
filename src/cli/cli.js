@@ -1,6 +1,9 @@
 // CLI. Commands run the agency in-process; `serve` starts the API + dashboard.
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Agency } from '../agency.js';
+import { edgeDoctor } from '../llm/edge-doctor.js';
 import { createServer } from '../server/server.js';
 import { McpServer } from '../protocols/mcp.js';
 import { encodeDna, decodeDna, encodeCodon, decodeCodon, gcContent } from '../core/dna.js';
@@ -23,7 +26,7 @@ Global flags: --home <dir> (data directory)  --ollama <url> (Ollama server)
   agents forge "<description>"     Design and register a new agent
   agents roster "<business>" "<goal>" [--count 4] [--commit]
   agents import <dir> [dir...]     Import FRAYMUS/Chandra *.md manifests
-  agents evolve <id> [--population 4] [--repeats 2] [--generations 1] [--no-confirm]
+  agents evolve <id>[,<id>...] [--population 4] [--repeats 2] [--generations 1] [--patience 2] [--holdout-repeats 3] [--alpha 0.1] [--no-confirm] [--no-adaptive] [--no-holdout]
   agents export <id> <file>        Export an agent as a signed DNA plasmid (organism)
   agents adopt <file>              Import an organism plasmid
 
@@ -39,6 +42,7 @@ Global flags: --home <dir> (data directory)  --ollama <url> (Ollama server)
   export | snapshot | restore <file>   Brain-dump handoff / organism snapshot / restore
   dna encode "<text>" [--codon] | dna decode <strand> [--codon]
   mcp                              Run as an MCP server on stdio (for Claude Code, IDEs)
+  edge doctor | edge proof [N]     Check the Firebase AI Logic setup / list ledgered Firebase calls
   token                            Print the API token for the dashboard
 `;
 
@@ -153,11 +157,20 @@ export async function main(argv) {
         } else if (sub === 'forge') out(await agency.forge.create(pos.slice(2).join(' ')));
         else if (sub === 'roster') out(await agency.forge.roster({ business: pos[2], goal: pos[3], count: Number(flags.count || 4), commit: Boolean(flags.commit) }));
         else if (sub === 'import') out(agency.agents.importManifests(pos.slice(2), known));
-        else if (sub === 'evolve') out(await agency.evolution.run(pos[2], {
-          population: Number(flags.population || 4), repeats: Number(flags.repeats || 2), generations: Number(flags.generations || 1), confirm: !flags['no-confirm'],
-          onProgress: (p) => { if (p.done === p.total || p.done % 3 === 0) process.stderr.write(`gen ${p.generation} ${p.phase} ${p.done}/${p.total}
+        else if (sub === 'evolve') {
+          // Comma list = fleet run, one agent after another (the GPU runs one model call at a time anyway).
+          const ids = String(pos[2] || '').split(',').map((x) => x.trim()).filter(Boolean);
+          if (!ids.length) throw new Error('usage: agents evolve <id>[,<id>...]');
+          const opts = {
+            population: Number(flags.population || 4), repeats: Number(flags.repeats || 2), generations: Number(flags.generations || 1), confirm: !flags['no-confirm'],
+            patience: flags.patience !== undefined ? Number(flags.patience) : 2, adaptive: !flags['no-adaptive'], holdout: !flags['no-holdout'], holdoutRepeats: Number(flags['holdout-repeats'] || 3), alpha: flags.alpha !== undefined ? Number(flags.alpha) : 0.1,
+            onProgress: (p) => { if (p.done === p.total || p.done % 3 === 0) process.stderr.write(`${p.agentId} gen ${p.generation} ${p.phase} ${p.done}/${p.total}
 `); },
-        }));
+          };
+          const results = [];
+          for (const id of ids) results.push(await agency.evolution.run(id, opts));
+          out(results.length === 1 ? results[0] : { fleet: true, agents: results });
+        }
         else if (sub === 'export') { const o = agency.agents.exportOrganism(pos[2], agency.memory.playbook(pos[2], 10).map((p) => p.content)); fs.writeFileSync(pos[3], JSON.stringify(o.plasmid)); out(`wrote ${pos[3]} (strand ${o.plasmid.strand.length} nt, gc ${o.plasmid.gc})`); }
         else if (sub === 'adopt') out(agency.agents.importOrganism(JSON.parse(fs.readFileSync(pos[2], 'utf8'))).agent);
         else throw new Error(`unknown agents subcommand ${sub}`);
@@ -174,6 +187,21 @@ export async function main(argv) {
       case 'ledger': {
         if (pos[1] === 'tail') for (const e of agency.ledger.list({ limit: Number(pos[2] || 20) }).reverse()) out(`#${e.seq} ${e.ts} ${e.kind.padEnd(22)} ${e.actor.padEnd(10)} ${truncate(JSON.stringify(e.data), 110)}`);
         else { const v = agency.ledger.verify(); out(v.ok ? `VERIFIED ${v.count} entries · merkle ${v.merkleRoot}` : `BROKEN at #${v.brokenAt}: ${v.reason}`); if (!v.ok) process.exitCode = 3; }
+        break;
+      }
+      case 'edge': {
+        if (pos[1] === 'doctor') {
+          const r = edgeDoctor({ root: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..') });
+          const mark = { ok: 'PASS', warn: 'WARN', error: 'FAIL', info: 'INFO' };
+          for (const c of r.checks) out(`${mark[c.level].padEnd(5)} ${c.message}${c.fix ? `
+      fix: ${c.fix}` : ''}`);
+          out(r.ok ? (r.configured ? 'Edge config looks ready. Open the dashboard > Hybrid Edge and make one call to prove it.' : 'No errors, but Firebase is not configured yet.') : 'Edge config has errors (see FAIL lines).');
+          if (!r.ok) process.exitCode = 4;
+        } else if (pos[1] === 'proof') {
+          const rows = agency.ledger.list({ limit: Number(pos[2] || 20), kind: 'edge.inference' }).reverse();
+          for (const e of rows) out(`#${e.seq} ${e.ts} ${e.data.inferenceSource.padEnd(9)} ${String(e.data.origin).padEnd(10)} ${e.data.mode.padEnd(16)} ${e.data.latencyMs}ms project=${e.data.project ?? '-'} sha256=${String(e.data.sha256 ?? '-').slice(0, 12)}`);
+          out(`${rows.length} Firebase AI Logic call(s) in the signed ledger`);
+        } else throw new Error('usage: agency edge doctor | agency edge proof [N]');
         break;
       }
       case 'approvals': for (const p of agency.approvals.list('pending')) out(`${p.id} ${p.tool} by ${p.agent_id || '-'}: ${JSON.stringify(p.args).slice(0, 200)}`); break;

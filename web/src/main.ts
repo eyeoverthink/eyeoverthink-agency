@@ -1,7 +1,7 @@
 import "./style.css";
 import { api, getToken, setToken, subscribe, ApiError, type AgencyEvent } from "./api";
 import { md, esc } from "./md";
-import { isConfigured, missingConfig, prepareOnDevice, generate, promptApiPresent, chromeDesktopOk, type ModeName } from "./hybrid";
+import { isConfigured, missingConfig, prepareOnDevice, generate, nanoAvailability, chromeDesktopOk, edgeIdentity, sha256Hex, explainFirebaseError, type ModeName } from "./hybrid";
 import { EdgeWorker } from "./edge";
 
 type View = "missions" | "agents" | "memory" | "workflows" | "ledger" | "approvals" | "models" | "edge" | "lab";
@@ -24,6 +24,7 @@ const S = {
   streams: new Map<string, { text: string; done: boolean; missionId?: string; at: number }>(),
   askAgent: "" as string,
   evoJob: "" as string,
+  edgeLast: null as null | { text: string; source: string; latencyMs: number; seq: number | null },
 };
 const edge = new EdgeWorker(() => { if (S.view === "edge") renderView(); });
 
@@ -328,7 +329,9 @@ function onEvoProgress(e: AgencyEvent) {
   if (e.jobId !== S.evoJob) return;
   const bar = $("#evobar") as HTMLElement | null, txt = $("#evotxt");
   if (bar) bar.style.width = `${Math.round((100 * e.done) / Math.max(1, e.total))}%`;
-  if (txt) txt.textContent = `gen ${e.generation} · ${e.phase === "confirm" ? "confirming on fresh seeds" : "screening"} · ${e.done}/${e.total} runs`;
+  const phase = e.phase === "confirm" ? "confirming on fresh seeds" : e.phase === "holdout" ? "held-out re-test" : "screening";
+  const who = e.agentCount > 1 ? `${e.agentId} (${e.agentIndex + 1}/${e.agentCount}) · ` : "";
+  if (txt) txt.textContent = `${who}gen ${e.generation} · ${phase} · ${e.done}/${e.total} runs`;
 }
 
 async function showEvoResult(jobId: string) {
@@ -338,18 +341,71 @@ async function showEvoResult(jobId: string) {
   S.evoJob = "";
   $("#evocancel")?.remove();
   if (job.error) { out.innerHTML = `<p class="err">${esc(job.status)}: ${esc(job.error)}</p>`; return; }
-  const ci = (c: any) => (c ? `[${c[0]}, ${c[1]}]` : "");
-  out.innerHTML = job.result.generations.map((g: any) => `
+  const runs: any[] = job.result.fleet ? job.result.agents : [job.result];
+  out.innerHTML = runs.map(renderRun).join("");
+  const txt = $("#evotxt");
+  if (txt) txt.textContent = `done · ${job.result.promotions} promotion(s)${job.result.fleet ? ` across ${runs.length} agents` : ` · fitness ${job.result.finalFitness}`}`;
+  const bar = $("#evobar") as HTMLElement | null;
+  if (bar) bar.style.width = "100%";
+  void loadLineages();
+}
+
+const ci = (c: any) => (c ? `[${c[0]}, ${c[1]}]` : "");
+function renderHoldout(h: any) {
+  if (!h) return "";
+  if (h.skipped) return `<p class="dim">Held-out check skipped: ${esc(h.skipped)}.</p>`;
+  const cls = /improved/.test(h.verdict) ? "ok" : /worse/.test(h.verdict) ? "err" : "";
+  return `<div class="holdout"><h4>Held-out check: <span class="${cls}">${esc(h.verdict)}</span></h4>
+    <p class="dim">Items selection never saw (${h.items.map(esc).join(", ")}), fresh seeds ${h.seeds.join(", ")}: starting genome ${h.before.passRate} ${ci(h.before.ci95)} → final genome ${h.after.passRate} ${ci(h.after.ci95)} · paired wins ${h.paired.wins}, losses ${h.paired.losses}, ties ${h.paired.ties}</p></div>`;
+}
+
+function renderRun(run: any) {
+  const head = `<h3 class="runhead">${esc(run.agentId)} · ${run.generations.length} generation(s) · ${run.promotions} promotion(s)${run.stoppedEarly ? " · stopped early (no progress)" : ""}</h3>
+    ${run.changes?.length ? `<p class="dim">Net gene changes this run: ${run.changes.map((d: any) => `${esc(d.trait)} ${d.from} → ${d.to}`).join(", ")}</p>` : ""}`;
+  return head + renderHoldout(run.holdout) + run.generations.map((g: any) => `
     <h3>Generation ${g.generation}: ${g.promoted ? "<b class=\"ok\">PROMOTED</b>" : "kept incumbent"}</h3>
     <p>${esc(g.reason)}</p>
     <table class="evotbl"><tr><th>candidate</th><th>fitness</th><th>pass rate</th><th>95% CI</th><th>distance</th></tr>
       ${g.candidates.map((c: any, i: number) => `<tr><td>${c.incumbent ? "incumbent" : `mutant ${i}`}</td><td>${c.fitness}</td><td>${c.passRate}</td><td class="mono">${ci(c.ci95)}</td><td>${c.distance}</td></tr>`).join("")}</table>
     ${g.challengerChanges.length ? `<p class="dim">Best challenger's changed genes: ${g.challengerChanges.map((d: any) => `${esc(d.trait)} ${d.from} → ${d.to}`).join(", ")}</p>` : ""}
-    ${g.confirmation ? `<p class="dim">Fresh seeds: challenger ${g.confirmation.challenger.fitness} vs incumbent ${g.confirmation.incumbent.fitness} · paired wins ${g.confirmation.paired.wins}, losses ${g.confirmation.paired.losses}, ties ${g.confirmation.paired.ties}</p>` : ""}`).join("");
-  const txt = $("#evotxt");
-  if (txt) txt.textContent = `done · ${job.result.promotions} promotion(s) · fitness ${job.result.finalFitness}`;
-  const bar = $("#evobar") as HTMLElement | null;
-  if (bar) bar.style.width = "100%";
+    ${g.confirmation ? `<p class="dim">Fresh seeds: challenger ${g.confirmation.challenger.fitness} vs incumbent ${g.confirmation.incumbent.fitness} · paired wins ${g.confirmation.paired.wins}, losses ${g.confirmation.paired.losses}, ties ${g.confirmation.paired.ties}</p>` : ""}
+    <p class="dim mono">mutation rate ${g.mutationRate ?? "–"}</p>`).join("");
+}
+
+/** Fitness by generation: line = fitness carried out of each generation; gold dot = promotion; faint dot = best challenger. */
+function lineageSvg(lin: any[]) {
+  if (!lin.length) return "";
+  const W = 260, H = 56, P = 6;
+  const xs = (i: number) => P + (lin.length === 1 ? (W - 2 * P) / 2 : (i * (W - 2 * P)) / (lin.length - 1));
+  const vals = lin.flatMap((g) => [g.carried, g.best].filter((v) => v != null)) as number[];
+  const lo = Math.min(0.5, ...vals), hi = 1;
+  const ys = (v: number) => H - P - ((v - lo) / Math.max(0.01, hi - lo)) * (H - 2 * P);
+  const line = lin.map((g, i) => `${xs(i).toFixed(1)},${ys(g.carried ?? lo).toFixed(1)}`).join(" ");
+  const chal = lin.map((g, i) => (g.best != null ? `<circle cx="${xs(i)}" cy="${ys(g.best)}" r="2" class="chal"><title>gen ${g.generation}: best challenger ${g.best}</title></circle>` : "")).join("");
+  const dots = lin.map((g, i) => `<circle cx="${xs(i)}" cy="${ys(g.carried ?? lo)}" r="${g.promoted ? 4 : 2.5}" class="${g.promoted ? "promo" : "kept"}"><title>gen ${g.generation}: ${g.promoted ? "promoted" : "kept"} · fitness ${g.carried}${g.mutationRate != null ? ` · rate ${g.mutationRate}` : ""}</title></circle>`).join("");
+  return `<svg class="lineage" viewBox="0 0 ${W} ${H}" role="img" aria-label="fitness by generation"><line x1="${P}" x2="${W - P}" y1="${ys(1)}" y2="${ys(1)}" class="ref"/>${chal}<polyline points="${line}" class="carried"/>${dots}</svg>`;
+}
+
+async function loadLineages() {
+  await Promise.all($$("[data-lineage]").map(async (el) => {
+    const lin = await api<any[]>(`/api/agents/${el.dataset.lineage}/lineage`).catch(() => [] as any[]);
+    el.innerHTML = lin.length ? `${lineageSvg(lin)}<small class="dim">${lin.length} generation(s) · ${lin.filter((g) => g.promoted).length} promoted</small>` : "";
+  }));
+}
+
+function evoOpts() {
+  const n = (sel: string, d: number) => Number(val(sel) || d);
+  return { generations: n("#egens", 3), repeats: n("#ereps", 2), population: n("#epop", 4), patience: n("#epat", 2) };
+}
+
+function openEvoBox(job: any, title: string) {
+  S.evoJob = job.id;
+  const box = $("#evo")!;
+  box.hidden = false;
+  box.innerHTML = `<h2>${esc(title)}</h2><p class="dim">Every candidate genome runs the same training items with the same seeds. A screening winner must hold up on fresh seeds before it is promoted. At the end, the starting and final genomes are re-tested on held-out items that selection never saw.</p>
+    <div class="row"><div class="progress"><span id="evobar" style="width:0%"></span></div><span id="evotxt" class="mono dim">starting…</span><button class="ghost small" id="evocancel">Cancel</button></div><div id="evoout"></div>`;
+  $("#evocancel")!.addEventListener("click", () => void guard(() => api(`/api/evolution/jobs/${job.id}/cancel`, { body: {} })));
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function viewAgents() {
@@ -365,6 +421,18 @@ async function viewAgents() {
         <div id="rout"></div>
       </details>
     </section>
+    <section class="panel evolab">
+      <h2>Evolution lab</h2>
+      <p class="dim">Run several generations per agent, or a whole fleet in one background job. A run stops early after <i>patience</i> generations without a promotion, and the mutation rate widens while no challenger wins.</p>
+      <div class="grid4">
+        <label>generations <input id="egens" type="number" min="1" max="20" value="3" /></label>
+        <label>repeats <input id="ereps" type="number" min="1" max="5" value="2" /></label>
+        <label>population <input id="epop" type="number" min="2" max="8" value="4" /></label>
+        <label>patience <input id="epat" type="number" min="0" max="10" value="2" /></label>
+      </div>
+      <div class="row fleetpick">${agents.map((a) => `<label><input type="checkbox" data-fleet="${a.id}"${["tycho", "lumen", "helix"].includes(a.id) ? " checked" : ""} /> ${esc(a.id)}</label>`).join("")}</div>
+      <div class="row"><button id="efleet" class="primary">Evolve selected agents</button></div>
+    </section>
     <section class="panel evo" id="evo"${S.evoJob ? "" : " hidden"}></section>
     <section class="cards">${agents.map((a) => `
       <article class="agent">
@@ -372,6 +440,7 @@ async function viewAgents() {
         <p>${esc(a.description)}</p>
         ${genomeStrip(a.genome)}
         <div class="traits">${TRAITS.map((t) => `<div><span>${t}</span><b style="--w:${Math.round((t === "temperature" ? a.traits[t] / 1.3 : a.traits[t]) * 100)}%"></b></div>`).join("")}</div>
+        <div class="lineslot" data-lineage="${a.id}"></div>
         <div class="meta"><span>model: ${esc(a.modelRole)}</span><span>gen ${a.generation}</span><span>fitness ${a.fitness ?? "–"}</span><span>${a.runs} runs</span><span>${esc(a.source)}</span></div>
         <div class="tools">${a.tools.map((t: string) => `<code>${esc(t)}</code>`).join("")}</div>
         <div class="row">
@@ -417,16 +486,21 @@ async function viewAgents() {
     };
   }));
   $$("[data-evolve]").forEach((b) => b.addEventListener("click", async () => {
-    const job = await guard(() => api<any>(`/api/agents/${b.dataset.evolve}/evolve`, { body: { population: 4, repeats: 2 } }));
-    if (!job) return;
-    S.evoJob = job.id;
-    const box = $("#evo")!;
-    box.hidden = false;
-    box.innerHTML = `<h2>Evolving ${esc(job.agentId)}</h2><p class="dim">Every candidate genome runs the same benchmark items with the same seeds. A screening winner must hold up on fresh seeds before it is promoted.</p>
-      <div class="row"><div class="progress"><span id="evobar" style="width:0%"></span></div><span id="evotxt" class="mono dim">starting…</span><button class="ghost small" id="evocancel">Cancel</button></div><div id="evoout"></div>`;
-    $("#evocancel")!.addEventListener("click", () => void guard(() => api(`/api/evolution/jobs/${job.id}/cancel`, { body: {} })));
-    box.scrollIntoView({ behavior: "smooth", block: "start" });
+    const job = await guard(() => api<any>(`/api/agents/${b.dataset.evolve}/evolve`, { body: evoOpts() }));
+    if (job) openEvoBox(job, `Evolving ${job.agentId}`);
   }));
+  $("#efleet")!.addEventListener("click", async () => {
+    const picked = $$<HTMLInputElement>("[data-fleet]").filter((x) => x.checked).map((x) => x.dataset.fleet!);
+    if (!picked.length) return toast("Pick at least one agent", true);
+    const job = await guard(() => api<any>("/api/evolution/fleet", { body: { agents: picked, ...evoOpts() } }));
+    if (job) openEvoBox(job, `Evolving fleet: ${picked.join(", ")}`);
+  });
+  void loadLineages();
+  // Re-attach to a job that is still running (page reload, or started from another tab or the API).
+  if (!S.evoJob) {
+    const active = await api<any>("/api/evolution/active").catch(() => null);
+    if (active?.status === "running") openEvoBox(active, `Evolving ${String(active.agentId).replace(/,/g, ", ")}`);
+  }
   $$("[data-export]").forEach((b) => b.addEventListener("click", async () => {
     const r = await guard(() => api(`/api/agents/${b.dataset.export}/organism`));
     if (!r) return;
@@ -604,20 +678,42 @@ async function viewModels() {
 }
 
 // ===== Hybrid Edge (Firebase AI Logic) =====
+const DOCTOR_MARK: Record<string, string> = { ok: "✓", warn: "!", error: "✗", info: "i" };
+function renderDoctor(d: any) {
+  if (!d) return "";
+  return `<section class="panel doctor"><h2>0 · Setup check ${d.ok ? (d.configured ? '<span class="ok">ready</span>' : '<span class="dim">not configured</span>') : '<span class="err">needs fixes</span>'}</h2>
+    <p class="dim">Offline checks of <code>web/.env.local</code> and the dashboard build, run by the agency server (<code>agency edge doctor</code>). Secrets are masked. Full guide: <code>docs/FIREBASE_SETUP.md</code>.</p>
+    <ul class="checks">${d.checks.map((c: any) => `<li class="${c.level}"><b>${DOCTOR_MARK[c.level]}</b><div>${esc(c.message)}${c.fix ? `<small>${esc(c.fix)}</small>` : ""}</div></li>`).join("")}</ul></section>`;
+}
+
+function renderProof(p: any) {
+  if (!p) return "";
+  const rows = p.entries.slice(0, 12).map((e: any) => `<tr><td class="mono">#${e.seq}</td><td>${new Date(e.ts).toLocaleTimeString()}</td><td><span class="source-chip ${e.data.inferenceSource === "ON_DEVICE" ? "on-device" : "in-cloud"}">${esc(e.data.inferenceSource)}</span></td><td>${esc(e.data.origin)}</td><td class="mono">${esc(e.data.mode)}</td><td>${e.data.latencyMs} ms</td><td class="mono">${esc(e.data.project ?? "–")}</td><td class="mono" title="${esc(e.data.sha256 ?? "")}">${esc(String(e.data.sha256 ?? "–").slice(0, 12))}</td></tr>`).join("");
+  return `<section class="panel"><h2>4 · Proof: Firebase AI Logic calls in the signed ledger</h2>
+    <p class="dim">Every completed call (routed agency jobs and direct calls from this page) is appended to the Ed25519-signed hash chain with its inference path, latency and a SHA-256 of the output, never the prompt or the text. Ledger ${p.ledger?.ok ? `<b class="ok">verified</b> (${p.ledger.count} entries)` : '<b class="err">BROKEN</b>'}. CLI: <code>agency edge proof</code>.</p>
+    <section class="stats"><div class="stat"><b>${p.total}</b><span>ledgered calls</span></div><div class="stat"><b>${p.onDevice}</b><span>ON_DEVICE</span></div><div class="stat"><b>${p.inCloud}</b><span>IN_CLOUD</span></div></section>
+    ${p.total ? `<div class="tablewrap"><table class="ledger"><thead><tr><th>#</th><th>time</th><th>path</th><th>origin</th><th>mode</th><th>latency</th><th>project</th><th>output sha256</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="dim">No Firebase calls recorded yet. Make one in step 3, or start serving in step 2 while a mission runs.</p>'}</section>`;
+}
+
 async function viewEdge() {
-  const snap = await guard(() => api("/api/edge"));
+  const [snap, doctor, proof, models] = await Promise.all([
+    guard(() => api("/api/edge")), api<any>("/api/edge/doctor").catch(() => null), api<any>("/api/edge/proof?limit=50").catch(() => null), api<any>("/api/models").catch(() => null),
+  ]);
   const cfgOk = isConfigured();
+  const nano = await nanoAvailability();
   const st = edge.state;
   $("#view")!.innerHTML = `
     ${header("Hybrid Edge", "This browser becomes an inference node. Firebase AI Logic runs Gemini Nano on-device when Chrome can, and falls back to cloud Gemini when it can't. Private agency work is sent here as ONLY_ON_DEVICE.")}
     ${cfgOk ? "" : `<div class="warn">Firebase AI Logic is not configured for this build (missing ${missingConfig().join(", ")}). Copy <code>web/.env.example</code> to <code>web/.env.local</code>, fill it from your Firebase project (Spark plan, Gemini Developer API), then rebuild. The agency keeps working on local models meanwhile.</div>`}
     <section class="stats">
       <div class="stat"><b>${chromeDesktopOk() ? "yes" : "no"}</b><span>Chrome desktop 139+</span></div>
-      <div class="stat"><b>${promptApiPresent() ? "present" : "absent"}</b><span>Prompt API (Nano)</span></div>
+      <div class="stat"><b>${esc(nano)}</b><span>Gemini Nano on-device</span></div>
       <div class="stat"><b>${st.onDevice}</b><span>ON_DEVICE runs</span></div>
       <div class="stat"><b>${st.inCloud}</b><span>IN_CLOUD runs</span></div>
       <div class="stat"><b>${snap?.workers?.length ?? 0}</b><span>workers online</span></div>
+      <div class="stat"><b>${models?.usage?.edgeOverflow ?? 0}</b><span>GPU overflow calls</span></div>
     </section>
+    ${renderDoctor(doctor)}
     <section class="panel">
       <h2>1 · Prepare the on-device model</h2>
       <p class="dim">Chrome requires this to start from a click. The first run downloads Gemini Nano.</p>
@@ -625,15 +721,17 @@ async function viewEdge() {
     </section>
     <section class="panel">
       <h2>2 · Serve the agency as an edge worker</h2>
+      <p class="dim">The local GPU runs one model call at a time. While it is busy, the agency sends waiting fast, plan, critic and reasoning calls to this tab instead of queueing them (private work only to Gemini Nano on-device). Benchmarks and evolution stay on the local model.</p>
       <p>${st.running ? `Serving as <code>${esc(st.workerId)}</code> · ${st.done} jobs done · ${st.failed} failed · last source <b>${esc(st.last || "–")}</b>` : "Not serving."}${st.lastError ? ` <span class="badc">${esc(st.lastError)}</span>` : ""}</p>
       <button id="serve" class="${st.running ? "ghost" : "primary"}" ${cfgOk ? "" : "disabled"}>${st.running ? "Stop serving" : "Start serving"}</button>
     </section>
     <section class="panel">
       <h2>3 · Try a private prompt in this browser</h2>
       <textarea id="eprompt" rows="3" placeholder="Draft a polite reply declining a meeting, from these private notes: …"></textarea>
-      <div class="row"><select id="emode"><option value="prefer_on_device">prefer_on_device</option><option value="only_on_device">only_on_device</option><option value="prefer_in_cloud">prefer_in_cloud</option><option value="only_in_cloud">only_in_cloud</option></select><button id="ego" class="primary" ${cfgOk ? "" : "disabled"}>Generate</button><span id="esrc" class="source-chip">Not run yet</span></div>
-      <div id="eout" class="md"></div>
-    </section>`;
+      <div class="row"><select id="emode"><option value="prefer_on_device">prefer_on_device</option><option value="only_on_device">only_on_device</option><option value="prefer_in_cloud">prefer_in_cloud</option><option value="only_in_cloud">only_in_cloud</option></select><button id="ego" class="primary" ${cfgOk ? "" : "disabled"}>Generate</button>${S.edgeLast ? `<span id="esrc" class="source-chip ${S.edgeLast.source === "ON_DEVICE" ? "on-device" : "in-cloud"}">${esc(S.edgeLast.source)}</span><span class="dim mono">${S.edgeLast.latencyMs} ms${S.edgeLast.seq != null ? ` · ledger #${S.edgeLast.seq}` : ""}</span>` : '<span id="esrc" class="source-chip">Not run yet</span>'}</div>
+      <div id="eout" class="md">${S.edgeLast ? md(S.edgeLast.text) : ""}</div>
+    </section>
+    ${renderProof(proof)}`;
   $("#prep")?.addEventListener("click", async (e) => {
     const btn = e.currentTarget as HTMLButtonElement;
     busy(btn, true, "Preparing…");
@@ -647,9 +745,18 @@ async function viewEdge() {
   $("#ego")?.addEventListener("click", async (e) => {
     const btn = e.currentTarget as HTMLButtonElement;
     busy(btn, true, "Generating…");
-    const r = await guard(() => generate([{ role: "user", content: val("#eprompt") }], val("#emode") as ModeName));
+    const mode = val("#emode") as ModeName;
+    const t0 = performance.now();
+    let r: Awaited<ReturnType<typeof generate>> | null = null;
+    try { r = await generate([{ role: "user", content: val("#eprompt") }], mode); } catch (err) { toast(explainFirebaseError(err), true); }
     busy(btn, false);
-    if (r) { $("#eout")!.innerHTML = md(r.text); const chip = $("#esrc")!; chip.textContent = r.source; chip.className = `source-chip ${r.source === "ON_DEVICE" ? "on-device" : "in-cloud"}`; }
+    if (r) {
+      const latencyMs = Math.round(performance.now() - t0);
+      // Sign the call into the ledger: path, latency, size and an output hash. The prompt and text stay in this browser.
+      const att = await api<any>("/api/edge/attest", { body: { mode, inferenceSource: r.source, latencyMs, chars: r.text.length, sha256: await sha256Hex(r.text), ...edgeIdentity() } }).catch(() => null);
+      S.edgeLast = { text: r.text, source: r.source, latencyMs, seq: att?.entry?.seq ?? null };
+      await viewEdge(); // refresh the proof table; the answer is re-shown from S.edgeLast
+    }
   });
 }
 

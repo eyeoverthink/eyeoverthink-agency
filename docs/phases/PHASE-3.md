@@ -1,6 +1,6 @@
 # Phase 3: Honest evolution on real models
 
-Previous: [Phase 2](PHASE-2.md) · [Index](README.md)
+Previous: [Phase 2](PHASE-2.md) · Next: [Phase 4](PHASE-4.md) · [Index](README.md)
 
 ## Summary
 Phase 3 runs the genome evolution loop on real local models and makes its promotion decisions defensible. Phase 2 showed that single benchmark runs are noisy. A genetic algorithm that promotes "the best of N noisy scores" therefore mostly promotes luck. This phase adds:

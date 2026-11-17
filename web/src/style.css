@@ -192,6 +192,31 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 .evotbl { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; display: block; overflow-x: auto; }
 .evotbl th, .evotbl td { text-align: left; padding: 5px 10px 5px 0; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
 .evotbl th { color: var(--muted); font-weight: 500; }
+.evo .runhead { margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--line-soft); font-size: 16px; }
+.evo .runhead:first-child { border-top: 0; margin-top: 8px; padding-top: 0; }
+.evo .holdout { margin: 8px 0 4px; padding: 8px 12px; border-left: 3px solid var(--gold); background: color-mix(in srgb, var(--gold) 7%, transparent); border-radius: 0 8px 8px 0; }
+.evo .holdout h4 { margin: 0 0 4px; font-size: 13px; }
+.evolab .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 10px 0; }
+.evolab .grid4 label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.evolab .fleetpick { flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
+.evolab .fleetpick label { display: inline-flex; align-items: center; gap: 5px; }
+.lineslot { min-height: 0; }
+.lineslot small { display: block; font-size: 11px; margin-top: -2px; }
+.lineage { width: 100%; max-width: 260px; height: 56px; display: block; margin: 6px 0 2px; }
+.lineage .ref { stroke: var(--line-soft); stroke-dasharray: 3 3; }
+.lineage .carried { fill: none; stroke: var(--cloud); stroke-width: 1.6; }
+.lineage .kept { fill: var(--bg-elev); stroke: var(--cloud); stroke-width: 1.4; }
+.lineage .promo { fill: var(--gold); stroke: var(--gold); }
+.lineage .chal { fill: var(--muted); opacity: 0.55; }
+.doctor .checks { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; }
+.doctor .checks li { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; }
+.doctor .checks li > b { flex: 0 0 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; background: var(--bg-soft); color: var(--muted); }
+.doctor .checks li.ok > b { background: color-mix(in srgb, var(--sage) 22%, transparent); color: var(--sage); }
+.doctor .checks li.warn > b { background: color-mix(in srgb, var(--gold) 22%, transparent); color: var(--gold); }
+.doctor .checks li.error > b { background: color-mix(in srgb, var(--coral) 22%, transparent); color: var(--coral); }
+.doctor .checks small { display: block; color: var(--muted); margin-top: 2px; }
+.doctor h2 .ok { color: var(--sage); } .doctor h2 .err { color: var(--coral); }
+@media (max-width: 640px) { .evolab .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* edge */
 .progress { flex: 1 1 160px; height: 8px; background: var(--bg-soft); border-radius: 99px; overflow: hidden; }

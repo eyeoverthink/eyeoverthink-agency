@@ -2,12 +2,17 @@
 // jobs with Firebase AI Logic hybrid inference (Gemini Nano on-device when available, cloud Gemini
 // otherwise) and reports which path actually ran (inferenceSource: ON_DEVICE | IN_CLOUD).
 // Privacy-tagged tasks can be pinned to ONLY_ON_DEVICE so their content never leaves the user's machine.
-import { newId, estimateTokens } from '../core/util.js';
+import { newId, estimateTokens, sha256 } from '../core/util.js';
+
+const SOURCES = new Set(['ON_DEVICE', 'IN_CLOUD']);
+// The Firebase AI SDK reports 'on_device' | 'in_cloud' (lower case); accept either case.
+const normSource = (v) => { const s = String(v ?? '').toUpperCase(); return SOURCES.has(s) ? s : 'UNKNOWN'; };
 
 export class EdgeHub {
-  constructor(cfg, bus) {
+  constructor(cfg, bus, ledger = null) {
     this.cfg = cfg;
     this.bus = bus;
+    this.ledger = ledger; // every completed Firebase AI Logic call is signed into the ledger (proof it ran)
     this.workers = new Map(); // id -> { id, label, modes, lastSeen, onDevice, busy }
     this.queue = []; // pending jobs
     this.jobs = new Map(); // id -> job
@@ -15,9 +20,10 @@ export class EdgeHub {
     this.stats = { ON_DEVICE: 0, IN_CLOUD: 0, failed: 0 };
   }
 
-  register({ label = 'browser', onDevice = 'unknown', modes = [] } = {}) {
+  register({ label = 'browser', onDevice = 'unknown', modes = [], project = null, cloudModel = null } = {}) {
     const id = newId('edge');
-    this.workers.set(id, { id, label: String(label).slice(0, 60), onDevice, modes, lastSeen: Date.now(), busy: false, done: 0 });
+    const clean = (v, n) => (v == null ? null : String(v).slice(0, n));
+    this.workers.set(id, { id, label: String(label).slice(0, 60), onDevice, modes, project: clean(project, 40), cloudModel: clean(cloudModel, 60), lastSeen: Date.now(), busy: false, done: 0 });
     this.bus?.publish('edge.worker', { action: 'register', id, label, onDevice });
     return { id };
   }
@@ -94,12 +100,15 @@ export class EdgeHub {
     if (!job || job.workerId !== workerId || job.status !== 'running') return false;
     clearTimeout(job.resultTimer);
     const w = this.workers.get(workerId);
-    if (w) { w.busy = false; w.done++; w.lastSeen = Date.now(); if (inferenceSource === 'ON_DEVICE') w.onDevice = 'available'; }
+    if (w) { w.busy = false; w.done++; w.lastSeen = Date.now(); if (normSource(inferenceSource) === 'ON_DEVICE') w.onDevice = 'available'; }
     if (error) { this.#fail(job, error); return true; }
     job.status = 'done';
-    const source = inferenceSource === 'ON_DEVICE' || inferenceSource === 'IN_CLOUD' ? inferenceSource : 'UNKNOWN';
+    const source = normSource(inferenceSource);
     if (this.stats[source] !== undefined) this.stats[source]++;
-    job.resolve({ text: String(text ?? ''), inferenceSource: source, latencyMs: Date.now() - job.created });
+    const out = String(text ?? '');
+    const latencyMs = Date.now() - job.created;
+    this.attest({ origin: 'agency-job', job: jobId, mode: job.mode, inferenceSource: source, latencyMs, chars: out.length, sha256: sha256(out), worker: w });
+    job.resolve({ text: out, inferenceSource: source, latencyMs });
     this.jobs.delete(jobId);
     this.bus?.publish('edge.job', { id: jobId, status: 'done', inferenceSource: source });
     return true;
@@ -116,6 +125,25 @@ export class EdgeHub {
     this.jobs.delete(job.id);
     job.reject(new Error(reason));
     this.bus?.publish('edge.job', { id: job.id, status: 'failed', reason });
+  }
+
+  /**
+   * Record one Firebase AI Logic call in the signed ledger. Stores which path ran, latency, size and a hash of
+   * the output, never the prompt or the output text (private jobs must not leak into the ledger).
+   * origin: 'agency-job' (routed by the agency) or 'playground' (a direct call from the dashboard).
+   */
+  attest({ origin, job = null, mode, inferenceSource, latencyMs, chars, sha256: hash, worker = null, project = null, cloudModel = null }) {
+    const source = normSource(inferenceSource);
+    const entry = {
+      origin: origin === 'playground' ? 'playground' : 'agency-job', job, mode: String(mode || '').slice(0, 24), inferenceSource: source,
+      latencyMs: Math.max(0, Math.round(Number(latencyMs) || 0)), chars: Math.max(0, Number(chars) | 0),
+      sha256: /^[0-9a-f]{64}$/.test(String(hash)) ? hash : null,
+      project: worker?.project ?? (project == null ? null : String(project).slice(0, 40)),
+      cloudModel: worker?.cloudModel ?? (cloudModel == null ? null : String(cloudModel).slice(0, 60)),
+      worker: worker?.label ?? null,
+    };
+    if (entry.origin === 'playground' && this.stats[source] !== undefined) this.stats[source]++;
+    return this.ledger ? this.ledger.append('edge.inference', entry, 'edge') : null;
   }
 
   snapshot() {
