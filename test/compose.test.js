@@ -22,6 +22,7 @@ const TASKS = [
 ];
 
 let current = '';
+let synthPeople = false;
 function script(req) {
   const sys = systemOf(req), u = lastUser(req);
   if (/turn a solved task into ONE reusable/.test(sys)) return u.includes('DISCOUNT') ? SKILLS.DISCOUNT : u.includes('TAX') ? SKILLS.TAX : SKILLS.SPLIT;
@@ -36,7 +37,11 @@ function script(req) {
     if (composed) { const n = parse(task); return { skill: composed[1], input: { price: n.price, discount: n.pcts[0], rate: n.pcts[1], people: n.people } }; }
     return chainFor(task);
   }
-  if (/You write test cases for a task router/.test(sys)) return { positives: [], negatives: [] };
+  if (/You write test cases for a task router/.test(sys)) {
+    if (!synthPeople || !/Composed from owned skills/.test(u)) return { positives: [], negatives: [] };
+    const t = 'A $80 kettle is 25% off, then 5% sales tax is added, and the total is split evenly among 4 people. How much does each pay?';
+    return { positives: [{ task: t, input: { price: 80, discount: 25, rate: 5, people: 4 } }], negatives: ['A $80 kettle is 25% off, then 5% sales tax is added, and 4 people pay. How much more does Ann pay than Bob?'] };
+  }
   const final = `Each friend pays $${truth(current)}.`;
   return /reviewing your own draft/.test(sys) ? { issues: [], final, confidence: 0.8 } : { thought: 'by hand', final, confidence: 0.8 };
 }
@@ -193,4 +198,36 @@ test('a composed skill learns its binder at birth from its 2 verified chains: th
     assert.equal(A.calls.length, 0);
     assert.match(r.final, /\*\*Answer: 135\.15\*\*/);
   } finally { await A.cleanup(); }
+});
+
+test('a trusted chain is trusted only for verified wording: "an 18% tip" is not answered by a discount chain', async () => {
+  const A = await setup({ composeSkills: false });
+  try {
+    const cz = A.agency.crystallizer;
+    for (const t of TASKS.slice(0, 2)) await run(A, t);
+    assert.equal(cz.chains().filter((c) => c.label === 'verified').length, 2, 'the shape is trusted now');
+    const ok = await run(A, TASKS[2]);
+    assert.match(String(ok.skill), / > /, 'same wording: answered by the trusted chain');
+    const r = await run(A, 'A $100 dinner is 10% off, then an 18% tip is added, and the total is split evenly among 3 friends. How much does each pay?');
+    assert.equal(r.skill, undefined);
+    assert.match(A.agency.ledger.list({ limit: 5, kind: 'skill.route_miss' }).map((x) => x.data.reason).join(' | '), /unverified wording for composition .*"tip"/);
+  } finally { await A.cleanup(); }
+});
+
+test('unit widening: a binder learned from "friends" also binds "4 people" when a blind paraphrase shows it, re-verified from scratch', async () => {
+  synthPeople = true;
+  const A = await setup();
+  try {
+    const cz = A.agency.crystallizer;
+    for (const t of TASKS.slice(0, 2)) await run(A, t);
+    await cz.composeQueue; await cz.binderQueue;
+    const sk = cz.list('active').find((s) => s.source.startsWith('chain:'));
+    const b = cz.binder(sk.name);
+    assert.ok(b, 'admitted');
+    const v = JSON.parse(b.verification);
+    assert.deepEqual(v.widened, { people: ['people'] });
+    assert.deepEqual(v.spec.params.people.units, ['friends', 'people']);
+    assert.equal(v.coverage, 1);
+    assert.equal(v.negatives, '1/1 refused', 'the widened binder still refuses the near-miss');
+  } finally { synthPeople = false; await A.cleanup(); }
 });

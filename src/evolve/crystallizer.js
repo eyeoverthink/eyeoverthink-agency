@@ -13,7 +13,7 @@
 //   measure : uses, failures, and model calls avoided: the curve that shows the system, not the model, improving.
 import { newId, nowIso, sha256 } from '../core/util.js';
 import { runSandboxedJs } from '../tools/builtin.js';
-import { induce, leaveOneOut, compileSpec, questionWords, numberTokens, learnBlocks, contested, novelWording, wordingOf } from './binder-induction.js';
+import { induce, leaveOneOut, compileSpec, applySpec, questionWords, numberTokens, learnBlocks, contested, novelWording, wordingOf } from './binder-induction.js';
 
 const NAME = /^[a-z][a-z0-9_]{2,39}$/;
 
@@ -579,6 +579,14 @@ export class Crystallizer {
       // A new composition is not trusted until the judge has verified its shape (as with new wording, Phase 12): the
       // agent loop answers and the chain's result is compared with it.
       if (verified < (cfg.chainTrust ?? 2)) return miss(`unverified composition${how ? ` (${how})` : ''} (${sig}, verified ${verified}x): the agent loop answers, and its answer is compared with the chain's`, { shadow: private_ ? null : { chain, signature: sig, out: ran.out, reason: 'unverified composition' } });
+      // A trusted shape is trusted only for the wording its verified chains used (Phase 12, for chains). Measured in
+      // Phase 14: "an 18% tip is added" was bound as a second discount and answered by the trusted discount-then-split
+      // chain, and then saved as an example of the composed skill.
+      if (cfg.verifyWording !== false) {
+        const seen = this.chains(sig).filter((c) => c.label === 'verified').map((c) => ({ task: c.task }));
+        const novel = novelWording(seen, text);
+        if (novel.length) return miss(`unverified wording for composition ${sig} (${novel.slice(0, 4).map((w) => `"${w}"`).join(', ')}): the agent loop answers, and its answer is compared with the chain's`, { shadow: private_ ? null : { chain, signature: sig, out: ran.out, reason: 'unverified wording' } });
+      }
       return this.#commitChain(chain, sig, ran, { ...ctx, task: text, bindModel: res.model, spent: 1, usage });
     };
     // Several candidate structures (inferred or extended): a single verified shape is used; otherwise all valid ones
@@ -1079,16 +1087,47 @@ export class Crystallizer {
       const r = await this.#runBinder(code, task);
       return { ok: Boolean(r.error) || r.out === null || typeof r.out !== 'object' || Boolean(bindingProblem(r.out, skill, task)), got: r.out ?? null };
     };
-    const rows = { train: [], heldOut: null, negatives: [], synthPos: [] };
-    for (const e of train) rows.train.push({ task: e.task, ...(await agrees(e.task, e.input)) });
-    // Induction's held-out check is leave-one-out over every kept example; the model path holds out one example.
-    rows.heldOut = heldOut ? { task: heldOut.task, ...(await agrees(heldOut.task, heldOut.input)) } : { task: 'leave-one-out', ok: loo.every((x) => x.ok || x.novel), loo: `${loo.filter((x) => x.ok).length}/${loo.length}${loo.some((x) => x.novel) ? ` (+${loo.filter((x) => x.novel).length} novel unit)` : ''}` };
-    for (const t of [...neg.map((e) => e.task), ...synth.negatives]) rows.negatives.push({ task: t, ...(await refuses(t)) });
-    for (const s of synth.positives) rows.synthPos.push({ task: s.task, ...(await agrees(s.task, s.input)) });
+    const check = async () => {
+      const rows = { train: [], heldOut: null, negatives: [], synthPos: [] };
+      for (const e of train) rows.train.push({ task: e.task, ...(await agrees(e.task, e.input)) });
+      // Induction's held-out check is leave-one-out over every kept example; the model path holds out one example.
+      rows.heldOut = heldOut ? { task: heldOut.task, ...(await agrees(heldOut.task, heldOut.input)) } : { task: 'leave-one-out', ok: loo.every((x) => x.ok || x.novel), loo: `${loo.filter((x) => x.ok).length}/${loo.length}${loo.some((x) => x.novel) ? ` (+${loo.filter((x) => x.novel).length} novel unit)` : ''}` };
+      for (const t of [...neg.map((e) => e.task), ...synth.negatives]) rows.negatives.push({ task: t, ...(await refuses(t)) });
+      for (const s of synth.positives) rows.synthPos.push({ task: s.task, ...(await agrees(s.task, s.input)) });
+      return rows;
+    };
+    let rows = await check();
+    // Unit widening (Phase 14). Measured: a composed skill's binder learned units ["friends"] from its examples and bound
+    // only 1 of 4 blind paraphrases ("each of the 4 PEOPLE"). A blind paraphrase that binds to exactly its stated input
+    // once a unit is allowed teaches that unit; the widened binder is then verified again from scratch (recorded
+    // bindings, every negative, every paraphrase), so a unit that lets a near-miss through is never admitted.
+    let widened = null;
+    if (method === 'induction' && spec && synth.positives.some((_, i) => !rows.synthPos[i].ok)) {
+      const add = {};
+      for (const [i, sp] of synth.positives.entries()) {
+        if (rows.synthPos[i].ok) continue;
+        const loose = { ...spec, params: Object.fromEntries(Object.entries(spec.params).map(([k, p]) => [k, { ...p, units: undefined }])) };
+        const got = applySpec(loose, sp.task);
+        if (!got || !sameInput(got, sp.input)) continue;
+        for (const [k, p] of Object.entries(spec.params)) {
+          if (!p.units) continue;
+          const tok = numberTokens(sp.task).find((t) => t.kind === p.kind && Math.abs(t.v * p.scale - got[k]) < 1e-9 && t.unit);
+          if (tok && !p.units.includes(tok.unit)) (add[k] ??= new Set()).add(tok.unit);
+        }
+      }
+      if (Object.keys(add).length) {
+        const wider = { ...spec, params: Object.fromEntries(Object.entries(spec.params).map(([k, p]) => [k, add[k] ? { ...p, units: [...new Set([...p.units, ...add[k]])].sort() } : p])) };
+        const prev = { spec, code };
+        spec = wider; code = compileSpec(spec);
+        const again = await check();
+        if (again.train.every((x) => x.ok) && again.negatives.every((x) => x.ok)) { rows = again; widened = Object.fromEntries(Object.entries(add).map(([k, v]) => [k, [...v]])); }
+        else { spec = prev.spec; code = prev.code; }
+      }
+    }
 
     const coverage = rows.synthPos.length ? rows.synthPos.filter((x) => x.ok).length / rows.synthPos.length : null;
     const verification = { train: `${rows.train.filter((x) => x.ok).length}/${rows.train.length}`, heldOut: rows.heldOut.ok,
-      negatives: `${rows.negatives.filter((x) => x.ok).length}/${rows.negatives.length} refused`, coverage, method, writer, spec, disputed: disputed.map((e) => e.task), rows };
+      negatives: `${rows.negatives.filter((x) => x.ok).length}/${rows.negatives.length} refused`, coverage, widened: widened || undefined, method, writer, spec, disputed: disputed.map((e) => e.task), rows };
     if (rows.train.some((x) => !x.ok)) return fail(`does not reproduce ${rows.train.filter((x) => !x.ok).length} recorded binding(s)`, verification);
     if (!rows.heldOut.ok) return fail('fails the held-out example it never saw (memorized, not general)', verification);
     const falsePos = rows.negatives.filter((x) => !x.ok);
