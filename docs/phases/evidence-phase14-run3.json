@@ -1,0 +1,430 @@
+{
+  "at": "2026-11-17T22:12:00.921Z",
+  "block": [
+    {
+      "admitted": true,
+      "reason": "verified against an independent implementation on 6 input(s) (2-of-3 tie-break)",
+      "skill": {
+        "name": "calculate_even_split",
+        "description": "Calculates how much each person pays when splitting a bill evenly.",
+        "codeSha256": "2196c4e6a2922fd4cfb45345f6cb267d90f1a73607678300632525a32476ab98"
+      }
+    }
+  ],
+  "learn": [
+    {
+      "id": "l-ts1",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 8,
+      "tokens": 9290,
+      "ms": 25921,
+      "correct": true,
+      "final": "# Dinner Cost per Friend\nEach friend pays $43.20.\n\n**Calculation Steps:*\n1. Discounted price: $200 - (20% of $200) = $160\n2. Sales tax added: 8% of $160 = $12.80\n3. Total price after tax: $160 + $12.80 = $172.80\n4. Split evenly among 4 friends: $172.80 ÷ 4 = $",
+      "miss": "unverified composition (structure inferred from a flat binding) (calculate_final_price_with_tax(discount,original_price,tax_rate) > calculate_even_split(number_of_people,total_bill=@1), verified 0x): the agent loop answers, and its answer is compared with the chain's",
+      "shadow": {
+        "agentAnswer": 43.2,
+        "agentId": "tycho",
+        "agree": true,
+        "chain": "calculate_final_price_with_tax(discount,original_price,tax_rate) > calculate_even_split(number_of_people,total_bill=@1)",
+        "missionId": null,
+        "reason": "unverified composition",
+        "second": null,
+        "skillOut": 43.2,
+        "third": null
+      }
+    },
+    {
+      "id": "l-ds1",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 5,
+      "tokens": 4895,
+      "ms": 24253,
+      "correct": true,
+      "final": "# Hotel Room Cost per Friend\nEach friend pays $(1/3) * 216 = $72.\n**Calculation:**\nDiscounted price: (1 - 0.2) * (1 - 0.1) * 300 = $216\nSplit among friends: calc { \"expression\": \"(1/3)*216\", \"result\": 72 }",
+      "miss": "ambiguous composition (single binding extended by one step): 2 structures fit; the agent loop answers, and its answer picks one",
+      "shadow": {
+        "agentAnswer": 72,
+        "agentId": "tycho",
+        "agree": true,
+        "chain": "calculate_final_price(discount1,discount2,original_price) > calculate_even_split(number_of_people,total_bill=@1)",
+        "missionId": null,
+        "reason": "ambiguous composition",
+        "second": null,
+        "skillOut": 72,
+        "third": null
+      }
+    },
+    {
+      "id": "l-ts2",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 10,
+      "tokens": 12610,
+      "ms": 26619,
+      "correct": true,
+      "final": "# Concert Package Cost per Friend\n\n## Calculation Steps\n\n1. Discounted Price: $150 - (10% off) = $135\n2. Sales Tax: 6% of $135 = $8.10\n3. Total Price After Tax: $135 + $8.10 = $143.10\n4. Cost per Friend: $143.10 ÷ 3 = $47.70\n\n## Conclusion\nEach friend pays $47",
+      "miss": "unverified composition (structure inferred from a flat binding) (calculate_final_price_with_tax(discount,original_price,tax_rate) > calculate_even_split(number_of_people,total_bill=@1), verified 1x): the agent loop answers, and its answer is compared with the chain's",
+      "shadow": {
+        "agentAnswer": 47.7,
+        "agentId": "tycho",
+        "agree": true,
+        "chain": "calculate_final_price_with_tax(discount,original_price,tax_rate) > calculate_even_split(number_of_people,total_bill=@1)",
+        "missionId": null,
+        "reason": "unverified composition",
+        "second": null,
+        "skillOut": 47.699999999999996,
+        "third": null
+      }
+    },
+    {
+      "id": "l-ds2",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 6,
+      "tokens": 6352,
+      "ms": 23574,
+      "correct": true,
+      "final": "Each friend pays $40.50.",
+      "miss": "ambiguous composition (single binding extended by one step): 2 structures fit; the agent loop answers, and its answer picks one",
+      "shadow": {
+        "agentAnswer": 40.5,
+        "agentId": "tycho",
+        "agree": true,
+        "chain": "calculate_final_price(discount1,discount2,original_price) > calculate_even_split(number_of_people,total_bill=@1)",
+        "missionId": null,
+        "reason": "ambiguous composition",
+        "second": null,
+        "skillOut": 40.5,
+        "third": null
+      }
+    },
+    {
+      "id": "l-ts3",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 18,
+      "tokens": 22033,
+      "ms": 48782,
+      "correct": false,
+      "final": "$33.00",
+      "miss": "binding rejected: unverified wording (\"sales\", \"tax\", \"added\"): the agent loop answers, and its answer is compared with the skill's",
+      "shadow": {
+        "agentAnswer": 33,
+        "agentId": "tycho",
+        "agree": false,
+        "by": "third opinion corroborated the second",
+        "corroborated": 33.08,
+        "missionId": null,
+        "reason": "unverified wording (\"sales\", \"tax\", \"added\"): the agent loop answers, and its answer is compared with the skill's",
+        "second": 33.08,
+        "skill": "final_price_then_even_split_0adb",
+        "skillOut": 29.924999999999994,
+        "third": 33.075
+      }
+    },
+    {
+      "id": "l-ds3",
+      "control": false,
+      "routed": "calculate_final_price > calculate_even_split",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 762,
+      "ms": 3734,
+      "correct": true,
+      "final": "**Answer: 56**\n\nComputed exactly by a verified chain of the agency's crystallized skills: `skill_calculate_final_price` → `skill_calculate_even_split` on input `{\"step1\":{\"calculate_final_price\":{\"original_price\":500,\"discount1\":0.3,\"discount2\":0.2}},\"step2\":{",
+      "miss": null,
+      "shadow": null
+    }
+  ],
+  "test": [
+    {
+      "id": "t-ts1",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 8,
+      "tokens": 9305,
+      "ms": 14188,
+      "correct": true,
+      "final": "# Each Friend's Share of the Total Price\nEach friend will pay $90.95.\n",
+      "miss": "binding rejected: discount2 = 0 does not appear in the task",
+      "shadow": null
+    },
+    {
+      "id": "t-ts2",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 16,
+      "tokens": 19606,
+      "ms": 84053,
+      "correct": true,
+      "final": "# Pizza Order Split Among Friends\nEach friend pays $32.40.\n\n## Calculation Steps:\n1. Discount: $120 x 0.25 = $30 off\n2. Price after discount: $120 - $30 = $90\n3. Sales tax: $90 x 0.08 = $7.20\n4. Total price before splitting: $90 + $7.20 = $97.20\n5. Split among",
+      "miss": "binding rejected: \"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 32.4,
+        "agentId": "tycho",
+        "agree": false,
+        "by": "third opinion corroborated the first",
+        "corroborated": 32.4,
+        "missionId": null,
+        "reason": "\"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "second": 11.2,
+        "skill": "final_price_then_even_split_0adb",
+        "skillOut": 27.599999999999998,
+        "third": 32.4
+      }
+    },
+    {
+      "id": "t-ds1",
+      "control": false,
+      "routed": "calculate_final_price > calculate_even_split",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 761,
+      "ms": 3789,
+      "correct": true,
+      "final": "**Answer: 81**\n\nComputed exactly by a verified chain of the agency's crystallized skills: `skill_calculate_final_price` → `skill_calculate_even_split` on input `{\"step1\":{\"calculate_final_price\":{\"original_price\":600,\"discount1\":0.1,\"discount2\":0.1}},\"step2\":{",
+      "miss": null,
+      "shadow": null
+    },
+    {
+      "id": "t-ds2",
+      "control": false,
+      "routed": "calculate_final_price > calculate_even_split",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 762,
+      "ms": 446,
+      "correct": true,
+      "final": "**Answer: 54**\n\nComputed exactly by a verified chain of the agency's crystallized skills: `skill_calculate_final_price` → `skill_calculate_even_split` on input `{\"step1\":{\"calculate_final_price\":{\"original_price\":180,\"discount1\":0.2,\"discount2\":0.25}},\"step2\":",
+      "miss": null,
+      "shadow": null
+    },
+    {
+      "id": "s-tax",
+      "control": false,
+      "routed": "calculate_final_price_with_tax",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 124,
+      "correct": true,
+      "final": "**Answer: 63**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_final_price_with_tax` (Calculates the final price of an item after applying a discount and adding sales tax. Verified by differential testing; code sha256 5721df446981) on inp",
+      "miss": null,
+      "shadow": null
+    },
+    {
+      "id": "s-disc",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 131,
+      "correct": true,
+      "final": "**Answer: 28.8**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_final_price` (Calculates the final price of an item after applying two successive discounts. Verified by differential testing; code sha256 5db5975d4e69) on input `{\"original",
+      "miss": null,
+      "shadow": null
+    },
+    {
+      "id": "c-more",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 11,
+      "tokens": 14864,
+      "ms": 28550,
+      "correct": null,
+      "final": "# Payment Difference Between Ann and Bob\n\n## Calculation Summary\n\n* Discount: 20% of $200 = $40\n* Price after discount: $160\n* Sales tax (8%): $12.80\n* Total price after sales tax: $172.80\n* Ann's payment: $50\n* Bob's payment: $122.80\n\n## Payment Difference\n\nT",
+      "miss": "binder named an unknown skill (calculate_final_price_with_tax_then_even)",
+      "shadow": null
+    },
+    {
+      "id": "c-tip",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 8,
+      "tokens": 9409,
+      "ms": 25204,
+      "correct": true,
+      "final": "$35.40 is an incorrect answer; a correct calculation would be: A $100 dinner is discounted by 10%, then an 18% tip is added, and the total is split evenly among 3 friends.",
+      "miss": "binding rejected: discount2 = 0 does not appear in the task",
+      "shadow": null
+    }
+  ],
+  "chains": [
+    {
+      "signature": "calculate_final_price_with_tax(discount,original_price,tax_rate) > calculate_even_split(number_of_people,total_bill=@1)",
+      "label": "verified",
+      "out": 43.2,
+      "composed": "final_price_with_tax_then_even_spl_dc52",
+      "task": "A $200 dinner is 20% off, then 8% sales tax is added, and the total is split evenly among 4 friends. How much does each friend pay?"
+    },
+    {
+      "signature": "calculate_final_price(discount1,discount2,original_price) > calculate_even_split(number_of_people,total_bill=@1)",
+      "label": "verified",
+      "out": 72,
+      "composed": "final_price_then_even_split_0adb",
+      "task": "A $300 hotel room is 20% off, then another 10% off, and the cost is split evenly among 3 friends. How much does each friend pay?"
+    },
+    {
+      "signature": "calculate_final_price_with_tax(discount,original_price,tax_rate) > calculate_even_split(number_of_people,total_bill=@1)",
+      "label": "verified",
+      "out": 47.699999999999996,
+      "composed": "final_price_with_tax_then_even_spl_dc52",
+      "task": "A $150 concert package is 10% off, then 6% sales tax is added, and the total is split evenly among 3 friends. How much does each friend pay?"
+    },
+    {
+      "signature": "calculate_final_price(discount1,discount2,original_price) > calculate_even_split(number_of_people,total_bill=@1)",
+      "label": "verified",
+      "out": 40.5,
+      "composed": "final_price_then_even_split_0adb",
+      "task": "A $240 cabin rental is 25% off, then another 10% off, and the cost is split evenly among 4 friends. How much does each friend pay?"
+    }
+  ],
+  "composed": [
+    {
+      "chains": 2,
+      "codeSha256": "21d08e4ef9b3dbc40abb896b172ab9263009345425100ca3ea3d3c335d7f0893",
+      "id": "sk_01m7ns5z9ky25scrnh89w2",
+      "name": "final_price_then_even_split_0adb",
+      "signature": "calculate_final_price(discount1,discount2,original_price) > calculate_even_split(number_of_people,total_bill=@1)"
+    },
+    {
+      "chains": 2,
+      "codeSha256": "2f59303b5b98578c34000508bd18d82d6bd71f7a3f1303093e3b891c594eb854",
+      "id": "sk_01m7ns58511xhf98m05zn5",
+      "name": "final_price_with_tax_then_even_spl_dc52",
+      "signature": "calculate_final_price_with_tax(discount,original_price,tax_rate) > calculate_even_split(number_of_people,total_bill=@1)"
+    }
+  ],
+  "composeRejected": [],
+  "skills": [
+    {
+      "name": "calculate_final_price",
+      "source": "text:operator",
+      "description": "Calculates the final price of an item after applying two successive discounts.",
+      "code": "function main(input) { return input.original_price * (1 - input.discount1) * (1 - input.discount2); }",
+      "verification": {
+        "method": "differential, 2 of 3",
+        "inputs": 6,
+        "referenceModel": "fraymus-prime:v1",
+        "extractorModel": "qwen2.5-coder:7b",
+        "tiebreak": false
+      }
+    },
+    {
+      "name": "calculate_average_speed",
+      "source": "text:operator",
+      "description": "Calculates the average speed for a round trip given the speed to and from the destination.",
+      "code": "function main(input) { return 2 * input.speed_to * input.speed_from / (input.speed_to + input.speed_from); }",
+      "verification": {
+        "method": "differential, 2 of 3",
+        "inputs": 6,
+        "outOfDomain": 0,
+        "referenceModel": "fraymus-prime:v1",
+        "extractorModel": "qwen2.5-coder:7b",
+        "tiebreak": false
+      }
+    },
+    {
+      "name": "calculate_final_price_with_tax",
+      "source": "gap:calculate_final_price",
+      "description": "Calculates the final price of an item after applying a discount and adding sales tax.",
+      "code": "function main(input) {\n  let discounted_price = input.original_price * (1 - input.discount);\n  let final_price = discounted_price * (1 + input.tax_rate);\n  return final_price;\n}",
+      "verification": {
+        "method": "differential 2 of 3 + corroborated answer key",
+        "answerKey": "5/5",
+        "contractRepaired": [
+          "discount",
+          "tax_rate"
+        ],
+        "inputs": 6,
+        "outOfDomain": 0,
+        "referenceModel": "fraymus-prime:v1",
+        "extractorModel": "qwen2.5-coder:7b",
+        "tiebreak": false
+      }
+    },
+    {
+      "name": "calculate_even_split",
+      "source": "text:phase14",
+      "description": "Calculates how much each person pays when splitting a bill evenly.",
+      "code": "function main(input) { return input.total_bill / input.number_of_people; }",
+      "verification": {
+        "method": "differential, 2 of 3",
+        "inputs": 6,
+        "outOfDomain": 0,
+        "referenceModel": "fraymus-prime:v1",
+        "extractorModel": "qwen2.5-coder:7b",
+        "tiebreak": true
+      }
+    },
+    {
+      "name": "final_price_with_tax_then_even_spl_dc52",
+      "source": "chain:calculate_final_price_with_tax(discount,original_price,tax_rate) > calculate_even_split(number_of_people,total_bill=@1)",
+      "description": "Composed from owned skills: Calculates the final price of an item after applying a discount and adding sales tax; then Calculates how much each person pays when splitting a bill evenly.",
+      "code": "function main(input) {\n  const s1 = skill_calculate_final_price_with_tax({ \"original_price\": input[\"original_price\"], \"discount\": input[\"discount\"], \"tax_rate\": input[\"tax_rate\"] });\n  const s2 = skill_calculate_even_split({ \"number_of_people\": input[\"number_of_people\"], \"total_bill\": s1 });\n  return s2;\n}",
+      "verification": {
+        "method": "composed from verified skills (no model wrote this code) + answer key",
+        "answerKey": "2/2",
+        "signature": "calculate_final_price_with_tax(discount,original_price,tax_rate) > calculate_even_split(number_of_people,total_bill=@1)",
+        "steps": [
+          "calculate_final_price_with_tax",
+          "calculate_even_split"
+        ]
+      }
+    },
+    {
+      "name": "final_price_then_even_split_0adb",
+      "source": "chain:calculate_final_price(discount1,discount2,original_price) > calculate_even_split(number_of_people,total_bill=@1)",
+      "description": "Composed from owned skills: Calculates the final price of an item after applying two successive discounts; then Calculates how much each person pays when splitting a bill evenly.",
+      "code": "function main(input) {\n  const s1 = skill_calculate_final_price({ \"original_price\": input[\"original_price\"], \"discount1\": input[\"discount1\"], \"discount2\": input[\"discount2\"] });\n  const s2 = skill_calculate_even_split({ \"total_bill\": s1, \"number_of_people\": input[\"number_of_people\"] });\n  return s2;\n}",
+      "verification": {
+        "method": "composed from verified skills (no model wrote this code) + answer key",
+        "answerKey": "2/2",
+        "signature": "calculate_final_price(discount1,discount2,original_price) > calculate_even_split(number_of_people,total_bill=@1)",
+        "steps": [
+          "calculate_final_price",
+          "calculate_even_split"
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "learn": {
+      "tasks": 6,
+      "routed": 1,
+      "zeroCall": 0,
+      "correct": 5,
+      "composedRoutes": [],
+      "chainRoutes": [
+        "l-ds3"
+      ],
+      "misroutes": [],
+      "calls": 48
+    },
+    "test": {
+      "tasks": 8,
+      "routed": 4,
+      "zeroCall": 2,
+      "correct": 7,
+      "composedRoutes": [],
+      "chainRoutes": [
+        "t-ds1",
+        "t-ds2"
+      ],
+      "misroutes": [],
+      "calls": 45
+    }
+  }
+}

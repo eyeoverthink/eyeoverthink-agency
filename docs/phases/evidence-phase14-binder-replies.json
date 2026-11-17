@@ -1,0 +1,10 @@
+[
+  {
+    "model": "llama3.2:latest",
+    "text": "{\"skill\":\"chain\",\"input\":{\"original_price\":200,\"discount\":0.2,\"tax_rate\":0.08,\"number_of_people\":4}}"
+  },
+  {
+    "model": "llama3.2:latest",
+    "text": "{\"skill\":\"calculate_final_price\",\"input\":{\"original_price\":300,\"discount1\":0.2,\"discount2\":0.1}}"
+  }
+]

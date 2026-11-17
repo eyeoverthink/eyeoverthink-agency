@@ -1,6 +1,6 @@
 # Phase 13: Refusals become skills
 
-Previous: [Phase 12](PHASE-12.md) · [Index](README.md)
+Previous: [Phase 12](PHASE-12.md) · Next: [Phase 14](PHASE-14.md) · [Index](README.md)
 
 ## The problem
 Phase 12 taught the agency what *not* to do. A tax task was refused by the discount skill and answered by the agent loop: about 10 model calls and 30–40 s every time, and the agents' arithmetic was often wrong.

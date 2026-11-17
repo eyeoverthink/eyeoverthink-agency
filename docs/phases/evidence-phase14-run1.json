@@ -1,0 +1,295 @@
+{
+  "at": "2026-11-17T21:52:33.535Z",
+  "block": [
+    {
+      "admitted": true,
+      "reason": "verified against an independent implementation on 6 input(s) (2-of-3 tie-break)",
+      "skill": {
+        "name": "calculate_individual_share",
+        "description": "Calculates the amount each person pays when splitting a total amount evenly among a given number of people.",
+        "codeSha256": "ca952a6ff943323d306c656b7b0fceb2d6b8651ee4688c0cb35c52a5672ee72d"
+      }
+    },
+    {
+      "admitted": false,
+      "reason": "a skill named calculate_individual_share already exists"
+    },
+    {
+      "admitted": false,
+      "reason": "a skill named calculate_individual_share already exists"
+    }
+  ],
+  "learn": [
+    {
+      "id": "l-ts1",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 4,
+      "tokens": 3577,
+      "ms": 23071,
+      "correct": true,
+      "final": "# Dinner Split Among Friends\n## Calculation\nA dinner costs $200, then a 20% discount is applied, followed by an 8% sales tax.\n\nThe total cost after the discount and tax is calculated as follows:\n\n$200 × (1 - 0.2) = $160\n$160 × (1 + 0.08) = $173.28\n\nThis amount",
+      "miss": "binder named an unknown skill (chain)",
+      "shadow": null
+    },
+    {
+      "id": "l-ds1",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 7,
+      "tokens": 7841,
+      "ms": 26181,
+      "correct": true,
+      "final": "# Hotel Room Cost per Friend\nEach friend pays **$72** for the hotel room.\n\nNote: The original price was $300, with a 20% discount and then an additional 10% off. The final cost of $216 was split evenly among 3 friends.",
+      "miss": "binding rejected: the task states 3 but the binding does not use it",
+      "shadow": null
+    },
+    {
+      "id": "l-ts2",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 10,
+      "tokens": 12418,
+      "ms": 22950,
+      "correct": true,
+      "final": "$47.70 per person, after discount and sales tax.",
+      "miss": "binder named an unknown skill (chain)",
+      "shadow": null
+    },
+    {
+      "id": "l-ds2",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 10,
+      "tokens": 12667,
+      "ms": 30727,
+      "correct": false,
+      "final": "# Cabin Rental Cost per Friend\nEach friend pays $\boxed{82.50} for the cabin rental.\n\nCalculation:\n1. Initial discount: 25% off $240 = $300 (remaining)\n2. Second discount: 10% off $300 = $330 (new total)\n3. Split cost among 4 friends: $330 / 4 = $\boxed{82.50}\n\n",
+      "miss": "binding rejected: the task states 4 but the binding does not use it",
+      "shadow": null
+    },
+    {
+      "id": "l-ts3",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 10,
+      "tokens": 12398,
+      "ms": 23432,
+      "correct": false,
+      "final": "$33.00",
+      "miss": "binder named an unknown skill (chain)",
+      "shadow": null
+    },
+    {
+      "id": "l-ds3",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 6,
+      "tokens": 6229,
+      "ms": 21794,
+      "correct": true,
+      "final": "**expression:** round((1 - 0.3) * (1 - 0.2) * 500, 2)/5\n\n**result:** 55.99",
+      "miss": "binding rejected: the task states 5 but the binding does not use it",
+      "shadow": null
+    }
+  ],
+  "test": [
+    {
+      "id": "t-ts1",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 8,
+      "tokens": 9299,
+      "ms": 25757,
+      "correct": true,
+      "final": "# Cost per Friend\nEach friend pays $90.95.\n\n**Calculation Steps:**\n1. Discount: $400 x 15% = $60\n2. Price after discount: $400 - $60 = $340\n3. Sales tax: $340 x 7% = $23.80\n4. Total price after tax: $340 + $23.80 = $363.80\n5. Cost per friend: $363.80 ÷ 4 = $90",
+      "miss": "binder named an unknown skill (chain)",
+      "shadow": null
+    },
+    {
+      "id": "t-ts2",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 8,
+      "tokens": 9312,
+      "ms": 25789,
+      "correct": true,
+      "final": "# Pizza Order Split Among Friends\nEach friend pays $32.40.\n\n## Calculation Steps:\n1. Discount: $120 x 25% = $30 off\n2. Price after discount: $120 - $30 = $90\n3. Sales tax: $90 x 8% = $7.20 added\n4. Total price after tax: $90 + $7.20 = $97.20\n5. Split among fri",
+      "miss": "binder named an unknown skill (chain)",
+      "shadow": null
+    },
+    {
+      "id": "t-ds1",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 7,
+      "tokens": 7536,
+      "ms": 23287,
+      "correct": true,
+      "final": "# Price per Friend\n$81 each",
+      "miss": "binding rejected: the task states 6 but the binding does not use it",
+      "shadow": null
+    },
+    {
+      "id": "t-ds2",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 6,
+      "tokens": 6233,
+      "ms": 23096,
+      "correct": true,
+      "final": "calc: ok {\n  \"expression\": \"(1 - 0.2) * (1 - 0.25) * 180\",\n  \"result\": 108\n}\ncalc: ok {\n  \"expression\": \"108 / 2\",\n  \"result\": 54\n}",
+      "miss": "binding rejected: the task states 2 but the binding does not use it",
+      "shadow": null
+    },
+    {
+      "id": "s-tax",
+      "control": false,
+      "routed": "calculate_final_price_with_tax",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 134,
+      "correct": true,
+      "final": "**Answer: 63**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_final_price_with_tax` (Calculates the final price of an item after applying a discount and adding sales tax. Verified by differential testing; code sha256 5721df446981) on inp",
+      "miss": null,
+      "shadow": null
+    },
+    {
+      "id": "s-disc",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 133,
+      "correct": true,
+      "final": "**Answer: 28.8**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_final_price` (Calculates the final price of an item after applying two successive discounts. Verified by differential testing; code sha256 5db5975d4e69) on input `{\"original",
+      "miss": null,
+      "shadow": null
+    },
+    {
+      "id": "c-more",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 11,
+      "tokens": 15220,
+      "ms": 38394,
+      "correct": null,
+      "final": "# Comparison of Ann's Payment and Bob's Share\n\n## Method 1: Calculation\n* Total price after discount: $(172.8)\n* Final price (with sales tax): $(172.8 + $13.824 = $186.624)\n* Ann's payment: $50\n* Bob's share: $136.624\n\n## Result\nAnn pays $-72.80 more than Bob.",
+      "miss": "chain rejected: step 3 (calculate_individual_share): number_of_people = 2 does not appear in the task",
+      "shadow": null
+    },
+    {
+      "id": "c-tip",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 8,
+      "tokens": 9295,
+      "ms": 25744,
+      "correct": true,
+      "final": "# Dinner Cost per Friend\nEach friend pays $35.40 for the dinner.\n\n**Calculation Steps:*\n1. Discounted price: $100 - (10% of $100) = $90\n2. Tip amount: 18% of $90 = $16.20\n3. Total cost before splitting: $90 + $16.20 = $106.20\n4. Each friend's share: $106.20 / ",
+      "miss": "binding rejected: the task states 3 but the binding does not use it",
+      "shadow": null
+    }
+  ],
+  "chains": [],
+  "composed": [],
+  "composeRejected": [],
+  "skills": [
+    {
+      "name": "calculate_final_price",
+      "source": "text:operator",
+      "description": "Calculates the final price of an item after applying two successive discounts.",
+      "code": "function main(input) { return input.original_price * (1 - input.discount1) * (1 - input.discount2); }",
+      "verification": {
+        "method": "differential, 2 of 3",
+        "inputs": 6,
+        "referenceModel": "fraymus-prime:v1",
+        "extractorModel": "qwen2.5-coder:7b",
+        "tiebreak": false
+      }
+    },
+    {
+      "name": "calculate_average_speed",
+      "source": "text:operator",
+      "description": "Calculates the average speed for a round trip given the speed to and from the destination.",
+      "code": "function main(input) { return 2 * input.speed_to * input.speed_from / (input.speed_to + input.speed_from); }",
+      "verification": {
+        "method": "differential, 2 of 3",
+        "inputs": 6,
+        "outOfDomain": 0,
+        "referenceModel": "fraymus-prime:v1",
+        "extractorModel": "qwen2.5-coder:7b",
+        "tiebreak": false
+      }
+    },
+    {
+      "name": "calculate_final_price_with_tax",
+      "source": "gap:calculate_final_price",
+      "description": "Calculates the final price of an item after applying a discount and adding sales tax.",
+      "code": "function main(input) {\n  let discounted_price = input.original_price * (1 - input.discount);\n  let final_price = discounted_price * (1 + input.tax_rate);\n  return final_price;\n}",
+      "verification": {
+        "method": "differential 2 of 3 + corroborated answer key",
+        "answerKey": "5/5",
+        "contractRepaired": [
+          "discount",
+          "tax_rate"
+        ],
+        "inputs": 6,
+        "outOfDomain": 0,
+        "referenceModel": "fraymus-prime:v1",
+        "extractorModel": "qwen2.5-coder:7b",
+        "tiebreak": false
+      }
+    },
+    {
+      "name": "calculate_individual_share",
+      "source": "text:phase14",
+      "description": "Calculates the amount each person pays when splitting a total amount evenly among a given number of people.",
+      "code": "function main(input) { return input.total_amount / input.number_of_people; }",
+      "verification": {
+        "method": "differential, 2 of 3",
+        "inputs": 6,
+        "outOfDomain": 0,
+        "referenceModel": "fraymus-prime:v1",
+        "extractorModel": "qwen2.5-coder:7b",
+        "tiebreak": true
+      }
+    }
+  ],
+  "summary": {
+    "learn": {
+      "tasks": 6,
+      "routed": 0,
+      "zeroCall": 0,
+      "correct": 4,
+      "composedRoutes": [],
+      "chainRoutes": [],
+      "misroutes": [],
+      "calls": 47
+    },
+    "test": {
+      "tasks": 8,
+      "routed": 2,
+      "zeroCall": 2,
+      "correct": 7,
+      "composedRoutes": [],
+      "chainRoutes": [],
+      "misroutes": [],
+      "calls": 48
+    }
+  }
+}
