@@ -1,6 +1,6 @@
 # Phase 11: Learned binders: zero-call routing, learned by induction
 
-Previous: [Phase 10](PHASE-10.md) · [Index](README.md)
+Previous: [Phase 10](PHASE-10.md) · Next: [Phase 12](PHASE-12.md) · [Index](README.md)
 
 ## The problem
 Phase 10 routed matching tasks to owned skills, but every route still cost one model call: a short "bind" call that picks the skill and extracts its input. Binding is itself a repeated task with a pattern. If the agency can learn it, matching tasks need **no model at all**.

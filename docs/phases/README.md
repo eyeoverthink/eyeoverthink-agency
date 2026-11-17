@@ -15,3 +15,4 @@ Each phase records what was built, what changed, the patterns used, and running 
 | [9](PHASE-9.md) | Crystallization: solved tasks become verified, owned skills that need no model, and compound | 2026-11-17 |
 | [10](PHASE-10.md) | Skill-first routing: agents use owned skills before renting a model (real A/B: half the calls, every routed answer correct) | 2026-11-17 |
 | [11](PHASE-11.md) | Learned binders: induced with no model, zero-call routing (8/8 new tasks, 0 model calls), structural gates against misroutes | 2026-11-17 |
+| [12](PHASE-12.md) | Verified wording: misroutes stop protecting themselves (shadow verdicts, two-agent judge, body block words; tax and tip misroutes 3/5 to 0/8) | 2026-11-17 |
