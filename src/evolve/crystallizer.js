@@ -18,6 +18,13 @@ import { induce, leaveOneOut, compileSpec, questionWords, numberTokens, learnBlo
 const NAME = /^[a-z][a-z0-9_]{2,39}$/;
 
 /** Deep equality with numeric tolerance, for comparing two implementations' outputs. */
+/** A computed value matches an agent's answer: within 0.2%, or equal at the answer's own rounding ("110.16", "51"). */
+export function nearAnswer(out, answer) {
+  if (typeof out !== 'number' || typeof answer !== 'number' || !Number.isFinite(out)) return false;
+  const dec = Math.min(4, (String(answer).split('.')[1] || '').length);
+  return Math.abs(out - answer) <= Math.max(0.01, Math.abs(answer) * 0.002) || (dec <= 2 && Math.abs(Number(out.toFixed(dec)) - answer) < 1e-9);
+}
+
 export function sameOutput(a, b) {
   // Independent implementations wrap the same value differently ({"averageSpeed": 0} vs 0); compare the value.
   // Measured: a correct harmonic-mean skill lost a tie-break on exactly this.
@@ -190,13 +197,14 @@ export class Crystallizer {
    * Crystallize one skill from a solved task. source: { kind, ref, text }.
    * Returns { admitted, skill?, reason, verification }.
    */
-  async crystallize(source, { tests = 6, signal } = {}) {
+  async crystallize(source, { tests = 6, signal, answerKey = null } = {}) {
     const library = this.list('active');
+    const keyAsk = answerKey?.length ? `\n\nAlso return "bindings": one entry per solved task above, in the same order, each {"input":{...}} with values copied exactly from that task (a percentage as a decimal only if your schema says so).` : '';
     const ex = await this.router.chat({
-      role: 'code', privacy: 'private', json: true, temperature: 0.2, maxTokens: 1600, signal,
+      role: 'code', privacy: 'private', json: true, temperature: 0.2, maxTokens: 2000, signal,
       messages: [
         { role: 'system', content: 'You turn a solved task into ONE reusable, general, pure JavaScript function so that next time this KIND of task can be solved by code instead of a language model. The function must be named main, take a single JSON input object, return a JSON-serializable value, and use no I/O, network, randomness or dates. Reply with JSON only.' },
-        { role: 'user', content: `${source.text}\n\nExisting skills you may call (as skill_<name>(input)): ${library.map((s) => `skill_${s.name}: ${s.description}`).join('; ') || 'none'}\n\nReturn {"name":"snake_case_name","description":"what it computes, in one sentence","params":{"type":"object","properties":{...},"required":[...]},"code":"function main(input) { ... }"} or {"none":true} if no reusable computation exists.` },
+        { role: 'user', content: `${source.text}\n\nExisting skills you may call (as skill_<name>(input)): ${library.map((s) => `skill_${s.name}: ${s.description}`).join('; ') || 'none'}${keyAsk}\n\nReturn {"name":"snake_case_name","description":"what it computes, in one sentence","params":{"type":"object","properties":{...},"required":[...]},"code":"function main(input) { ... }"${answerKey?.length ? ',"bindings":[{"input":{...}}, ...]' : ''}} or {"none":true} if no reusable computation exists.` },
       ],
     });
     const cand = parseJson(ex.text);
@@ -245,7 +253,24 @@ export class Crystallizer {
     }
     const inDomain = rows.filter((x) => !x.outOfDomain);
     if (inDomain.length < 3) return fail(`only ${inDomain.length} in-domain input(s) agree; at least 3 are required`, { rows, tiebreak });
-    const verification = { method: 'differential, 2 of 3', inputs: inDomain.length, outOfDomain: rows.length - inDomain.length, referenceModel: ref.model, extractorModel: ex.model, tiebreak: Boolean(tiebreak), rows: rows.map((x) => ({ input: x.input, out: x.candidate.out })) };
+    // Answer key (Phase 13): a skill learned from refused tasks must reproduce, from grounded inputs, the answers two
+    // different agents corroborated for them. Differential testing checks the code against a blind reimplementation;
+    // the key checks both against the world. At most one key in four may miss (two agents can agree on a wrong answer).
+    let keyRows = null;
+    if (answerKey?.length) {
+      const b = Array.isArray(cand.bindings) ? cand.bindings : [];
+      keyRows = [];
+      for (const [i, k] of answerKey.entries()) {
+        const input = b[i]?.input ?? b[i];
+        const g = !input || typeof input !== 'object' || Array.isArray(input) ? 'no binding' : groundingProblem(input, cand.params, k.task);
+        const run = g ? null : await this.#run(cand.code, input, library);
+        const ok = !g && !run.error && typeof run.out === 'number' && nearAnswer(run.out, k.answer);
+        keyRows.push({ task: k.task, input: input ?? null, expected: k.answer, out: run?.out ?? null, ok, problem: g || run?.error || null });
+      }
+      const pass = keyRows.filter((x) => x.ok).length;
+      if (pass < answerKey.length - Math.floor(answerKey.length / 4)) return fail(`reproduces only ${pass}/${answerKey.length} corroborated answers`, { rows, tiebreak, keyRows });
+    }
+    const verification = { method: answerKey?.length ? 'differential 2 of 3 + corroborated answer key' : 'differential, 2 of 3', answerKey: keyRows ? `${keyRows.filter((x) => x.ok).length}/${keyRows.length}` : undefined, inputs: inDomain.length, outOfDomain: rows.length - inDomain.length, referenceModel: ref.model, extractorModel: ex.model, tiebreak: Boolean(tiebreak), rows: rows.map((x) => ({ input: x.input, out: x.candidate.out })) };
     const id = newId('sk');
     const codeSha = sha256(cand.code);
     this.store.run('INSERT INTO skills (id, name, description, params, code, code_sha256, status, source, verification, uses, failures, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)',
@@ -254,7 +279,10 @@ export class Crystallizer {
     this.#register(skill);
     this.ledger.append('skill.admit', { id, name, codeSha256: codeSha, source: `${source.kind}:${source.ref}`, inputs: rows.length, tiebreak: Boolean(tiebreak), extractor: ex.model, reference: ref.model }, 'crystallizer');
     this.bus?.publish('skill.admit', { name, inputs: rows.length });
-    return { admitted: true, skill: { name, description: skill.description, codeSha256: codeSha }, reason: `verified against an independent implementation on ${inDomain.length} input(s)${tiebreak ? ' (2-of-3 tie-break)' : ''}${rows.length > inDomain.length ? `; ${rows.length - inDomain.length} input(s) rejected by 2 of 3 as out of domain` : ''}`, verification };
+    // Answer-key bindings are verified three ways (grounded, code-computed, two agents agree): the new skill's first
+    // positive examples, so its binder can be learned without waiting for model binds.
+    for (const k of keyRows || []) if (k.ok) this.#example(name, k.task, k.input, 'pos');
+    return { admitted: true, keyRows, skill: { name, description: skill.description, codeSha256: codeSha }, reason: `verified against an independent implementation on ${inDomain.length} input(s)${tiebreak ? ' (2-of-3 tie-break)' : ''}${rows.length > inDomain.length ? `; ${rows.length - inDomain.length} input(s) rejected by 2 of 3 as out of domain` : ''}`, verification };
   }
 
   /** A blind reference implementation (and, optionally, edge-case inputs) from the spec alone. */
@@ -306,6 +334,7 @@ export class Crystallizer {
     // Zero-call path: a learned binder (the routing step itself, crystallized and verified) parses the task. Its output
     // passes the same grounding as a model binding; anything doubtful falls through to the model binder.
     const binderNulls = new Set();
+    let gated = null;
     for (const c of candidates) {
       const b = this.binder(c.s.name);
       if (!b) continue;
@@ -315,13 +344,20 @@ export class Crystallizer {
       // and the two answers are compared. No model binder call is spent re-asking about wording nobody has verified.
       const gate = this.#learnedBlock(c.s.name, text);
       if (gate) {
-        this.ledger.append('skill.route_miss', { agentId, missionId, reason: `binding rejected: ${gate}`, candidates: candidates.map((x) => x.s.name), bindModel: 'learned-binder' }, 'crystallizer');
-        return { miss: `binding rejected: ${gate}`, usage: zero, shadow: private_ ? null : { skill: c.s.name, input: r.out, reason: gate } };
+        // Another candidate (for example a skill learned from this one's refusals) may still answer: keep looking.
+        gated ??= { skill: c.s.name, input: r.out, reason: gate };
+        binderNulls.add(c.s.name);
+        continue;
       }
       const run = await this.#run(c.s.code, r.out, active.filter((x) => x.name !== c.s.name));
       if (run.error) { binderNulls.add(c.s.name); continue; }
       this.store.run('UPDATE skill_binders SET uses = uses + 1, updated = ? WHERE id = ?', nowIso(), b.id);
       return this.#commitRoute(c.s, r.out, run.out, { ...ctx, bindModel: 'learned-binder', binderId: b.id, spent: 0, usage: zero });
+    }
+    // The only candidate declined its own binding: refuse at zero cost (the shadow verdict learns from it).
+    if (gated && candidates.length === 1) {
+      this.ledger.append('skill.route_miss', { agentId, missionId, reason: `binding rejected: ${gated.reason}`, candidates: [gated.skill], bindModel: 'learned-binder' }, 'crystallizer');
+      return { miss: `binding rejected: ${gated.reason}`, usage: zero, shadow: private_ ? null : gated };
     }
 
     let res;
@@ -338,7 +374,7 @@ export class Crystallizer {
     const p = parseJson(res.text);
     const miss = (reason) => {
       this.ledger.append('skill.route_miss', { agentId, missionId, reason, candidates: candidates.map((c) => c.s.name), bindModel: res.model }, 'crystallizer');
-      return { miss: reason, usage, bindModel: res.model };
+      return { miss: reason, usage, bindModel: res.model, shadow: private_ ? null : gated };
     };
     if (typeof p.skill === 'string' && /^(none|null|n\/a|)$/i.test(p.skill.trim())) p.skill = null; // "none" is a refusal
     if (!p.skill) {
@@ -445,6 +481,7 @@ export class Crystallizer {
     if (r.error || typeof r.out !== 'number') return null;
     const j = await this.#judge(task, r.out, final, this.agentAnswer);
     if (j.agree !== null) this.#example(skill.name, task, j.agree ? shadow.input : null, j.agree ? 'pos' : 'neg');
+    if (j.agree === false && j.second !== null) this.#recordGap(skill.name, task, j.agentAnswer);
     this.ledger.append('skill.shadow', { skill: skill.name, agentId, missionId, ...j, reason: shadow.reason }, 'crystallizer');
     this.bus?.publish('skill.shadow', { skill: skill.name, agree: j.agree });
     if (j.agree) this.#maybeLearn(skill.name);
@@ -471,11 +508,75 @@ export class Crystallizer {
       const r = await this.#run(skill.code, e.input, []);
       if (r.error || typeof r.out !== 'number') { rows.push({ task: e.task, rare: words_, agree: null }); continue; }
       const j = await this.#judge(e.task, r.out, await answer(e.task), answer);
-      if (j.agree === false) this.store.run("UPDATE skill_examples SET label = 'neg', input = NULL WHERE id = ?", e.id);
+      if (j.agree === false) { this.store.run("UPDATE skill_examples SET label = 'neg', input = NULL WHERE id = ?", e.id); if (j.second !== null) this.#recordGap(skillName, e.task, j.agentAnswer); }
       rows.push({ task: e.task, rare: words_, ...j });
     }
     this.ledger.append('binder.audit_wording', { skill: skillName, checked: rows.length, demoted: rows.filter((x) => x.agree === false).length }, 'crystallizer');
     return rows;
+  }
+
+  // ---- Capability gaps: refusals become skills (Phase 13) ------------------------------------------------------------
+
+  /**
+   * A task this skill refused, whose answer two different agents corroborated, is a solved example of a capability
+   * the agency does not own yet. Its markers are the wording no positive of the skill used ("sales", "tax", "added").
+   */
+  #recordGap(skill, task, answer) {
+    if (typeof answer !== 'number' || !Number.isFinite(answer)) return;
+    const t = String(task).slice(0, 3000);
+    if (this.store.get("SELECT id FROM skill_gaps WHERE skill = ? AND task = ?", skill, t)) return;
+    const markers = novelWording(this.examples(skill).filter((e) => e.label === 'pos'), t);
+    this.store.run('INSERT INTO skill_gaps (id, skill, task, answer, markers, status, created) VALUES (?, ?, ?, ?, ?, ?, ?)', newId('gp'), skill, t, answer, JSON.stringify(markers), 'open', nowIso());
+    this.ledger.append('skill.gap', { skill, answer, markers }, 'crystallizer');
+    this.bus?.publish('skill.gap', { skill, markers });
+    this.#maybeLearnGaps(skill);
+  }
+
+  gaps(skill = null) {
+    return this.store.all(`SELECT * FROM skill_gaps ${skill ? 'WHERE skill = ?' : ''} ORDER BY created`, ...(skill ? [skill] : [])).map((g) => ({ ...g, markers: JSON.parse(g.markers || '[]') }));
+  }
+
+  /** Families of open gaps: gaps whose markers overlap (union-find), largest first. */
+  gapFamilies(skill) {
+    const open = this.gaps(skill).filter((g) => g.status === 'open' && g.markers.length);
+    const parent = open.map((_, i) => i);
+    const find = (i) => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+    for (let i = 0; i < open.length; i++) for (let j = i + 1; j < open.length; j++) if (open[i].markers.some((w) => open[j].markers.includes(w))) parent[find(i)] = find(j);
+    const fam = new Map();
+    open.forEach((g, i) => { const r = find(i); fam.set(r, [...(fam.get(r) || []), g]); });
+    return [...fam.values()].sort((a, b) => b.length - a.length);
+  }
+
+  #maybeLearnGaps(skill) {
+    const cfg = this.cfg?.skills || {};
+    if (cfg.learnGaps === false) return;
+    const fam = this.gapFamilies(skill)[0];
+    const min = cfg.gapMin ?? 3;
+    const tried = this.store.kvGet(`gap:tried:${skill}`, 0);
+    if (!fam || fam.length < min || fam.length <= tried) return;
+    this.store.kvSet(`gap:tried:${skill}`, fam.length);
+    this.gapQueue = (this.gapQueue || Promise.resolve()).then(() => this.learnGap(skill).catch((e) => this.bus?.publish('skill.reject', { name: null, reason: e.message })));
+  }
+
+  /**
+   * Crystallize the largest family of open gaps into a NEW skill: the refused tasks and their corroborated answers are
+   * the solved examples, and the new skill must reproduce those answers (the answer key) on top of differential testing.
+   */
+  async learnGap(skill, { signal } = {}) {
+    const fam = this.gapFamilies(skill)[0];
+    if (!fam || fam.length < 2) return { admitted: false, reason: 'no family of at least 2 corroborated gaps' };
+    const parent = this.list('active').find((s) => s.name === skill);
+    const family = fam.slice(-8);
+    const markers = [...new Set(family.flatMap((g) => g.markers))];
+    const solved = family.map((g, i) => `${i + 1}. ${g.task}\n   Answer: ${g.answer}`).join('\n');
+    const text = `Solved tasks. Each answer was computed independently by two different agents, and they agreed:\n${solved}\n\nThe existing skill skill_${skill} (${parent?.description || ''}) does NOT answer these tasks: they also involve ${markers.slice(0, 6).map((w) => `"${w}"`).join(', ')}. Write the general function that does.`;
+    const r = await this.crystallize({ kind: 'gap', ref: skill, text }, { signal, answerKey: family.map((g) => ({ task: g.task, answer: g.answer })) });
+    if (r.admitted) {
+      for (const g of family) this.store.run("UPDATE skill_gaps SET status = 'learned', resolved_by = ? WHERE id = ?", r.skill.name, g.id);
+      this.ledger.append('skill.gap_learned', { parent: skill, skill: r.skill.name, gaps: family.length, markers, answerKey: r.verification?.answerKey }, 'crystallizer');
+      this.#maybeLearn(r.skill.name);
+    }
+    return { ...r, family: family.length, markers };
   }
 
   // ---- Learned binders: the routing step, crystallized -------------------------------------------------------------

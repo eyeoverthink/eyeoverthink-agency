@@ -139,6 +139,13 @@ const MIGRATIONS = [
     created TEXT NOT NULL, updated TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS skill_binders_skill ON skill_binders(skill, status);`,
+  // v7 — capability gaps: tasks a skill had to refuse whose answer two different agents corroborated. A family of
+  // them is crystallized into a NEW skill, checked against those answers (Phase 13: refusals become skills).
+  `CREATE TABLE IF NOT EXISTS skill_gaps (
+    id TEXT PRIMARY KEY, skill TEXT NOT NULL, task TEXT NOT NULL, answer REAL NOT NULL, markers TEXT NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'open', resolved_by TEXT, created TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS skill_gaps_skill ON skill_gaps(skill, status);`,
 ];
 
 export class Store {

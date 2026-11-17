@@ -142,6 +142,11 @@ export async function main(argv) {
           const r = await agency.crystallizer.learnBinder(pos[2]);
           out(r.admitted ? `ADMITTED binder for skill_${pos[2]}: ${r.reason}` : `not admitted: ${r.reason}`);
           out(JSON.stringify({ ...r.verification, rows: undefined }));
+        } else if (pos[1] === 'gaps') {
+          for (const g of agency.crystallizer.gaps(pos[2] || null)) out(`${g.status.padEnd(8)} skill_${g.skill} answer=${g.answer} markers=${g.markers.join(',')}${g.resolved_by ? ` -> skill_${g.resolved_by}` : ''}  ${g.task.slice(0, 80)}`);
+        } else if (pos[1] === 'learn-gap') {
+          const r = await agency.crystallizer.learnGap(pos[2]);
+          out(r.admitted ? `ADMITTED skill_${r.skill.name} from ${r.family} corroborated refusal(s): ${r.reason}` : `not admitted: ${r.reason}`);
         } else if (pos[1] === 'audit-wording') {
           const rows = await agency.crystallizer.auditWording(pos[2], (t, id) => agency.crystallizer.agentAnswer(t, id));
           for (const r of rows) out(`${r.agree === false ? 'DEMOTED' : r.agree ? 'kept   ' : 'unclear'} skill=${r.skillOut} agent=${r.agentAnswer} rare=${r.rare.join(',')}  ${r.task.slice(0, 90)}`);
