@@ -427,6 +427,21 @@ async function loadLineages() {
 }
 
 /** Crystallized skills: model reasoning kept as verified, owned code that needs no model. */
+/** Cumulative tasks answered by owned skills over time: the curve that shows the agency, not the model, improving. */
+function skillCurve(curve: any[]): string {
+  if (!curve.length) return '<p class="dim">No task has been answered skill-first yet.</p>';
+  const W = 560, H = 120, P = 24, n = curve.length, max = curve[n - 1].routes;
+  const x = (i: number) => P + (n === 1 ? (W - 2 * P) / 2 : (i * (W - 2 * P)) / (n - 1));
+  const y = (v: number) => H - P - (v / Math.max(1, max)) * (H - 2 * P);
+  const pts = curve.map((c, i) => `${x(i).toFixed(1)},${y(c.routes).toFixed(1)}`).join(" ");
+  return `<svg class="curve" viewBox="0 0 ${W} ${H}" role="img" aria-label="Cumulative tasks answered skill-first">
+    <line x1="${P}" y1="${H - P}" x2="${W - P}" y2="${H - P}" stroke="currentColor" opacity=".25"/>
+    <polyline points="${pts}" fill="none" stroke="var(--accent, #7cf)" stroke-width="2"/>
+    ${curve.map((c, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(c.routes).toFixed(1)}" r="3" fill="var(--accent, #7cf)"><title>${esc(c.at)} · skill_${esc(c.skill)} · ${c.routes} total</title></circle>`).join("")}
+    <text x="${P}" y="14" font-size="11" fill="currentColor" opacity=".7">${max} task(s) answered by owned code</text>
+  </svg>`;
+}
+
 async function loadSkills() {
   const box = $("#skillsp");
   if (!box) return;
@@ -435,7 +450,10 @@ async function loadSkills() {
   const st = d.stats;
   box.innerHTML = `<h2>Crystallized skills: what the agency has learned</h2>
     <p class="dim">Most AI products rent intelligence per call and keep nothing. Here, a well-scored mission is distilled into a pure function, verified against an <b>independent</b> implementation written by a different model from the description alone (2 of 3 on disagreement), signed into the ledger, and registered as a tool that answers <b>with no model call</b>. Skills can call earlier skills, so capability compounds and survives a model swap.</p>
-    <section class="stats"><div class="stat"><b>${st.active}</b><span>active skills</span></div><div class="stat"><b>${st.uses}</b><span>uses = model calls avoided</span></div><div class="stat"><b>${st.failures}</b><span>failures in use</span></div><div class="stat"><b>${st.retired}</b><span>retired</span></div></section>
+    <section class="stats"><div class="stat"><b>${st.active}</b><span>active skills</span></div><div class="stat"><b>${st.uses}</b><span>uses (code, not a model)</span></div><div class="stat"><b>${st.routed ?? 0}</b><span>tasks answered skill-first</span></div><div class="stat"><b>${st.routeMisses ?? 0}</b><span>bind attempts declined</span></div><div class="stat"><b>${st.routeRejected ?? 0}</b><span>skill answers the critic rejected</span></div><div class="stat"><b>${st.failures}</b><span>failures in use</span></div></section>
+    <h3>Skill-first routing</h3>
+    <p class="dim">Before an agent spends model turns, the agency checks whether a skill it owns already answers the task. A free word-and-number prefilter discards unrelated tasks. A plausible match costs one short local <b>bind</b> call, and every bound value must appear literally in the task. No value may be invented, and a conversion (12% → 0.12) is allowed only when the skill's verified contract declares it. Then verified code produces the exact answer. Any doubt falls back to the normal agent loop.</p>
+    ${skillCurve(st.curve || [])}
     ${d.skills.length ? `<table class="evotbl"><tr><th>skill</th><th>what it computes</th><th>verified on</th><th>uses</th><th>learned from</th></tr>${d.skills.map((k: any) => `<tr><td class="mono">skill_${esc(k.name)}${k.status !== "active" ? ` <span class="dim">(${esc(k.status)})</span>` : ""}</td><td>${esc(k.description)}</td><td>${k.verification?.inputs ?? "–"} inputs${k.verification?.tiebreak ? " (2-of-3)" : ""}</td><td>${k.uses}</td><td class="mono">${esc(k.source)}</td></tr>`).join("")}</table>` : '<p class="dim">No skills yet. They appear automatically after well-scored missions, or crystallize one below.</p>'}
     <div class="row"><input id="crtext" placeholder="Describe a solved task to crystallize, e.g. 'convert a recipe between servings: scale each ingredient quantity by new/old servings'" /><button id="crgo" class="ghost">Crystallize</button></div>
     <div id="crout"></div>`;

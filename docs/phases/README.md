@@ -13,3 +13,4 @@ Each phase records what was built, what changed, the patterns used, and running 
 | [7](PHASE-7.md) | Contest prep: preflight GO/NO-GO, evidence-only demo script, Devpost, submission checklist | 2026-11-17 |
 | [8](PHASE-8.md) | Private yet hybrid: Privacy Membrane, proof-carrying receipts, Red Queen exams, Sovereignty Map (all run end to end) | 2026-11-17 |
 | [9](PHASE-9.md) | Crystallization: solved tasks become verified, owned skills that need no model, and compound | 2026-11-17 |
+| [10](PHASE-10.md) | Skill-first routing: agents use owned skills before renting a model (real A/B: half the calls, every routed answer correct) | 2026-11-17 |

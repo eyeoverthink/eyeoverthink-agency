@@ -1,0 +1,363 @@
+{
+  "at": "2026-11-17T14:32:29.408Z",
+  "summary": {
+    "off": {
+      "calls": 39,
+      "tokens": 42705,
+      "ms": 137980,
+      "correct": 4,
+      "routed": 0
+    },
+    "on": {
+      "calls": 21,
+      "tokens": 21646,
+      "ms": 63545,
+      "correct": 7,
+      "routed": 5
+    }
+  },
+  "misroutes": [],
+  "rows": [
+    {
+      "id": "disc-jacket",
+      "arm": "off",
+      "control": false,
+      "routed": null,
+      "calls": 4,
+      "tokens": 4051,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 7190,
+      "correct": true,
+      "final": "# Jacket Price After Discounts\n$97.16",
+      "error": null
+    },
+    {
+      "id": "disc-jacket",
+      "arm": "on",
+      "control": false,
+      "routed": "calculate_final_price",
+      "calls": 1,
+      "tokens": 301,
+      "roles": [
+        "fast"
+      ],
+      "ms": 2522,
+      "correct": true,
+      "final": "**Answer: 97.152**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_final_price` (Calculates the final price of an item after applying two successive discounts. Verified by differential testing; code sha256 5db5975d4e69) on input `{\"original_price\":120,\"discount1\":0.12,\"discount2\":0.08}`. No model reasoning produced this result.",
+      "error": null
+    },
+    {
+      "id": "disc-tv",
+      "arm": "off",
+      "control": false,
+      "routed": null,
+      "calls": 4,
+      "tokens": 4094,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 15983,
+      "correct": true,
+      "final": "$180",
+      "error": null
+    },
+    {
+      "id": "disc-tv",
+      "arm": "on",
+      "control": false,
+      "routed": "calculate_final_price",
+      "calls": 1,
+      "tokens": 298,
+      "roles": [
+        "fast"
+      ],
+      "ms": 3607,
+      "correct": true,
+      "final": "**Answer: 180**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_final_price` (Calculates the final price of an item after applying two successive discounts. Verified by differential testing; code sha256 5db5975d4e69) on input `{\"original_price\":250,\"discount1\":0.2,\"discount2\":0.1}`. No model reasoning produced this result.",
+      "error": null
+    },
+    {
+      "id": "disc-laptop",
+      "arm": "off",
+      "control": false,
+      "routed": null,
+      "calls": 4,
+      "tokens": 4124,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 16450,
+      "correct": false,
+      "final": "# Final Price\n$727",
+      "error": null
+    },
+    {
+      "id": "disc-laptop",
+      "arm": "on",
+      "control": false,
+      "routed": "calculate_final_price",
+      "calls": 1,
+      "tokens": 305,
+      "roles": [
+        "fast"
+      ],
+      "ms": 3650,
+      "correct": true,
+      "final": "**Answer: 726.741925**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_final_price` (Calculates the final price of an item after applying two successive discounts. Verified by differential testing; code sha256 5db5975d4e69) on input `{\"original_price\":899.99,\"discount1\":0.15,\"discount2\":0.05}`. No model reasoning produced this result.",
+      "error": null
+    },
+    {
+      "id": "speed-lake",
+      "arm": "off",
+      "control": false,
+      "routed": null,
+      "calls": 5,
+      "tokens": 6059,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 23528,
+      "correct": false,
+      "final": "# Average Speed Calculation\n## Problem Statement:\nI drive to the lake at 40 mph and come back on the same road at 60 mph. What is my average speed for the whole round trip?\n## Solution:\nThe total distance traveled is (40 + 60) * (1/2) = 50 miles.\nThe total time taken is ((1/40) + (1/60)) hours.\nThe average speed is therefore 50 / ((1/40) + (1/60)) ≈ 1200 mph.",
+      "error": null
+    },
+    {
+      "id": "speed-lake",
+      "arm": "on",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "calls": 1,
+      "tokens": 260,
+      "roles": [
+        "fast"
+      ],
+      "ms": 3650,
+      "correct": true,
+      "final": "**Answer: 48**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_average_speed` (Calculates the average speed for a round trip given the speed to and from the destination. Verified by differential testing; code sha256 1a73f141e224) on input `{\"speed_to\":40,\"speed_from\":60}`. No model reasoning produced this result.",
+      "error": null
+    },
+    {
+      "id": "speed-bike",
+      "arm": "off",
+      "control": false,
+      "routed": null,
+      "calls": 5,
+      "tokens": 6386,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 29445,
+      "correct": false,
+      "final": "# Average Speed Over Whole Ride\nAverage speed: **216 km/h**\n\nThis result was obtained by assuming a round trip of equal length, and using the formula for average speed. The total distance traveled was calculated as (12 + 18) * d = 30d, where d is the one-way distance. The total time taken was then found to be 5d/36, which was used in conjunction with the total distance to calculate the average spe",
+      "error": null
+    },
+    {
+      "id": "speed-bike",
+      "arm": "on",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "calls": 1,
+      "tokens": 259,
+      "roles": [
+        "fast"
+      ],
+      "ms": 3561,
+      "correct": true,
+      "final": "**Answer: 14.4**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_average_speed` (Calculates the average speed for a round trip given the speed to and from the destination. Verified by differential testing; code sha256 1a73f141e224) on input `{\"speed_to\":12,\"speed_from\":18}`. No model reasoning produced this result.",
+      "error": null
+    },
+    {
+      "id": "ctrl-train",
+      "arm": "off",
+      "control": true,
+      "routed": null,
+      "calls": 9,
+      "tokens": 9222,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 29367,
+      "correct": true,
+      "final": "The average speed of a train traveling 120 miles in 2 hours is calculated as follows:\n\nDistance = 120 miles\nTime = 2 hours\nSpeed = Distance / Time = (120 / 2) mph = 60 mph",
+      "error": null
+    },
+    {
+      "id": "ctrl-train",
+      "arm": "on",
+      "control": true,
+      "routed": null,
+      "calls": 6,
+      "tokens": 4416,
+      "roles": [
+        "fast",
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 27198,
+      "correct": true,
+      "final": "# Average Speed Calculation\n\nTo calculate the average speed of a train that travels 120 miles in 2 hours, we need to divide the distance by the time.\n\n## Step-by-Step Solution\n\n1. Convert the time from hours to minutes: `time = 2 * 60` minutes\n2. Divide the distance (in miles) by the time (in minutes): `average_speed = 120 / (2 * 60)`\n3. Simplify the expression: `average_speed = 120 / 120`\n4. Calc",
+      "error": null
+    },
+    {
+      "id": "ctrl-amount",
+      "arm": "off",
+      "control": true,
+      "routed": null,
+      "calls": 3,
+      "tokens": 2749,
+      "roles": [
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 5665,
+      "correct": true,
+      "final": "$10 USD saved by applying a 25% discount to the original price of $40.",
+      "error": null
+    },
+    {
+      "id": "ctrl-amount",
+      "arm": "on",
+      "control": true,
+      "routed": null,
+      "calls": 3,
+      "tokens": 2743,
+      "roles": [
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 4764,
+      "correct": true,
+      "final": "$10 saved by applying a 25% discount to a $40 shirt.",
+      "error": null
+    },
+    {
+      "id": "ctrl-blurb",
+      "arm": "off",
+      "control": true,
+      "routed": null,
+      "calls": 5,
+      "tokens": 6020,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 10352,
+      "correct": null,
+      "final": "Stay dry and comfortable with our waterproof jacket, available for just $120! Featuring a durable and water-resistant design, this jacket is perfect for outdoor enthusiasts who need protection from rain or snow. With its adjustable cuffs, you'll be able to move freely while staying protected from the elements.",
+      "error": null
+    },
+    {
+      "id": "ctrl-blurb",
+      "arm": "on",
+      "control": true,
+      "routed": null,
+      "calls": 7,
+      "tokens": 13064,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 14593,
+      "correct": null,
+      "final": "# Waterproof Jacket Description\nA waterproof jacket is designed to keep you dry in rainy and windy conditions. It typically has a water-repellent coating or membrane that prevents water from penetrating the fabric. This makes it ideal for outdoor activities such as hiking, camping, or sailing.\n\nKey Features:\n* Water-repellent coating or membrane\n* Breathable fabric to prevent overheating\n* Adjusta",
+      "error": null
+    }
+  ],
+  "stats": {
+    "active": 2,
+    "retired": 0,
+    "uses": 9,
+    "failures": 0,
+    "modelCallsAvoided": 9,
+    "toolCalls": 1276,
+    "routed": 7,
+    "routeMisses": 4,
+    "routeRejected": 0,
+    "bindCalls": 11,
+    "callsAvoidedMin": 7,
+    "curve": [
+      {
+        "at": "2026-11-17T14:24:45.876Z",
+        "routes": 1,
+        "avoided": 1,
+        "skill": "calculate_average_speed"
+      },
+      {
+        "at": "2026-11-17T14:25:10.936Z",
+        "routes": 2,
+        "avoided": 2,
+        "skill": "calculate_average_speed"
+      },
+      {
+        "at": "2026-11-17T14:29:17.579Z",
+        "routes": 3,
+        "avoided": 3,
+        "skill": "calculate_final_price"
+      },
+      {
+        "at": "2026-11-17T14:29:37.171Z",
+        "routes": 4,
+        "avoided": 4,
+        "skill": "calculate_final_price"
+      },
+      {
+        "at": "2026-11-17T14:29:57.273Z",
+        "routes": 5,
+        "avoided": 5,
+        "skill": "calculate_final_price"
+      },
+      {
+        "at": "2026-11-17T14:30:24.453Z",
+        "routes": 6,
+        "avoided": 6,
+        "skill": "calculate_average_speed"
+      },
+      {
+        "at": "2026-11-17T14:30:57.461Z",
+        "routes": 7,
+        "avoided": 7,
+        "skill": "calculate_average_speed"
+      }
+    ]
+  }
+}

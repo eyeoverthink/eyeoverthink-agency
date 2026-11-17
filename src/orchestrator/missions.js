@@ -226,8 +226,11 @@ export class MissionEngine {
           inputs ? `\nInputs from teammates:\n${inputs}` : '',
           critique ? `\nYour previous attempt was rejected by the critic (score ${critique.score}). Defects:\n${(critique.defects || []).map((d) => `- ${d}`).join('\n')}\nFix: ${critique.fix || 'address the defects'}\nPrevious attempt:\n${truncate(result?.final, 2500)}` : '',
         ].filter(Boolean).join('\n');
-        result = await this.runtime.run(task.agent_id, prompt, { missionId, taskId: task.id, span: tspan, privacy: task.privacy, signal });
+        result = await this.runtime.run(task.agent_id, prompt, { missionId, taskId: task.id, span: tspan, privacy: task.privacy, signal, skillFirst: attempts === 1 });
         critique = await this.#critique(task, result, tspan, signal);
+        // A skill-routed answer the critic rejects is evidence against the routing (or the skill): ledger it, and the
+        // retry runs the full agent loop.
+        if (result.skill && !critique.pass) this.ledger.append('skill.route_rejected', { skill: result.skill, missionId, taskId: task.id, score: critique.score, defects: critique.defects.slice(0, 3) }, 'critic');
         this.bus.publish('task.critique', { missionId, taskId: task.id, attempt: attempts, score: critique.score, pass: critique.pass });
         if (critique.pass) break;
       }
@@ -277,7 +280,7 @@ export class MissionEngine {
     const multi = done.length > 1;
     if (multi) {
       const sum = done.map((t) => `### ${t.title} (${t.agent_id}, ${t.status}, score ${t.score})\n${truncate(t.output, 4000)}`).join('\n\n');
-      const res = await this.runtime.run('lumen', `Mission goal: ${mission.goal}\n\nCombine the team's verified work below into ONE complete final deliverable for the goal. Keep all concrete facts, numbers, code and sources. Note clearly anything marked unverified.\n\n${sum}`, { missionId: id, span, privacy: mission.options.privacy, signal });
+      const res = await this.runtime.run('lumen', `Mission goal: ${mission.goal}\n\nCombine the team's verified work below into ONE complete final deliverable for the goal. Keep all concrete facts, numbers, code and sources. Note clearly anything marked unverified.\n\n${sum}`, { missionId: id, span, privacy: mission.options.privacy, signal, skillFirst: false });
       deliverable = res.final;
     } else {
       deliverable = last.output;

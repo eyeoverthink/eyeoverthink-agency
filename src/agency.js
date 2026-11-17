@@ -75,7 +75,8 @@ export class Agency {
     this.evolution.examiner = this.examiner;
     // Crystallization: solved tasks become verified, owned skills (tools that need no model). Automatic after a
     // well-scored mission, one at a time, so what the models work out is kept and compounds.
-    this.crystallizer = new Crystallizer({ store: this.store, router: this.router, tools: this.tools, missions: this.missions, ledger: this.ledger, bus: this.bus });
+    this.crystallizer = new Crystallizer({ store: this.store, router: this.router, tools: this.tools, missions: this.missions, ledger: this.ledger, bus: this.bus, cfg: this.cfg });
+    this.runtime.crystallizer = this.crystallizer; // skill-first: agents use what the agency owns before renting a model
     this.crystalQueue = Promise.resolve();
     this.bus.on('mission.status', (e) => {
       const c = this.cfg.crystallize || {};

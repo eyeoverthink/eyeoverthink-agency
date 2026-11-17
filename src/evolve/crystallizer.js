@@ -31,11 +31,51 @@ export function sameOutput(a, b) {
   return a === b;
 }
 
+const STOP = new Set('the and for with that this from into what which when then than are was were has have had its his her their them they you your our who how why per each all any but not can will would should could does did done get gets got use used using one two after before about over under then also only just very more most much many some such same other another final answer task compute calculate find give return value result total number amount'.split(' '));
+const NUM = /(?<![\w.])-?\d+(?:\.\d+)?/g; // "2026-11" is 2026 and 11, not -11
+/** Content words, lightly stemmed, for the no-model prefilter. */
+export function words(text) {
+  return String(text).toLowerCase().replace(/%/g, ' percent percentage ').match(/[a-z]{3,}/g)?.filter((w) => !STOP.has(w)).map((w) => w.replace(/(ies)$/, 'y').replace(/(ing|ed|es|s)$/, '')).filter((w) => w.length >= 3) || [];
+}
+
+/**
+ * Why a bound input cannot be trusted, or null. Every number and string must appear literally in the task (a binder
+ * may not invent, convert or rescale values: "12%" stays 12, never 0.12), and the schema's required keys and types hold.
+ */
+export function groundingProblem(input, schema, task) {
+  const taskNums = new Set((String(task).match(NUM) || []).map(Number));
+  // A percentage may be passed as a decimal ONLY when the skill's verified contract declares it ("rate as a decimal")
+  // and the task literally states that percentage. Measured: a learned discount skill takes 0.12 for 12%, and a
+  // no-conversion rule rejected every correct binding to it.
+  const pcts = new Set([...String(task).matchAll(/(-?\d+(?:\.\d+)?)\s*(?:%|percent)/gi)].map((m) => Number(m[1])));
+  const declaresDecimal = (path) => { const p = schema?.properties?.[path.split(/[.[]/)[0]]; return /\b(decimal|fraction)\b/i.test(`${p?.description || ''} ${p?.items?.description || ''}`); };
+  const lower = String(task).toLowerCase();
+  const leaves = [];
+  const walk = (v, path) => {
+    if (Array.isArray(v)) v.forEach((x, i) => walk(x, `${path}[${i}]`));
+    else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) walk(x, path ? `${path}.${k}` : k);
+    else leaves.push([path, v]);
+  };
+  walk(input, '');
+  for (const [path, v] of leaves) {
+    if (typeof v === 'number' && !taskNums.has(v) && !(declaresDecimal(path) && pcts.has(Math.round(v * 100 * 1e9) / 1e9))) return `${path} = ${v} does not appear in the task`;
+    if (typeof v === 'string' && v.trim() && !lower.includes(v.toLowerCase())) return `${path} = "${v.slice(0, 40)}" does not appear in the task`;
+  }
+  for (const k of schema?.required || []) if (!(k in input)) return `required input ${k} is missing`;
+  for (const [k, p] of Object.entries(schema?.properties || {})) {
+    if (!(k in input) || !p?.type) continue;
+    const v = input[k];
+    const ok = p.type === 'number' || p.type === 'integer' ? typeof v === 'number' : p.type === 'array' ? Array.isArray(v) : p.type === 'string' ? typeof v === 'string' : p.type === 'boolean' ? typeof v === 'boolean' : p.type === 'object' ? v && typeof v === 'object' : true;
+    if (!ok) return `${k} should be ${p.type}`;
+  }
+  return null;
+}
+
 const parseJson = (text) => { try { return JSON.parse(String(text).match(/\{[\s\S]*\}/)?.[0] || '{}'); } catch { return {}; } };
 
 export class Crystallizer {
-  constructor({ store, router, tools, missions, ledger, bus, sandbox = runSandboxedJs }) {
-    Object.assign(this, { store, router, tools, missions, ledger, bus, sandbox });
+  constructor({ store, router, tools, missions, ledger, bus, cfg = null, sandbox = runSandboxedJs }) {
+    Object.assign(this, { store, router, tools, missions, ledger, bus, cfg, sandbox });
   }
 
   list(status = null) {
@@ -178,6 +218,78 @@ export class Crystallizer {
     return { code: p.code, inputs, model: res.model };
   }
 
+  /**
+   * Skill-first routing: before an agent spends model turns on a task, check whether an owned skill already answers it.
+   *   1. prefilter (no model): content-word overlap with the skill's name, description and parameter names, and the task
+   *      must state at least as many numbers as the skill has required numeric parameters. No candidate, no cost.
+   *   2. bind (one short local call): pick the skill whose output alone answers the task and extract its input.
+   *   3. ground (no model): every number and string in the bound input must appear literally in the task, so a binder
+   *      cannot invent or convert values; the input must satisfy the schema's required keys and types.
+   *   4. run the verified code. Any failure falls through to the normal agent loop; nothing is lost by trying.
+   * Returns { skill, input, out, bindModel, usage } or { miss: reason, usage }.
+   */
+  async route(task, { signal, privacy = 'normal', agentId = null, missionId = null, reflection = 0 } = {}) {
+    const cfg = this.cfg?.skills || {};
+    const zero = { prompt: 0, completion: 0 };
+    const active = this.list('active');
+    if (!active.length) return { miss: 'no skills', usage: zero };
+    const text = String(task);
+    const taskWords = new Set(words(text));
+    const nums = text.match(NUM) || [];
+    const candidates = active.map((s) => {
+      const vocab = new Set([...words(s.name.replace(/_/g, ' ')), ...words(s.description), ...Object.entries(s.params?.properties || {}).flatMap(([k, p]) => words(`${k.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ')} ${p?.description || ''}`))]);
+      const shared = [...vocab].filter((w) => taskWords.has(w));
+      const needNums = (s.params?.required || []).filter((k) => ['number', 'integer', 'array'].includes(s.params?.properties?.[k]?.type)).length;
+      return { s, score: shared.length, shared, ok: shared.length >= (cfg.minOverlap ?? 1) && nums.length >= needNums };
+    }).filter((c) => c.ok).sort((a, b) => b.score - a.score).slice(0, 3);
+    if (!candidates.length) return { miss: 'no candidate skill', usage: zero };
+
+    let res;
+    try {
+      res = await this.router.chat({
+        role: cfg.bindRole || 'fast', privacy: 'private', json: true, temperature: 0, maxTokens: 400, signal, missionId,
+        messages: [
+          { role: 'system', content: 'You route tasks to verified functions. A function may be used ONLY if its output alone is the complete answer to what the task asks. Copy input values exactly as written in the task, except where a parameter description in the input schema explicitly asks for another form (for example a percentage as a decimal). Never invent values. Reply with JSON only.' },
+          { role: 'user', content: `Task:\n${text.slice(0, 3000)}\n\nFunctions:\n${candidates.map(({ s }) => `- ${s.name}: ${s.description} Input schema: ${JSON.stringify(s.params)}`).join('\n')}\n\nReturn {"skill":"<name>","input":{...}} or {"skill":null} if none fully answers the task.` },
+        ],
+      });
+    } catch { return { miss: 'binder unavailable', usage: zero }; }
+    const usage = res.usage || zero;
+    const p = parseJson(res.text);
+    const miss = (reason) => {
+      this.ledger.append('skill.route_miss', { agentId, missionId, reason, candidates: candidates.map((c) => c.s.name), bindModel: res.model }, 'crystallizer');
+      return { miss: reason, usage, bindModel: res.model };
+    };
+    if (!p.skill) return miss('binder found no skill that fully answers the task');
+    const hit = candidates.find((c) => c.s.name === String(p.skill).replace(/^skill_/, ''));
+    if (!hit) return miss(`binder named an unknown skill (${String(p.skill).slice(0, 40)})`);
+    const input = p.input && typeof p.input === 'object' && !Array.isArray(p.input) ? p.input : null;
+    const problem = !input ? 'no input object' : groundingProblem(input, hit.s.params, text);
+    if (problem) return miss(`binding rejected: ${problem}`);
+    let out;
+    try {
+      const library = active.filter((x) => x.name !== hit.s.name);
+      const r = await this.#run(hit.s.code, input, library);
+      if (r.error) return miss(`skill rejected the bound input: ${r.error}`);
+      out = r.out;
+    } catch (e) { return miss(`skill run failed: ${e.message}`); }
+    this.store.run('UPDATE skills SET uses = uses + 1, updated = ? WHERE id = ?', nowIso(), hit.s.id);
+    // The agent loop would have spent at least one turn plus its reflection rounds; routing spent one bind call.
+    const baselineMin = 1 + Math.min(Math.max(0, reflection | 0), 2);
+    const private_ = privacy === 'private' || privacy === 'sealed';
+    this.ledger.append('skill.route', { skill: hit.s.name, codeSha256: hit.s.code_sha256, agentId, missionId, bindModel: res.model,
+      input: private_ ? undefined : input, inputSha256: sha256(JSON.stringify(input)), baselineMin, spent: 1, bindTokens: usage.prompt + usage.completion }, 'crystallizer');
+    this.bus?.publish('skill.route', { skill: hit.s.name, agentId, missionId });
+    return { skill: hit.s, input, out, bindModel: res.model, usage };
+  }
+
+  /** The final answer a routed task returns: the exact result plus its provenance. */
+  static answerText(skill, input, out, privacy = 'normal') {
+    const shown = typeof out === 'number' ? String(Number(out.toPrecision(12))) : typeof out === 'string' ? out : `\n\n\`\`\`json\n${JSON.stringify(out, null, 2)}\n\`\`\``;
+    const inp = privacy === 'normal' ? ` on input \`${JSON.stringify(input)}\`` : '';
+    return `**Answer: ${shown}**\n\nComputed exactly by the agency's crystallized skill \`skill_${skill.name}\` (${skill.description} Verified by differential testing; code sha256 ${skill.code_sha256.slice(0, 12)})${inp}. No model reasoning produced this result.`;
+  }
+
   retire(name, reason = 'operator') {
     const ok = this.store.run("UPDATE skills SET status = 'retired', updated = ? WHERE name = ? AND status = 'active'", nowIso(), name).changes > 0;
     if (ok) { this.tools.tools?.delete(`skill_${name}`); this.ledger.append('skill.retire', { name, reason }, 'operator'); }
@@ -189,6 +301,13 @@ export class Crystallizer {
     const active = this.list('active');
     const uses = active.reduce((s, k) => s + k.uses, 0);
     const calls = this.store.get("SELECT COUNT(*) AS n FROM ledger WHERE kind = 'tool.call'").n;
-    return { active: active.length, retired: this.list('retired').length, uses, failures: active.reduce((s, k) => s + k.failures, 0), modelCallsAvoided: uses, toolCalls: calls };
+    // Skill-first routing, from the ledger: each route replaced an agent loop (>= 1 turn + reflection) with one bind call.
+    const routes = this.store.all("SELECT ts, data FROM ledger WHERE kind = 'skill.route' ORDER BY seq").map((r) => ({ ts: r.ts, ...JSON.parse(r.data) }));
+    const misses = this.store.get("SELECT COUNT(*) AS n FROM ledger WHERE kind = 'skill.route_miss'").n;
+    const rejected = this.store.get("SELECT COUNT(*) AS n FROM ledger WHERE kind = 'skill.route_rejected'").n;
+    let avoided = 0;
+    const curve = routes.map((r, i) => { avoided += Math.max(0, (r.baselineMin ?? 1) - (r.spent ?? 1)); return { at: r.ts, routes: i + 1, avoided, skill: r.skill }; });
+    return { active: active.length, retired: this.list('retired').length, uses, failures: active.reduce((s, k) => s + k.failures, 0), modelCallsAvoided: uses, toolCalls: calls,
+      routed: routes.length, routeMisses: misses, routeRejected: rejected, bindCalls: routes.length + misses, callsAvoidedMin: avoided, curve: curve.slice(-200) };
   }
 }

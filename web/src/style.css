@@ -292,3 +292,6 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 .mapfeed .c-local { color: var(--cloud); } .mapfeed .c-remote { color: var(--gold); } .mapfeed .c-sealed { color: var(--gold); }
 .mapfeed .c-web { color: var(--sage); } .mapfeed .c-blocked { color: var(--coral); }
 @media (max-width: 900px) { .mapwrap { grid-template-columns: 1fr; } }
+
+/* Phase 10: skill-first curve */
+svg.curve { width: 100%; max-width: 560px; height: auto; display: block; margin: 6px 0 12px; }

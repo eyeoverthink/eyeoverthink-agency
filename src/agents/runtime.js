@@ -5,6 +5,7 @@
 // Harness laws: JSON repair, budget bands, deterministic compaction, narration guard,
 // approval parking with signed writs, delegation depth limit, self-reflection rounds from the genome.
 import { extractJson, estimateTokens, truncate, errorMessage } from '../core/util.js';
+import { Crystallizer } from '../evolve/crystallizer.js';
 
 const NARRATION = /\b(i (ran|executed|searched|fetched|called|tested|verified)|after running|the (search|tool|run) (returned|showed))\b/i;
 
@@ -89,7 +90,22 @@ export class AgentRuntime {
     const toolList = this.tools.forAgent(agent.tools).filter((t) => t.name !== 'delegate' || depth < 2);
     const allow = toolList.map((t) => t.name);
 
-    const ctx = await this.memory.contextPack(task, { agentId: agent.id, k: traits.memoryDepth });
+    // Skill-first: if an owned, verified skill answers this task, answer with its code instead of model turns.
+    // Seeded runs (evolution, benchmarks) measure the genome, so they never route; a retry after a critic rejection
+    // (skillFirst: false) gets the full agent loop.
+    if (this.crystallizer && this.cfg.skills?.first !== false && opts.skillFirst !== false && !Number.isInteger(opts.seed)) {
+      const routed = await this.crystallizer.route(task, { signal: opts.signal, privacy: opts.privacy || 'normal', agentId: agent.id, missionId: opts.missionId, reflection: traits.reflection });
+      if (routed.skill) {
+        const final = Crystallizer.answerText(routed.skill, routed.input, routed.out, opts.privacy || 'normal');
+        const summary = truncate(JSON.stringify(routed.out), 400);
+        const steps = [{ thought: `skill-first: skill_${routed.skill.name} answers this task (bound by ${routed.bindModel})`, tool: `skill_${routed.skill.name}`, args: { input: routed.input }, ok: true, summary, evidence: { executed: true, sha256: routed.skill.code_sha256, skill: routed.skill.name } }];
+        opts.onStep?.({ agentId: agent.id, thought: steps[0].thought, tool: steps[0].tool, ok: true, summary });
+        span?.end('ok', { steps: 1, model: `skill:${routed.skill.name}`, skill: routed.skill.name });
+        return { status: 'done', final, confidence: 0.95, steps, model: `skill:${routed.skill.name}`, usage: routed.usage, toolCalls: 1, agentId: agent.id, skill: routed.skill.name };
+      }
+    }
+
+    const ctx =await this.memory.contextPack(task, { agentId: agent.id, k: traits.memoryDepth });
     const sys = this.systemPrompt(agent, toolList, [ctx.text, opts.extraContext].filter(Boolean).join('\n\n'));
     let messages = [{ role: 'system', content: sys }, { role: 'user', content: `Task:\n${task}` }];
     const steps = [];

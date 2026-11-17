@@ -1,0 +1,344 @@
+{
+  "at": "2026-11-17T14:26:30.686Z",
+  "summary": {
+    "off": {
+      "calls": 41,
+      "tokens": 45814,
+      "ms": 113632,
+      "correct": 5,
+      "routed": 0
+    },
+    "on": {
+      "calls": 30,
+      "tokens": 27532,
+      "ms": 102568,
+      "correct": 7,
+      "routed": 2
+    }
+  },
+  "misroutes": [],
+  "rows": [
+    {
+      "id": "disc-jacket",
+      "arm": "off",
+      "control": false,
+      "routed": null,
+      "calls": 4,
+      "tokens": 4096,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 12465,
+      "correct": false,
+      "final": "# Jacket Price After Discounts\n## Final Price: $97\n\nAfter applying a 12% discount and then an additional 8% off the reduced price, the jacket now costs $97.",
+      "error": null
+    },
+    {
+      "id": "disc-jacket",
+      "arm": "on",
+      "control": false,
+      "routed": null,
+      "calls": 6,
+      "tokens": 5950,
+      "roles": [
+        "fast",
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 26047,
+      "correct": true,
+      "final": "# Jacket Price After Discounts\n\nThe original price of the jacket was $120.\nAfter a 12% discount, the price became $120 * (1 - 0.12) = $104.64.\nThen, an additional 8% off the reduced price made it $104.64 * (1 - 0.08) = $96.15.\nThe final price of the jacket is **$97.15**.",
+      "error": null
+    },
+    {
+      "id": "disc-tv",
+      "arm": "off",
+      "control": false,
+      "routed": null,
+      "calls": 6,
+      "tokens": 6959,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 8357,
+      "correct": true,
+      "final": "**expression:** (1 - 0.2) * (1 - 0.1) * 250\n\n**result:** 180",
+      "error": null
+    },
+    {
+      "id": "disc-tv",
+      "arm": "on",
+      "control": false,
+      "routed": null,
+      "calls": 5,
+      "tokens": 4338,
+      "roles": [
+        "fast",
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 17326,
+      "correct": true,
+      "final": "$180",
+      "error": null
+    },
+    {
+      "id": "disc-laptop",
+      "arm": "off",
+      "control": false,
+      "routed": null,
+      "calls": 4,
+      "tokens": 4060,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 8212,
+      "correct": true,
+      "final": "# Final Price After Discounts\n$726.74",
+      "error": null
+    },
+    {
+      "id": "disc-laptop",
+      "arm": "on",
+      "control": false,
+      "routed": null,
+      "calls": 5,
+      "tokens": 5668,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 10542,
+      "correct": true,
+      "final": "You will pay $726.74 for the laptop.",
+      "error": null
+    },
+    {
+      "id": "speed-lake",
+      "arm": "off",
+      "control": false,
+      "routed": null,
+      "calls": 9,
+      "tokens": 12036,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 21505,
+      "correct": true,
+      "final": "# Average Speed Calculation\n## Formula: Average Speed = Total Distance / Total Time\n\nTo calculate the average speed for a round trip, we need to consider both legs of the journey.\n\nLet's denote the distance of each leg as x miles. The time taken for the first leg is x/40 hours and for the second leg is x/60 hours.\nThe total distance traveled is 2x miles (since it's a round trip), and the total tim",
+      "error": null
+    },
+    {
+      "id": "speed-lake",
+      "arm": "on",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "calls": 1,
+      "tokens": 243,
+      "roles": [
+        "fast"
+      ],
+      "ms": 6946,
+      "correct": true,
+      "final": "**Answer: 48**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_average_speed` (Calculates the average speed for a round trip given the speed to and from the destination. Verified by differential testing; code sha256 1a73f141e224) on input `{\"speed_to\":40,\"speed_from\":60}`. No model reasoning produced this result.",
+      "error": null
+    },
+    {
+      "id": "speed-bike",
+      "arm": "off",
+      "control": false,
+      "routed": null,
+      "calls": 4,
+      "tokens": 4432,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 21518,
+      "correct": false,
+      "final": "# Average Speed Calculation\n## Problem Statement:\nA cyclist rides out at 12 km/h and returns along the same route at 18 km/h.\n## Solution:\nThe average speed for a round trip can be calculated using the formula: avg_speed = (speed1 * speed2) / (speed1 + speed2).\n## Calculation:\nUsing this formula, we get an average speed of 7.2 km/h.\n\n**Answer:** The average speed over the whole ride is **7.2 km/h*",
+      "error": null
+    },
+    {
+      "id": "speed-bike",
+      "arm": "on",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "calls": 1,
+      "tokens": 242,
+      "roles": [
+        "fast"
+      ],
+      "ms": 3539,
+      "correct": true,
+      "final": "**Answer: 14.4**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_average_speed` (Calculates the average speed for a round trip given the speed to and from the destination. Verified by differential testing; code sha256 1a73f141e224) on input `{\"speed_to\":12,\"speed_from\":18}`. No model reasoning produced this result.",
+      "error": null
+    },
+    {
+      "id": "ctrl-train",
+      "arm": "off",
+      "control": true,
+      "routed": null,
+      "calls": 6,
+      "tokens": 5421,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 22164,
+      "correct": true,
+      "final": "Average speed = distance / time\nDistance = 120 miles\nTime = 2 hours\n# Note: calc failed to evaluate expression due to unknown identifier 'miles'; use code_run for symbolic or algorithmic work\ncode_run output:\n60",
+      "error": null
+    },
+    {
+      "id": "ctrl-train",
+      "arm": "on",
+      "control": true,
+      "routed": null,
+      "calls": 4,
+      "tokens": 2378,
+      "roles": [
+        "fast",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 22251,
+      "correct": true,
+      "final": "# Average Speed\nThe average speed of the train is **2** mile per hour (mph).\n## Calculation\nDistance: 120 miles\nTime: 2 hours\nAverage Speed = Distance / Time = 120 / 2 = 60 mph",
+      "error": null
+    },
+    {
+      "id": "ctrl-amount",
+      "arm": "off",
+      "control": true,
+      "routed": null,
+      "calls": 3,
+      "tokens": 2827,
+      "roles": [
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 8123,
+      "correct": true,
+      "final": "$10 saved by applying a 25% discount to a $40 item.\nCalculation: (40 × 0.25) = 10\nEvidence from tools you ran:\n- calc: ok {\n  \"expression\": \"(40 * 0.25)\",\n  \"result\": 10\n}\nAssumption: The discount is applied directly to the price of $40 without any rounding or minimum savings limits.",
+      "error": null
+    },
+    {
+      "id": "ctrl-amount",
+      "arm": "on",
+      "control": true,
+      "routed": null,
+      "calls": 3,
+      "tokens": 2769,
+      "roles": [
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 5489,
+      "correct": true,
+      "final": "$10 (USD) saved by applying a 25% discount to the original price of $40.",
+      "error": null
+    },
+    {
+      "id": "ctrl-blurb",
+      "arm": "off",
+      "control": true,
+      "routed": null,
+      "calls": 5,
+      "tokens": 5983,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 11288,
+      "correct": null,
+      "final": "$120 Waterproof Jacket for Unpredictable Weather\nStay dry and comfortable with our waterproof jacket, designed to withstand even the most unpredictable weather conditions. With its water-repellent materials and durable fabric (verified by [insert relevant testing or certification information]), you can enjoy your outdoor activities without worrying about getting wet.",
+      "error": null
+    },
+    {
+      "id": "ctrl-blurb",
+      "arm": "on",
+      "control": true,
+      "routed": null,
+      "calls": 5,
+      "tokens": 5944,
+      "roles": [
+        "reason",
+        "reason",
+        "reason",
+        "reason",
+        "reason"
+      ],
+      "ms": 10428,
+      "correct": null,
+      "final": "Protect Your Style with Our $120 Waterproof Jacket\nStay dry and stylish all year round with our premium waterproof jacket, featuring a 2-year warranty against water ingress. Made with high-quality polyester and designed for comfort and durability, this jacket is perfect for outdoor enthusiasts who want to stay protected from the elements without sacrificing fashion sense.",
+      "error": null
+    }
+  ],
+  "stats": {
+    "active": 2,
+    "retired": 0,
+    "uses": 4,
+    "failures": 0,
+    "modelCallsAvoided": 4,
+    "toolCalls": 1252,
+    "routed": 2,
+    "routeMisses": 3,
+    "routeRejected": 0,
+    "bindCalls": 5,
+    "callsAvoidedMin": 2,
+    "curve": [
+      {
+        "at": "2026-11-17T14:24:45.876Z",
+        "routes": 1,
+        "avoided": 1,
+        "skill": "calculate_average_speed"
+      },
+      {
+        "at": "2026-11-17T14:25:10.936Z",
+        "routes": 2,
+        "avoided": 2,
+        "skill": "calculate_average_speed"
+      }
+    ]
+  }
+}

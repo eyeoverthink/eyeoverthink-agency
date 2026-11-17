@@ -1,6 +1,6 @@
 # Phase 9: Crystallization: the agency keeps what the models work out
 
-Previous: [Phase 8](PHASE-8.md) · [Index](README.md)
+Previous: [Phase 8](PHASE-8.md) · Next: [Phase 10](PHASE-10.md) · [Index](README.md)
 
 ## The problem: the t-shirt trap
 Almost every AI product rents intelligence by the call. The model does the thinking, the product is the print on the shirt, and nothing the model works out is kept:
