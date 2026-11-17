@@ -11,6 +11,7 @@ import { Memory } from './memory/memory.js';
 import { Approvals } from './guard/approvals.js';
 import { ToolRegistry } from './tools/registry.js';
 import { registerBuiltinTools } from './tools/builtin.js';
+import { Membrane } from './guard/membrane.js';
 import { AgentRegistry } from './agents/registry.js';
 import { AgentRuntime } from './agents/runtime.js';
 import { Forge } from './agents/forge.js';
@@ -21,6 +22,7 @@ import { WorkflowEngine, SEED_WORKFLOWS } from './workflows/engine.js';
 import { Dreamer } from './dream/dreamer.js';
 import { Bench } from './telemetry/bench.js';
 import { Evolution } from './evolve/evolution.js';
+import { Examiner } from './evolve/examiner.js';
 import { Mesh } from './protocols/mesh.js';
 import { McpClient } from './protocols/mcp.js';
 import { Continuity } from './continuity/continuity.js';
@@ -36,6 +38,22 @@ export class Agency {
     this.tracer = new Tracer(this.store, this.bus);
     this.edge = new EdgeHub(this.cfg.edge, this.bus, this.ledger);
     this.router = new ModelRouter(this.cfg, { edgeHub: this.edge, tracer: this.tracer, bus: this.bus });
+    // Privacy Membrane. Its name finder (NER) is itself a model call pinned to privacy 'private', so the text being
+    // protected is only ever read by a local model (or on-device Nano), never by the cloud it is protecting against.
+    this.membrane = new Membrane({
+      store: this.store, ledger: this.ledger, bus: this.bus,
+      ner: this.cfg.membrane?.ner === false ? null : async (text) => {
+        const res = await this.router.chat({
+          role: 'fast', privacy: 'private', json: true, temperature: 0, maxTokens: 400,
+          messages: [
+            { role: 'system', content: 'You find personal and confidential details in text. Reply with JSON only: {"entities":[{"text":"<exact substring>","type":"PERSON|ORG|ADDRESS|ACCOUNT|HEALTH|DATE_OF_BIRTH"}]}. Copy each text exactly as it appears. Include people\'s names, private organizations, street addresses, account or customer numbers, and medical details. Return {"entities":[]} if there are none.' },
+            { role: 'user', content: String(text).slice(0, 4000) },
+          ],
+        });
+        try { return JSON.parse(String(res.text).match(/\{[\s\S]*\}/)?.[0] || '{}').entities || []; } catch { return []; }
+      },
+    });
+    this.router.membrane = this.membrane;
     this.memory = new Memory({ store: this.store, router: this.router, keyring: this.keyring, ledger: this.ledger, bus: this.bus });
     this.approvals = new Approvals({ store: this.store, keyring: this.keyring, ledger: this.ledger, bus: this.bus });
     this.tools = new ToolRegistry({ cfg: this.cfg, approvals: this.approvals, ledger: this.ledger, tracer: this.tracer, bus: this.bus });
@@ -49,12 +67,16 @@ export class Agency {
     this.dreamer = new Dreamer({ cfg: this.cfg, store: this.store, router: this.router, memory: this.memory, keyring: this.keyring, ledger: this.ledger, bus: this.bus });
     this.bench = new Bench({ store: this.store, runtime: this.runtime, agents: this.agents, router: this.router, bus: this.bus });
     this.evolution = new Evolution({ store: this.store, agents: this.agents, bench: this.bench, ledger: this.ledger, bus: this.bus });
+    // Red Queen: examiner-proposed, program-verified exam items that evolution picks up once admitted.
+    this.examiner = new Examiner({ store: this.store, router: this.router, agents: this.agents, bench: this.bench, ledger: this.ledger, bus: this.bus });
+    this.evolution.examiner = this.examiner;
     this.mesh = new Mesh({ cfg: this.cfg, store: this.store, keyring: this.keyring, ledger: this.ledger, bus: this.bus, memory: this.memory, runtime: this.runtime, agents: this.agents });
     this.continuity = new Continuity(this);
     this.mcpClients = [];
     this.timers = [];
 
     registerBuiltinTools(this.tools, { cfg: this.cfg, memory: this.memory, ledger: this.ledger });
+    this.tools.membrane = this.membrane;
     this.#registerAgencyTools();
   }
 

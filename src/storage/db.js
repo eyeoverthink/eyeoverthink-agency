@@ -114,6 +114,13 @@ const MIGRATIONS = [
   `,
   // v3 — evolution evidence: per-candidate pass rate, interval, seeds and confirmation round
   `ALTER TABLE evolution ADD COLUMN detail TEXT NOT NULL DEFAULT '{}';`,
+  // v4 — Red Queen exams: examiner-proposed items whose answers were computed by a sandboxed program
+  `CREATE TABLE IF NOT EXISTS exam_items (
+    id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, task TEXT NOT NULL, answer TEXT NOT NULL, match TEXT NOT NULL,
+    split TEXT NOT NULL DEFAULT 'train', status TEXT NOT NULL, origin TEXT NOT NULL, program TEXT,
+    stats TEXT NOT NULL DEFAULT '{}', created TEXT NOT NULL, updated TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS exam_items_agent ON exam_items(agent_id, status);`,
 ];
 
 export class Store {

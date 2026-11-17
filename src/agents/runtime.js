@@ -109,7 +109,7 @@ export class AgentRuntime {
       this.bus?.publish('agent.stream', { agentId: agent.id, missionId: opts.missionId, taskId: opts.taskId, turn, reset: true }, { ephemeral: true });
       return this.router.chat({
         role: agent.modelRole, messages: msgs, json: true, temperature: traits.temperature, topP: traits.topP,
-        maxTokens: 1400, privacy: opts.privacy || 'normal', span, signal: opts.signal,
+        maxTokens: 1400, privacy: opts.privacy || 'normal', missionId: opts.missionId, span, signal: opts.signal,
         // Fixed seeds make candidate comparisons paired (evolution, benchmarks); each turn gets its own.
         ...(Number.isInteger(opts.seed) ? { seed: opts.seed * 100 + turn } : {}),
         onToken: (t) => { pending += t; }, ...extra,

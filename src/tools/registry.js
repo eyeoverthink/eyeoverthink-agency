@@ -110,6 +110,20 @@ export class ToolRegistry {
     const errs = validateArgs(tool.params, args ?? {});
     if (errs.length) return { ok: false, tool: name, output: `Invalid arguments: ${errs.join('; ')}`, evidence: { executed: false } };
 
+    // Egress guard: model calls are not the only way private text leaves the machine. Network tools are too.
+    if (tool.egress && ctx.privacy === 'private') {
+      this.ledger.append('membrane.egress_blocked', { tool: name, agentId: ctx.agentId, missionId: ctx.missionId, mode: 'private' }, ctx.agentId || 'agency');
+      return { ok: false, tool: name, output: `Tool "${name}" sends data off this machine and is disabled for private work. Answer from local knowledge and memory instead.`, evidence: { executed: false } };
+    }
+    if (tool.egress && ctx.privacy === 'sealed' && this.membrane) {
+      const spans = await this.membrane.spans(JSON.stringify(args ?? {}), { useNer: false });
+      if (spans.length) {
+        const types = [...new Set(spans.map((s) => s.type))];
+        this.ledger.append('membrane.egress_blocked', { tool: name, agentId: ctx.agentId, missionId: ctx.missionId, mode: 'sealed', withheld: types, tags: spans.map((s) => this.membrane.tag(s.value)) }, ctx.agentId || 'agency');
+        return { ok: false, tool: name, output: `Tool "${name}" was blocked: its arguments contain ${spans.length} sensitive value(s) (${types.join(', ')}) that must not leave this machine. Rephrase the request without them.`, evidence: { executed: false } };
+      }
+    }
+
     if (tool.risk === 'approval') {
       const check = ctx.writ ? this.approvals.consume(ctx.writ, name, args) : { ok: false, reason: 'no writ' };
       if (!check.ok) {

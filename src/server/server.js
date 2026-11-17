@@ -1,12 +1,14 @@
 // HTTP API + SSE + static dashboard. Zero dependencies (node:http).
 // Auth: Bearer <AGENCY_HOME/api-token> on /api/*. Public: /health, /mesh/*, /hooks/* (workflow key), /.well-known/agent.json.
 import { edgeDoctor } from '../llm/edge-doctor.js';
+import { issueReceipt } from '../core/receipt.js';
+import { verifyReceipt } from '../core/receipt-verify.js';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { errorMessage } from '../core/util.js';
+import { errorMessage, newId } from '../core/util.js';
 import { NODE_TYPES } from '../workflows/engine.js';
 import { encodeDna, decodeDna, encodeCodon, decodeCodon, gcContent, dnaHypervector } from '../core/dna.js';
 
@@ -96,6 +98,9 @@ export function createServer(agency) {
   add('POST', '/api/evolution/fleet', ({ body }) => a.evolution.start(need(Array.isArray(body.agents) && body.agents.length ? body.agents : null, 'agents[] required'), evoOpts(body)));
   // A/A calibration: the same genome twice on identical seeds; the disagreement rate is the noise floor.
   add('POST', '/api/evolution/calibrate', ({ body }) => a.evolution.start(need(Array.isArray(body.agents) && body.agents.length ? body.agents : null, 'agents[] required'), { kind: 'calibrate', repeats: body.repeats || 3 }));
+  // Red Queen exams: examiner proposes program-verified questions; frontier items join the agent's exam.
+  add('POST', '/api/exams', ({ body }) => a.evolution.start(need(Array.isArray(body.agents) && body.agents.length ? body.agents : null, 'agents[] required'), { kind: 'exam', count: body.count || 6, repeats: body.repeats || 3 }));
+  add('GET', '/api/agents/:id/exams', ({ params }) => a.examiner.list(params.id).map(({ program, ...r }) => ({ ...r, hasProgram: Boolean(program) })));
   add('GET', '/api/agents/:id/calibration', ({ params }) => a.evolution.calibration(params.id));
   add('GET', '/api/evolution/jobs', () => a.evolution.listJobs());
   add('GET', '/api/evolution/active', () => (a.evolution.active ? a.evolution.job(a.evolution.active) : null));
@@ -112,6 +117,9 @@ export function createServer(agency) {
   // ---------- missions ----------
   add('GET', '/api/missions', ({ url }) => a.missions.list({ limit: +url.searchParams.get('limit') || 50, status: url.searchParams.get('status') }));
   add('POST', '/api/missions', ({ body }) => a.missions.create(need(body.goal, 'goal required'), body));
+  // Proof-carrying output: a mission receipt anyone can verify offline (bin/verify-receipt.js).
+  add('GET', '/api/missions/:id/receipt', ({ params, url }) => issueReceipt(a, params.id, { includeGoal: url.searchParams.get('goal') === '1' }));
+  add('POST', '/api/receipts/verify', async ({ body }) => verifyReceipt(need(body.receipt, 'receipt required'), { deliverable: body.deliverable ?? null }));
   add('GET', '/api/missions/:id', ({ params }) => found(a.missions.get(params.id), 'mission'));
   add('POST', '/api/missions/:id/cancel', ({ params }) => a.missions.cancel(params.id));
   add('GET', '/api/missions/:id/trace', ({ params }) => a.tracer.trace(params.id));
@@ -185,8 +193,35 @@ export function createServer(agency) {
   add('GET', '/api/edge/claim', async ({ url }) => a.edge.claim(url.searchParams.get('worker'), 25000));
   add('POST', '/api/edge/result', ({ body }) => ({ ok: a.edge.complete(body.worker, body.job, body) }));
   // A direct dashboard call (not routed by the agency) reports its metadata so the ledger proves it ran. No text is sent.
-  add('POST', '/api/edge/attest', ({ body }) => ({ entry: a.edge.attest({ ...body, origin: 'playground', job: null, worker: null }) }));
+  add('POST', '/api/edge/attest', ({ body }) => ({ entry: a.edge.attest({ ...body, origin: 'playground', job: null, missionId: null, worker: null }) }));
   add('GET', '/api/edge/doctor', () => edgeDoctor({ root: ROOT }));
+
+  // ---------- Privacy Membrane ----------
+  // Seal sessions live only in this process (the value map never leaves the server), expiring after 15 minutes.
+  const sealSessions = new Map();
+  const sweep = () => { const cut = Date.now() - 15 * 60 * 1000; for (const [k, v] of sealSessions) if (v.at < cut) sealSessions.delete(k); };
+  const mask = (v) => (v.length <= 4 ? '•'.repeat(v.length) : `${v.slice(0, 2)}${'•'.repeat(Math.min(8, v.length - 4))}${v.slice(-2)}`);
+  const sealView = (s) => ({ ner: s.ner, withheld: { ...s.session.counts }, total: s.session.size, items: s.session.values().map((v) => ({ type: v.type, placeholder: s.session.placeholder(v.type, v.value), preview: mask(v.value), tag: a.membrane.tag(v.value) })) });
+  add('POST', '/api/membrane/preview', async ({ body }) => {
+    const r = await a.membrane.sealMessages([{ role: 'user', content: need(body.text, 'text required') }], { useNer: body.ner !== false, strict: false });
+    return { sealed: r.messages.at(-1).content, ...sealView(r) };
+  });
+  add('POST', '/api/membrane/seal', async ({ body }) => {
+    sweep();
+    const r = await a.membrane.sealMessages(Array.isArray(body.messages) ? body.messages : [{ role: 'user', content: need(body.text, 'text or messages required') }], { useNer: body.ner !== false });
+    const id = newId('seal');
+    sealSessions.set(id, { ...r, at: Date.now() });
+    return { sessionId: id, messages: r.messages, ...sealView(r) };
+  });
+  add('POST', '/api/membrane/unseal', ({ body }) => {
+    const s = found(sealSessions.get(body.sessionId), 'seal session');
+    sealSessions.delete(body.sessionId); // one reply per session
+    a.membrane.record({ session: s.session, payload: s.payload, provider: String(body.provider || 'firebase-ai-logic').slice(0, 40), model: String(body.model || '').slice(0, 60), origin: 'playground' });
+    return { text: s.session.unseal(String(body.text ?? '')) };
+  });
+  add('GET', '/api/membrane/terms', () => a.membrane.terms());
+  add('POST', '/api/membrane/terms', ({ body }) => a.membrane.setTerms(Array.isArray(body.terms) ? body.terms : []));
+  add('GET', '/api/membrane/crossings', ({ url }) => a.ledger.list({ limit: Math.min(100, +url.searchParams.get('limit') || 30), kind: 'membrane.crossing' }));
   add('GET', '/api/edge/proof', ({ url }) => {
     const entries = a.ledger.list({ limit: Math.min(200, +url.searchParams.get('limit') || 50), kind: 'edge.inference' });
     const by = (k) => entries.filter((e) => e.data.inferenceSource === k).length;

@@ -76,7 +76,8 @@ export class ModelRouter {
     // Firebase AI Logic edge worker, this call goes to the edge instead of waiting in the GPU queue. Seeded calls
     // (benchmarks, evolution) and explicit model requests stay local, so paired comparisons keep one model.
     if (this.#overflowToEdge({ role, model, privacy, seed })) push(this.edge, privacy === 'private' ? 'edge:only_on_device' : 'edge:prefer_on_device', { overflow: true });
-    for (const p of this.extra) for (const m of wanted) if (p.has(m)) push(p, m);
+    // Plugin providers that send data off the machine (remote: true) are never candidates for private work.
+    for (const p of this.extra) for (const m of wanted) if (p.has(m) && (allowCloud || p.remote !== true)) push(p, m);
     for (const m of wanted) {
       if (String(m).startsWith('edge:') && this.edge?.has(m)) push(this.edge, privacy === 'private' ? 'edge:only_on_device' : m);
       else if (this.ollama.has(m) && (allowCloud || !String(m).endsWith('-cloud'))) push(this.ollama, m);
@@ -96,6 +97,12 @@ export class ModelRouter {
       if (this.gemini.enabled) push(this.gemini, this.gemini.model);
     }
     return out;
+  }
+
+  /** Does this candidate send data off the machine? (Cloud APIs, cloud-hosted Ollama models, browser edge workers.) */
+  isRemote(c) {
+    return c.provider.remote === true || c.provider === this.openai || c.provider === this.gemini || c.provider === this.edge
+      || (c.provider === this.ollama && String(c.model).endsWith('-cloud'));
   }
 
   #overflowToEdge({ role, model, privacy, seed }) {
@@ -119,12 +126,25 @@ export class ModelRouter {
       throw new Error(`No model available for role "${req.role || 'reason'}". ${diag.notes.join(' ') || 'Install an Ollama model or configure a provider.'}`);
     }
     const errors = [];
+    let sealed = null; // privacy 'sealed': computed once, reused by every remote candidate
     for (const c of cands) {
       const span = req.span?.child(`llm ${c.model}`, { kind: 'llm', attrs: { provider: c.provider.name, model: c.model, role: req.role } });
+      const crossing = req.privacy === 'sealed' && this.isRemote(c);
       try {
-        const run = () => c.provider.chat({ ...req, model: c.model });
-        const res = c.provider === this.ollama && !c.model.endsWith('-cloud') ? await this.gpu.run(run) : await run();
+        let creq = { ...req, model: c.model };
+        if (crossing) {
+          // Privacy Membrane: only the sealed text may leave the machine; a failed leak audit throws here.
+          if (!this.membrane) throw new Error('privacy "sealed" needs the membrane, which is not configured');
+          sealed ??= await this.membrane.sealMessages(req.messages);
+          creq = { ...creq, messages: sealed.messages, onToken: undefined }; // no sealed tokens streamed to the UI
+        }
+        const run = () => c.provider.chat(creq);
+        let res = c.provider === this.ollama && !c.model.endsWith('-cloud') ? await this.gpu.run(run) : await run();
         if (!res.text || !res.text.trim()) throw new Error('empty completion');
+        if (crossing) {
+          res = { ...res, text: sealed.session.unseal(res.text, { json: req.json }), sealed: { withheld: { ...sealed.session.counts }, total: sealed.session.size } };
+          this.membrane.record({ session: sealed.session, payload: sealed.payload, provider: c.provider.name, model: c.model, origin: req.role || 'reason', missionId: req.missionId });
+        }
         this.breaker(c.key).success();
         this.#account(res);
         if (c.overflow) {

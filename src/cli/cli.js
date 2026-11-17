@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Agency } from '../agency.js';
 import { edgeDoctor } from '../llm/edge-doctor.js';
+import { issueReceipt } from '../core/receipt.js';
 import { createServer } from '../server/server.js';
 import { McpServer } from '../protocols/mcp.js';
 import { encodeDna, decodeDna, encodeCodon, decodeCodon, gcContent } from '../core/dna.js';
@@ -28,6 +29,7 @@ Global flags: --home <dir> (data directory)  --ollama <url> (Ollama server)
   agents import <dir> [dir...]     Import FRAYMUS/Chandra *.md manifests
   agents evolve <id>[,<id>...] [--population 4] [--repeats 2] [--generations 1] [--patience 2] [--holdout-repeats 3] [--alpha 0.1] [--confirm-rounds 3] [--no-confirm] [--no-adaptive] [--no-holdout]
   agents calibrate <id>[,<id>...] [--repeats 3]   A/A noise floor: same genome twice on identical seeds
+  agents exam <id>[,<id>...] [--count 6]           Red Queen: propose program-verified questions, admit frontier items
   agents export <id> <file>        Export an agent as a signed DNA plasmid (organism)
   agents adopt <file>              Import an organism plasmid
 
@@ -44,6 +46,7 @@ Global flags: --home <dir> (data directory)  --ollama <url> (Ollama server)
   dna encode "<text>" [--codon] | dna decode <strand> [--codon]
   mcp                              Run as an MCP server on stdio (for Claude Code, IDEs)
   edge doctor | edge proof [N]     Check the Firebase AI Logic setup / list ledgered Firebase calls
+  receipt <missionId> [file] [--goal]   Export a signed, offline-verifiable mission receipt
   preflight                        Recording/demo GO/NO-GO: self-test, edge doctor, ledger, models, Firebase proof
   token                            Print the API token for the dashboard
 `;
@@ -121,6 +124,13 @@ export async function main(argv) {
       case 'token': out(agency.cfg.apiToken); break;
       case 'status': out(await agency.status()); break;
       case 'models': out(await agency.router.status()); break;
+      case 'receipt': {
+        const r = issueReceipt(agency, pos[1], { includeGoal: Boolean(flags.goal) });
+        const file = pos[2] || `receipt-${pos[1]}.json`;
+        fs.writeFileSync(file, JSON.stringify(r, null, 1));
+        out(`wrote ${file}: ${r.entries.length} signed entries, Merkle root ${r.statement.merkleRoot.slice(0, 16)}…  Verify anywhere: node bin/verify-receipt.js ${file}`);
+        break;
+      }
       case 'preflight': {
         // Recording-day / demo-day GO/NO-GO: every check the video depends on, in one command.
         const rows = [];
@@ -183,6 +193,15 @@ export async function main(argv) {
         } else if (sub === 'forge') out(await agency.forge.create(pos.slice(2).join(' ')));
         else if (sub === 'roster') out(await agency.forge.roster({ business: pos[2], goal: pos[3], count: Number(flags.count || 4), commit: Boolean(flags.commit) }));
         else if (sub === 'import') out(agency.agents.importManifests(pos.slice(2), known));
+        else if (sub === 'exam') {
+          const ids = String(pos[2] || '').split(',').map((x) => x.trim()).filter(Boolean);
+          if (!ids.length) throw new Error('usage: agents exam <id>[,<id>...] [--count 6] [--repeats 3]');
+          for (const id of ids) {
+            const r = await agency.examiner.cycle(id, { count: Number(flags.count || 6), repeats: Number(flags.repeats || 3), onProgress: (p) => { if (p.done === p.total || p.done % 6 === 0) process.stderr.write(`${p.agentId} exam ${p.done}/${p.total}
+`); } });
+            out(`${id}: proposed ${r.proposed.accepted.length} verified question(s) (rejected ${r.proposed.rejected.length}: ${[...new Set(r.proposed.rejected)].join(', ') || 'none'}); admitted ${r.trial.admitted.length}, rejected ${r.trial.rejected.length}, retired ${r.trial.retired.length}; active exam size ${r.active}`);
+          }
+        }
         else if (sub === 'calibrate') {
           const ids = String(pos[2] || '').split(',').map((x) => x.trim()).filter(Boolean);
           if (!ids.length) throw new Error('usage: agents calibrate <id>[,<id>...] [--repeats 3]');

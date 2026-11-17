@@ -251,7 +251,7 @@ export function registerBuiltinTools(registry, { cfg, memory, ledger }) {
   });
 
   registry.register({
-    name: 'http_get', description: 'Fetch a web page or API (allowlisted hosts only) and return readable text.', untrusted: true, timeoutMs: 20000,
+    name: 'http_get', description: 'Fetch a web page or API (allowlisted hosts only) and return readable text.', untrusted: true, egress: true, timeoutMs: 20000,
     params: { type: 'object', required: ['url'], properties: { url: { type: 'string', maxLength: 2000 } } },
     run: async ({ url }) => {
       const u = await guardUrl(url, allow);
@@ -262,7 +262,7 @@ export function registerBuiltinTools(registry, { cfg, memory, ledger }) {
   });
 
   registry.register({
-    name: 'http_post', description: 'POST JSON to an allowlisted URL.', risk: 'approval', untrusted: true, timeoutMs: 20000,
+    name: 'http_post', description: 'POST JSON to an allowlisted URL.', risk: 'approval', untrusted: true, egress: true, timeoutMs: 20000,
     params: { type: 'object', required: ['url', 'body'], properties: { url: { type: 'string', maxLength: 2000 }, body: { type: 'object' } } },
     run: async ({ url, body }) => {
       const u = await guardUrl(url, allow);
@@ -272,7 +272,7 @@ export function registerBuiltinTools(registry, { cfg, memory, ledger }) {
   });
 
   registry.register({
-    name: 'web_search', description: 'Free web search (DuckDuckGo). Returns titles, URLs and snippets.', untrusted: true, timeoutMs: 20000,
+    name: 'web_search', description: 'Free web search (DuckDuckGo). Returns titles, URLs and snippets.', untrusted: true, egress: true, timeoutMs: 20000,
     params: { type: 'object', required: ['query'], properties: { query: { type: 'string', maxLength: 300 }, max: { type: 'integer', minimum: 1, maximum: 10 } } },
     run: async ({ query, max = 6 }) => {
       const r = await fetchText(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`);

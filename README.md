@@ -52,6 +52,8 @@ Most agent frameworks are a loop around one cloud model. They trust whatever the
 | **Verified, not narrated** | Every tool result carries a harness-measured evidence seal (sha256, bytes, executed). A critic scores every task against that evidence; a narration guard rejects answers that claim tool use that never happened (`src/agents/runtime.js`, `src/orchestrator/missions.js`). |
 | **Continuous** | Missions checkpoint after every step and resume after a crash or reboot; memory is signed and append-only; brain-dump handoffs and Carbon X organism snapshots move the whole agency between machines (`src/continuity/continuity.js`). |
 | **Auditable** | A SHA-256 hash chain of Ed25519-signed entries records every mission, plan, tool call, approval, memory write and evolution step, with Merkle inclusion proofs (`src/core/ledger.js`). |
+| **Private, yet hybrid** | The **Privacy Membrane** lets private work use cloud capacity: sensitive values are replaced by placeholders before anything leaves the machine (names found by a *local* model), a hard audit blocks any leak, replies are restored locally, and network tools can't carry the values out either (`src/guard/membrane.js`). |
+| **Proof-carrying** | Every completed mission can be exported as a **receipt**: its signed ledger entries, Merkle proofs and a signed root statement. Anyone can verify it offline with a zero-dependency script, or in the browser, to confirm how the deliverable was produced and that it is unchanged (`src/core/receipt.js`, `src/core/receipt-verify.js`, `bin/verify-receipt.js`). |
 
 ---
 
@@ -185,6 +187,18 @@ Alternative **modes**:
 ### 6. Guard (`src/guard/`)
 - **Sentinel**: weighted injection patterns (override, role hijack, fake delimiters, authority claims, exfiltration, concealment), hidden-Unicode / steganographic carrier detection (tag block, variation selectors, zero-width, bidi), secret redaction (API keys, GitHub tokens, private keys, JWK `d`).
 - **Approvals + writs**: approving mints a writ `{tool, sha256(args), expires, nonce}` signed by the agency; the executor checks signature, expiry, tool, exact-args hash and single use.
+- **Privacy Membrane** (`membrane.js`). The privacy tier between `normal` and `private`: `privacy: "sealed"`. Before any remote call (Firebase edge worker, cloud API, Ollama `-cloud` model) it:
+  - detects emails, phones, Luhn-valid cards, SSNs, IBANs, IPs, keys, JWTs, passwords, token URLs and owner terms, plus names, organizations, addresses and medical details via a local model pinned to `private`;
+  - replaces each value with a consistent placeholder (`⟦EMAIL_1⟧`), audits the exact outbound payload (also catching digits that leak without their separators or without a country code), and **blocks the call** on any leak;
+  - restores the reply locally, tolerating mangled brackets, and keeps it JSON-safe;
+  - signs a `membrane.crossing` entry into the ledger with counts and keyed HMAC tags, never values.
+
+  It **fails closed**: if the local name finder can't run, nothing crosses. Sealed work is eligible for GPU overflow to Firebase. **Egress guard:** network tools (`web_search`, `http_get`, `http_post`) are disabled for `private` work, and blocked for `sealed` work whenever their arguments contain a sensitive value.
+- **Receipts** (`src/core/receipt.js`). A receipt contains:
+  - the mission's ledger entries (plan, tool calls, Firebase calls, membrane crossings, completion), each with an inclusion proof against one snapshot of the ledger;
+  - a root statement `{missionId, deliverableSha256, merkleRoot, size}` signed by the agency key.
+
+  `receipt-verify.js` has no imports and runs in Node and browsers via WebCrypto. It recomputes every hash, checks every Ed25519 signature and Merkle path, binds every entry to the mission, and optionally checks that the deliverable text you hold is byte-for-byte the signed one. It also recomputes the summary (tool calls, Firebase calls by path, values withheld) from verified entries, instead of trusting the receipt's own claims.
 
 ### 7. DNA layer (`src/core/dna.js`)
 - **Nucleotides**: 2 bits, MSB first, A=00 C=01 G=10 T=11 — byte-compatible with FRAYMUS `.dna` files (`F` → `CACG`).
@@ -196,6 +210,7 @@ Alternative **modes**:
 ### 8. Evolution and benchmarks (`src/evolve/`, `src/telemetry/bench.js`)
 - **Benchmark** items have deterministic checkers (no LLM judge): exact math, verified code (must actually call `code_run`), tool use, DNA encoding (`Hi` → `CAGACGGC`), injection resistance, JSON shape, honesty about unknowable facts.
 - **Evolution**: population = incumbent + mutants + crossovers with the fittest other agent; fitness = benchmark pass rate − step-cost penalty. Every candidate runs the same items on the **same seeds** (paired comparison). A screening winner must then hold up on **fresh seeds** before it is promoted, which guards against promoting luck (the "winner's curse"). Crashed runs abort the generation instead of being scored. Evolution runs as a background job with live progress (`POST /api/agents/:id/evolve`, `GET /api/evolution/jobs/:id`). See [Phase 3](docs/phases/PHASE-3.md) for a real-model run.
+- **Red Queen exams** (`src/evolve/examiner.js`): the test evolves with the agents. An examiner model proposes questions, but never the answers. Each question comes with a JavaScript program, which runs in the permission-locked sandbox, and its single line of output becomes the answer key; failing, ambiguous or file-touching programs are rejected. Candidates are trialed against the current genome on their own seeds. Only **frontier** items (some passes, some failures) join, alternating train / held-out, and items the agent saturates twice in a row retire. Evolution and A/A calibration pick up admitted items automatically. Answers are committed to the ledger by hash, so the exam isn't leaked (`agents exam <id>`, `POST /api/exams`).
 - **Bigger runs** ([Phase 4](docs/phases/PHASE-4.md)): the `evolve` suite gives Tycho, Lumen and Helix their own training items plus **held-out items** that selection never sees. A multi-generation run stops early after `patience` generations without a promotion, widens the mutation rate while stalled, and ends by re-testing the starting and final genomes on the held-out items with fresh seeds, so overfitting to the training items is reported instead of hidden. Several agents can evolve in one background job (`POST /api/evolution/fleet`), and each agent card charts its fitness by generation (`GET /api/agents/:id/lineage`).
 
 ### 9. Dreamer (`src/dream/dreamer.js`)

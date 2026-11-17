@@ -3,6 +3,9 @@ import { api, getToken, setToken, subscribe, ApiError, type AgencyEvent } from "
 import { md, esc } from "./md";
 import { isConfigured, missingConfig, prepareOnDevice, generate, nanoAvailability, chromeDesktopOk, edgeIdentity, sha256Hex, explainFirebaseError, type ModeName } from "./hybrid";
 import { EdgeWorker } from "./edge";
+// The exact zero-dependency verifier the CLI uses: the dashboard verifies receipts in the browser, never via the server.
+// @ts-ignore -- plain ES module shared with Node (src/core/receipt-verify.js)
+import { verifyReceipt } from "../../src/core/receipt-verify.js";
 
 type View = "missions" | "agents" | "memory" | "workflows" | "ledger" | "approvals" | "models" | "edge" | "lab";
 const VIEWS: Array<[View, string, string]> = [
@@ -211,7 +214,7 @@ async function viewMissions() {
       <textarea id="goal" rows="3" placeholder="e.g. Research the three best free local text-to-speech engines for Windows, compare quality and speed, and recommend one with install steps."></textarea>
       <div class="row">
         <label>Mode <select id="mode"><option value="standard">Standard — plan, execute, verify</option><option value="logic_chain">Logic Chain — 8-role design relay + review vote</option><option value="consensus">Consensus — independent answers, Kuramoto clustering</option></select></label>
-        <label class="check"><input type="checkbox" id="private" /> Private (local GPU / on-device only, never cloud)</label>
+        <label class="check">Privacy <select id="privacy"><option value="normal">normal</option><option value="sealed">sealed: cloud allowed, sensitive values withheld by the membrane</option><option value="private">private: local GPU / on-device only</option></select></label>
         <button id="launch" class="primary">Launch mission</button>
       </div>
     </section>
@@ -224,7 +227,7 @@ async function viewMissions() {
     if (!goal) return toast("Write a goal first", true);
     const btn = ev.currentTarget as HTMLButtonElement;
     busy(btn, true, "Launching…");
-    const m = await guard(() => api("/api/missions", { body: { goal, mode: val("#mode"), privacy: $<HTMLInputElement>("#private")!.checked ? "private" : "normal" } }));
+    const m = await guard(() => api("/api/missions", { body: { goal, mode: val("#mode"), privacy: val("#privacy") || "normal" } }));
     busy(btn, false);
     if (m) { ($<HTMLTextAreaElement>("#goal")!).value = ""; await loadMission(m.id); scheduleMissionRefresh(); }
   });
@@ -272,7 +275,7 @@ function dagSvg(tasks: any[]): string {
   }));
   const nodes = live.map((t) => {
     const p = pos.get(t.id)!;
-    return `<g class="node s-${t.status}" transform="translate(${p.x},${p.y})"><rect width="${W}" height="${H}" rx="10"/><text x="12" y="22" class="agent">${esc(t.agent_id)}</text><text x="12" y="42">${esc(t.title.slice(0, 26))}</text><text x="12" y="57" class="meta">${esc(t.status)}${t.score != null ? ` · ${t.score.toFixed(2)}` : ""}${t.attempts > 1 ? ` · ${t.attempts} tries` : ""}${t.privacy === "private" ? " · 🔒" : ""}</text></g>`;
+    return `<g class="node s-${t.status}" transform="translate(${p.x},${p.y})"><rect width="${W}" height="${H}" rx="10"/><text x="12" y="22" class="agent">${esc(t.agent_id)}</text><text x="12" y="42">${esc(t.title.slice(0, 26))}</text><text x="12" y="57" class="meta">${esc(t.status)}${t.score != null ? ` · ${t.score.toFixed(2)}` : ""}${t.attempts > 1 ? ` · ${t.attempts} tries` : ""}${t.privacy === "private" ? " · 🔒" : t.privacy === "sealed" ? " · 🛡" : ""}</text></g>`;
   });
   return `<div class="dag"><svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">${edges.join("")}${nodes.join("")}</svg></div>`;
 }
@@ -294,7 +297,7 @@ function drawMissionDetail() {
   if (!el || !m) return;
   const r = m.result;
   const active = !["completed", "failed", "cancelled"].includes(m.status);
-  const deliverable = r?.deliverable ? `<div class="deliverable md">${md(r.deliverable)}</div>` : active ? `<p class="dim"><span class="spin"></span> The team is working…</p>` : m.error ? `<div class="warn">${esc(m.error)}</div>` : "";
+  const deliverable = r?.deliverable ? `<div class="row receiptbar"><button class="ghost small" data-receipt="${esc(m.id)}">Download receipt</button><button class="ghost small" data-deltext="${esc(m.id)}">Download deliverable text</button><span class="dim">A signed, offline-verifiable record of how this was produced.</span></div><div class="deliverable md">${md(r.deliverable)}</div>` : active ? `<p class="dim"><span class="spin"></span> The team is working…</p>` : m.error ? `<div class="warn">${esc(m.error)}</div>` : "";
   const extras = r?.logicChain ? `<details><summary>Logic chain ledger & review</summary><pre>${esc(JSON.stringify({ stages: r.logicChain.stages, open: r.logicChain.review.open.map((o: any) => o.text), dismissed: r.logicChain.review.dismissed.length, voters: r.logicChain.review.voters }, null, 2))}</pre></details>` :
     r?.consensus ? `<details open><summary>Consensus · coherence R = ${r.consensus.r}</summary><p>Clusters: ${r.consensus.clusters.map((c: string[]) => `[${c.join(", ")}]`).join(" ")}</p></details>` : "";
   el.innerHTML = `
@@ -314,6 +317,11 @@ function drawMissionDetail() {
     $$(".tab", el).forEach((t) => t.classList.toggle("hide", t.dataset.t !== b.dataset.t));
   }));
   $("#cancel")?.addEventListener("click", () => guard(() => api(`/api/missions/${m.id}/cancel`, { body: {} }), "Mission cancelled").then(() => scheduleMissionRefresh(m.id)));
+  $("[data-receipt]", el)?.addEventListener("click", async () => {
+    const rec = await guard(() => api<any>(`/api/missions/${m.id}/receipt`), "Receipt issued");
+    if (rec) download(`receipt-${m.id}.json`, JSON.stringify(rec, null, 1));
+  });
+  $("[data-deltext]", el)?.addEventListener("click", () => download(`deliverable-${m.id}.txt`, r.deliverable, "text/plain"));
   for (const e of S.events.filter((x) => x.missionId === m.id)) appendLog(e);
   drawStreams();
 }
@@ -329,7 +337,7 @@ function onEvoProgress(e: AgencyEvent) {
   if (e.jobId !== S.evoJob) return;
   const bar = $("#evobar") as HTMLElement | null, txt = $("#evotxt");
   if (bar) bar.style.width = `${Math.round((100 * e.done) / Math.max(1, e.total))}%`;
-  const phase = e.phase === "confirm" ? "confirming on fresh seeds" : e.phase === "holdout" ? "held-out re-test" : e.phase === "calibrate" ? "A/A noise calibration" : "screening";
+  const phase = e.phase === "confirm" ? "confirming on fresh seeds" : e.phase === "holdout" ? "held-out re-test" : e.phase === "calibrate" ? "A/A noise calibration" : e.phase === "exam" ? "trialing exam questions" : "screening";
   const who = e.agentCount > 1 ? `${e.agentId} (${e.agentIndex + 1}/${e.agentCount}) · ` : "";
   if (txt) txt.textContent = `${who}gen ${e.generation} · ${phase} · ${e.done}/${e.total} runs`;
 }
@@ -341,6 +349,15 @@ async function showEvoResult(jobId: string) {
   S.evoJob = "";
   $("#evocancel")?.remove();
   if (job.error) { out.innerHTML = `<p class="err">${esc(job.status)}: ${esc(job.error)}</p>`; return; }
+  if (job.result.kind === "exam") {
+    out.innerHTML = job.result.agents.map((x: any) => `<h3 class="runhead">${esc(x.agentId)} · exam now ${x.active} active question(s)</h3>
+      <p class="dim">Proposed by the examiner model, answered by sandboxed programs: ${x.proposed.accepted.length} verified question(s), ${x.proposed.rejected.length} rejected (${esc([...new Set(x.proposed.rejected)].join(", ") || "none")}).</p>
+      <p class="dim">Trial against the current genome: ${x.trial.admitted.length} admitted at the frontier, ${x.trial.rejected.length} rejected (no signal), ${x.trial.retired.length} retired (saturated).</p>
+      ${x.proposed.accepted.length ? `<table class="evotbl"><tr><th>question</th><th>program answer</th></tr>${x.proposed.accepted.map((q: any) => `<tr><td>${esc(q.task.slice(0, 110))}</td><td class="mono">${esc(q.answer)}</td></tr>`).join("")}</table>` : ""}`).join("");
+    const t = $("#evotxt"); if (t) t.textContent = "done · exam updated";
+    const b = $("#evobar") as HTMLElement | null; if (b) b.style.width = "100%";
+    return;
+  }
   if (job.result.kind === "calibrate") {
     out.innerHTML = job.result.agents.map(renderCalibration).join("");
     const t = $("#evotxt"); if (t) t.textContent = `done · noise floor measured for ${job.result.agents.length} agent(s)`;
@@ -444,7 +461,7 @@ async function viewAgents() {
         <label>patience <input id="epat" type="number" min="0" max="10" value="2" /></label>
       </div>
       <div class="row fleetpick">${agents.map((a) => `<label><input type="checkbox" data-fleet="${a.id}"${["tycho", "lumen", "helix"].includes(a.id) ? " checked" : ""} /> ${esc(a.id)}</label>`).join("")}</div>
-      <div class="row"><button id="efleet" class="primary">Evolve selected agents</button><button id="ecal" class="ghost">Measure noise floor (A/A)</button></div>
+      <div class="row"><button id="efleet" class="primary">Evolve selected agents</button><button id="ecal" class="ghost">Measure noise floor (A/A)</button><button id="eexam" class="ghost">Red Queen: grow the exam</button></div>
     </section>
     <section class="panel evo" id="evo"${S.evoJob ? "" : " hidden"}></section>
     <section class="cards">${agents.map((a) => `
@@ -502,6 +519,12 @@ async function viewAgents() {
     const job = await guard(() => api<any>(`/api/agents/${b.dataset.evolve}/evolve`, { body: evoOpts() }));
     if (job) openEvoBox(job, `Evolving ${job.agentId}`);
   }));
+  $("#eexam")!.addEventListener("click", async () => {
+    const picked = $$<HTMLInputElement>("[data-fleet]").filter((x) => x.checked).map((x) => x.dataset.fleet!);
+    if (!picked.length) return toast("Pick at least one agent", true);
+    const job = await guard(() => api<any>("/api/exams", { body: { agents: picked, count: 6, repeats: 3 } }));
+    if (job) openEvoBox(job, `Red Queen exam: ${picked.join(", ")}`);
+  });
   $("#ecal")!.addEventListener("click", async () => {
     const picked = $$<HTMLInputElement>("[data-fleet]").filter((x) => x.checked).map((x) => x.dataset.fleet!);
     if (!picked.length) return toast("Pick at least one agent", true);
@@ -668,6 +691,12 @@ async function viewLedger() {
       ${verify?.merkleRoot ? `<div class="mono">Merkle root ${esc(verify.merkleRoot)}</div>` : ""}
       <div class="row"><input id="pseq" type="number" min="1" placeholder="entry #" /><button id="pgo" class="ghost small">Inclusion proof</button><span id="pout" class="mono dim"></span></div>
     </section>
+    <section class="panel receipts">
+      <h2>Verify a receipt</h2>
+      <p class="dim">A mission receipt proves which agents, tools, local or Firebase models and membrane crossings produced a deliverable, and that the text is unchanged. This check runs <b>entirely in your browser</b> with WebCrypto (Ed25519, SHA-256), with no call to the agency, so it works on any receipt from any EyeOverThink agency. The same check runs offline with <code>node bin/verify-receipt.js receipt.json deliverable.txt</code>.</p>
+      <div class="row"><label class="ghost small filepick">Receipt JSON <input id="rfile" type="file" accept=".json,application/json" /></label><label class="ghost small filepick">Deliverable text (optional) <input id="dfile" type="file" accept=".txt,.md,text/plain" /></label><button id="rverify" class="primary">Verify</button></div>
+      <div id="rout"></div>
+    </section>
     <section class="panel"><div class="tablewrap"><table class="ledger"><thead><tr><th>#</th><th>time</th><th>kind</th><th>actor</th><th>data</th><th>hash</th></tr></thead><tbody>
       ${(rows || []).map((e) => `<tr><td>${e.seq}</td><td>${new Date(e.ts).toLocaleString()}</td><td><code>${esc(e.kind)}</code></td><td>${esc(e.actor)}</td><td class="mono">${esc(JSON.stringify(e.data).slice(0, 120))}</td><td class="mono dim">${e.hash.slice(0, 12)}…</td></tr>`).join("")}
     </tbody></table></div></section>`;
@@ -675,6 +704,26 @@ async function viewLedger() {
     const p = await guard(() => api(`/api/ledger/proof/${val("#pseq")}`));
     if (p) $("#pout")!.textContent = `leaf ${p.leaf.slice(0, 12)}… · ${p.path.length} sibling hashes → root ${p.root.slice(0, 12)}…`;
   });
+  $("#rverify")!.addEventListener("click", async () => {
+    const rf = $<HTMLInputElement>("#rfile")!.files?.[0];
+    if (!rf) return toast("Choose a receipt JSON file", true);
+    let receipt: any;
+    try { receipt = JSON.parse(await rf.text()); } catch { return toast("That file is not valid JSON", true); }
+    const df = $<HTMLInputElement>("#dfile")!.files?.[0];
+    const res = await verifyReceipt(receipt, { deliverable: df ? await df.text() : null });
+    const s = res.summary;
+    $("#rout")!.innerHTML = `<p class="${res.ok ? "ok" : "err"}"><b>${res.ok ? "VERIFIED" : "NOT VERIFIED"}</b> · mission <code>${esc(receipt.statement?.missionId ?? "?")}</code> · agency key <code>${esc(String(receipt.agency?.publicKey ?? "").slice(0, 16))}…</code></p>
+      <ul class="checks">${res.checks.map((c: any) => `<li class="${c.ok ? "ok" : "error"}"><b>${c.ok ? "✓" : "✗"}</b><div>${esc(c.name)}${c.detail ? `<small>${esc(c.detail)}</small>` : ""}</div></li>`).join("")}</ul>
+      ${s ? `<p class="dim">Verified contents: ${s.toolCalls} tool call(s) · ${s.firebaseCalls} Firebase AI Logic call(s) (${s.firebaseInCloud} IN_CLOUD, ${s.firebaseOnDevice} ON_DEVICE) · ${s.sealedCrossings} sealed crossing(s) withholding ${s.valuesWithheld} value(s) · ${s.egressBlocked} egress attempt(s) blocked</p>` : ""}`;
+  });
+}
+
+function download(name: string, text: string, type = "application/json") {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 // ===== Models =====
@@ -750,7 +799,44 @@ async function viewEdge() {
       <div class="row"><select id="emode"><option value="prefer_on_device">prefer_on_device</option><option value="only_on_device">only_on_device</option><option value="prefer_in_cloud">prefer_in_cloud</option><option value="only_in_cloud">only_in_cloud</option></select><button id="ego" class="primary" ${cfgOk ? "" : "disabled"}>Generate</button>${S.edgeLast ? `<span id="esrc" class="source-chip ${S.edgeLast.source === "ON_DEVICE" ? "on-device" : "in-cloud"}">${esc(S.edgeLast.source)}</span><span class="dim mono">${S.edgeLast.latencyMs} ms${S.edgeLast.seq != null ? ` · ledger #${S.edgeLast.seq}` : ""}</span>` : '<span id="esrc" class="source-chip">Not run yet</span>'}</div>
       <div id="eout" class="md">${S.edgeLast ? md(S.edgeLast.text) : ""}</div>
     </section>
-    ${renderProof(proof)}`;
+    ${renderProof(proof)}
+    <section class="panel membrane">
+      <h2>5 · Privacy Membrane: private work, cloud capacity</h2>
+      <p class="dim">Private doesn't have to mean "never use the cloud". The membrane finds sensitive values (emails, phones, cards, IDs, keys, names via a <b>local</b> model, and your own terms), replaces them with placeholders, sends only the sealed text to Firebase AI Logic, blocks the call if any original would still leave, and restores the answer here. The value map never leaves the agency server. Each crossing is signed into the ledger with keyed tags, never values. Missions can run with privacy <code>sealed</code>.</p>
+      <textarea id="mtext" rows="4" placeholder="Draft a reply to maria.lopez@clinic.org confirming Dr. Amara Okafor's appointment; her callback number is +1 (415) 555-0132.">Draft a short, warm reply to maria.lopez@clinic.org confirming that Dr. Amara Okafor will see her on Friday at 10am. Mention we will call her back at +1 (415) 555-0132 if anything changes.</textarea>
+      <div class="row"><input id="mterms" placeholder="Always-withhold terms, comma separated (e.g. Project Bluefin, Acme Holdings)" /><button id="msaveterms" class="ghost small">Save terms</button></div>
+      <div class="row"><button id="mprev" class="ghost">Preview what leaves the machine</button><button id="mrun" class="primary" ${cfgOk ? "" : "disabled"}>Run sealed through Firebase</button></div>
+      <div id="mout"></div>
+    </section>`;
+  const mview = (r: any) => `${r.ner === "unavailable" ? '<div class="warn">Name detection is unavailable: no local model is serving. Emails, phones, cards, IDs, keys and your terms are still withheld, but <b>names are not</b>, so the membrane will refuse a real crossing until a local model is available.</div>' : r.ner === "ok" ? '<p class="dim">Names checked by the local model.</p>' : ""}<div class="sealed"><h4>What leaves the machine</h4><pre>${esc(r.sealed ?? r.messages?.at(-1)?.content ?? "")}</pre></div>
+    ${r.total ? `<table class="evotbl"><tr><th>withheld</th><th>placeholder</th><th>preview</th><th>keyed tag</th></tr>${r.items.map((i: any) => `<tr><td>${esc(i.type)}</td><td class="mono">${esc(i.placeholder)}</td><td class="mono">${esc(i.preview)}</td><td class="mono">${esc(i.tag)}</td></tr>`).join("")}</table>` : '<p class="dim">Nothing sensitive detected: the text would cross unchanged.</p>'}`;
+  void api<string[]>("/api/membrane/terms").then((t) => { const el = $<HTMLInputElement>("#mterms"); if (el) el.value = t.join(", "); }).catch(() => {});
+  $("#msaveterms")?.addEventListener("click", () => void guard(() => api("/api/membrane/terms", { body: { terms: val("#mterms").split(",").map((x) => x.trim()).filter(Boolean) } }), "Terms saved"));
+  $("#mprev")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    busy(btn, true, "Sealing (local model)…");
+    const r = await guard(() => api<any>("/api/membrane/preview", { body: { text: val("#mtext") } }));
+    busy(btn, false);
+    if (r) $("#mout")!.innerHTML = mview(r);
+  });
+  $("#mrun")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    busy(btn, true, "Sealing…");
+    const sealed = await guard(() => api<any>("/api/membrane/seal", { body: { text: val("#mtext") } }));
+    if (!sealed) { busy(btn, false); return; }
+    $("#mout")!.innerHTML = mview(sealed) + '<p class="dim">Calling Firebase AI Logic with the sealed text…</p>';
+    busy(btn, true, "Firebase…");
+    const t0 = performance.now();
+    let r: Awaited<ReturnType<typeof generate>> | null = null;
+    try { r = await generate(sealed.messages, "only_in_cloud"); } catch (err) { toast(explainFirebaseError(err), true); }
+    if (!r) { busy(btn, false); return; }
+    const latencyMs = Math.round(performance.now() - t0);
+    await api("/api/edge/attest", { body: { mode: "only_in_cloud", inferenceSource: r.source, latencyMs, chars: r.text.length, sha256: await sha256Hex(r.text), ...edgeIdentity() } }).catch(() => null);
+    const restored = await guard(() => api<any>("/api/membrane/unseal", { body: { sessionId: sealed.sessionId, text: r!.text, provider: "firebase-ai-logic", model: edgeIdentity().cloudModel } }));
+    busy(btn, false);
+    $("#mout")!.innerHTML = mview(sealed) + `<div class="sealed"><h4>What Firebase answered (${esc(r.source)}, ${latencyMs} ms)</h4><pre>${esc(r.text)}</pre></div>
+      <div class="restored"><h4>Restored here, on your machine</h4><div class="md">${md(restored?.text ?? "")}</div></div>`;
+  });
   $("#prep")?.addEventListener("click", async (e) => {
     const btn = e.currentTarget as HTMLButtonElement;
     busy(btn, true, "Preparing…");

@@ -128,12 +128,12 @@ export class Evolution {
 
   /** Training items: the only items selection ever sees. */
   itemsFor(agentId) {
-    const own = agentItems(agentId, 'train');
+    const own = [...agentItems(agentId, 'train'), ...(this.examiner?.items(agentId, 'train') || [])];
     return own.length ? own : SUITES.core.filter((i) => ['reasoning', 'format'].includes(i.category)).map((i) => ({ ...i, agent: agentId }));
   }
 
   /** Held-out items: used only to re-test a finished run, never to choose a genome. */
-  holdoutFor(agentId) { return agentItems(agentId, 'holdout'); }
+  holdoutFor(agentId) { return [...agentItems(agentId, 'holdout'), ...(this.examiner?.items(agentId, 'holdout') || [])]; }
 
   /** Run every item once per seed for one genome. */
   async evaluate(agent, genome, items, seeds, { signal, onRun } = {}) {
@@ -355,7 +355,8 @@ export class Evolution {
     for (const id of ids) if (!this.agents.get(id)) throw new Error(`agent ${id} not found`);
     if (this.active) throw new Error(`evolution job ${this.active} is already running`);
     const fleet = Array.isArray(target);
-    const kind = opts.kind === 'calibrate' ? 'calibrate' : 'evolve';
+    const kind = ['calibrate', 'exam'].includes(opts.kind) ? opts.kind : 'evolve';
+    if (kind === 'exam' && !this.examiner) throw new Error('no examiner configured');
     const ctrl = new AbortController();
     const job = { id: newId('evo'), kind, agentId: fleet ? ids.join(',') : ids[0], agents: ids, status: 'running', started: nowIso(), progress: null, result: null, error: null, ctrl };
     this.jobs.set(job.id, job);
@@ -369,7 +370,13 @@ export class Evolution {
       const phaseKey = `${p.agentId}:${p.generation}:${p.phase}`;
       if (phaseKey !== lastPhase) { lastPhase = phaseKey; this.#persist(job); }
     };
-    const work = kind === 'calibrate'
+    const work = kind === 'exam'
+      ? (async () => {
+        const agents = [];
+        for (const id of ids) agents.push(await this.examiner.cycle(id, { count: opts.count, repeats: opts.repeats, signal: ctrl.signal, onProgress }));
+        return { kind, agents };
+      })()
+      : kind === 'calibrate'
       ? (async () => {
         const agents = [];
         for (const id of ids) agents.push(await this.calibrate(id, { repeats: opts.repeats, signal: ctrl.signal, onProgress }));

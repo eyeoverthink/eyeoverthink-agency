@@ -46,7 +46,7 @@ export class MissionEngine {
     const id = newId('ms');
     const opts = {
       mode: ['standard', 'logic_chain', 'consensus'].includes(options.mode) ? options.mode : 'standard',
-      privacy: options.privacy === 'private' ? 'private' : 'normal',
+      privacy: ['private', 'sealed'].includes(options.privacy) ? options.privacy : 'normal',
       maxTasks: Math.min(this.cfg.limits.maxTasksPerMission, Math.max(1, options.maxTasks || this.cfg.limits.maxTasksPerMission)),
       securityReview: options.securityReview !== false,
       agents: Array.isArray(options.agents) ? options.agents : null,
@@ -139,7 +139,7 @@ export class MissionEngine {
     let plan = null;
     for (let attempt = 0; attempt < 2 && !plan; attempt++) {
       try {
-        const res = await this.router.chat({ role: 'plan', messages: planPrompt(mission.goal, roster, { maxTasks: mission.options.maxTasks, context: ctx.text, previous }), json: true, temperature: 0.2, maxTokens: 1800, privacy: mission.options.privacy, span: s, signal });
+        const res = await this.router.chat({ role: 'plan', messages: planPrompt(mission.goal, roster, { maxTasks: mission.options.maxTasks, context: ctx.text, previous }), json: true, temperature: 0.2, maxTokens: 1800, privacy: mission.options.privacy, missionId: mission.id, span: s, signal });
         plan = normalizePlan(res.text, roster, { maxTasks: mission.options.maxTasks, idPrefix: previous ? `r${mission.replans + 1}_` : '' });
       } catch (e) {
         if (signal.aborted) throw e;
@@ -157,7 +157,7 @@ export class MissionEngine {
         ],
       };
     }
-    if (mission.options.privacy === 'private') for (const t of plan.tasks) t.privacy = 'private';
+    if (mission.options.privacy !== 'normal') for (const t of plan.tasks) t.privacy = mission.options.privacy;
     this.store.tx(() => {
       for (const t of plan.tasks) {
         this.store.run(`INSERT INTO tasks (id, mission_id, agent_id, title, instructions, deps, status, privacy, created) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
@@ -255,7 +255,7 @@ export class MissionEngine {
     const solon = this.agents.get('solon');
     const threshold = Math.max(this.cfg.limits.criticThreshold, (solon?.traits.criticStrictness ?? 0.6) - 0.05);
     try {
-      const res = await this.router.chat({ role: 'critic', messages: criticPrompt(task, truncate(result.final, 6000), evidence), json: true, temperature: 0.1, maxTokens: 700, privacy: task.privacy, span: span.child('critic', { kind: 'critic', agentId: 'solon' }), signal });
+      const res = await this.router.chat({ role: 'critic', messages: criticPrompt(task, truncate(result.final, 6000), evidence), json: true, temperature: 0.1, maxTokens: 700, privacy: task.privacy, missionId: task.mission_id, span: span.child('critic', { kind: 'critic', agentId: 'solon' }), signal });
       const c = extractJson(res.text) || {};
       const score = Math.min(1, Math.max(0, Number(c.score) || 0));
       return { score, pass: score >= threshold && c.pass !== false, defects: Array.isArray(c.defects) ? c.defects.map(String).slice(0, 8) : [], fix: String(c.fix || '').slice(0, 800), threshold };
@@ -288,7 +288,7 @@ export class MissionEngine {
     let security = null;
     if (mission.options.securityReview) {
       try {
-        const res = await this.router.chat({ role: 'critic', json: true, temperature: 0.1, maxTokens: 500, privacy: mission.options.privacy, signal, span: span.child('sentinel', { kind: 'review', agentId: 'sentinel' }),
+        const res = await this.router.chat({ role: 'critic', json: true, temperature: 0.1, maxTokens: 500, privacy: mission.options.privacy, missionId: id, signal, span: span.child('sentinel', { kind: 'review', agentId: 'sentinel' }),
           messages: [
             { role: 'system', content: 'You are Sentinel, a security reviewer. Reply with JSON only.' },
             { role: 'user', content: `Review this deliverable before it is shown or shipped. Look for leaked secrets, unsafe instructions, privacy exposure, irreversible actions, and claims that could cause harm.\n\nDeliverable:\n${truncate(deliverable, 6000)}\n\nReturn {"risk": "none|low|medium|high", "findings": ["..."]}` },
