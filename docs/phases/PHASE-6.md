@@ -41,7 +41,19 @@ Current genomes, 2 seeds per item, each cell run twice ([evidence](evidence-phas
 - Helix's new items are no longer all at the ceiling.
 
 ## Measured: hardened evolution run
-Tycho and Lumen, 2 generations each, population 4, repeats 2, alpha 0.1, up to 3 confirmation rounds. *Results are added below when the run finishes.*
+Tycho and Lumen, 2 generations each, population 4, repeats 2, alpha 0.1, up to 3 confirmation rounds (38 minutes; [evidence](evidence-phase6-fleet.json)).
+
+| Agent, generation | Screening (incumbent → best challenger) | Outcome |
+|---|---|---|
+| Tycho gen 3 | 0.604 → 0.535 | kept: no challenger beat the incumbent |
+| **Tycho gen 4** | 0.531 → **0.678** | **rejected after 3 fresh rounds.** Round 1 went 2–0 (p 0.25), round 2 6–5 (p 0.5), round 3 8–9 (p 0.685); the per-look bar was 0.033. Fresh-seed fitness 0.632 vs 0.654. |
+| Lumen gen 3 | 0.554 → 0.553 | kept |
+| Lumen gen 4 | 0.638 → 0.632 | kept |
+
+**Reading:**
+- Tycho gen 4 is the case the hardening was built for. A screening winner opened the fresh rounds with exactly the clean-looking **2–0** that fooled Phase 4's rules. Gathering more fresh evidence turned it into 8–9, so the challenger was rejected.
+- Most mutants scored around 0.47, clearly below their incumbents. At these sizes, point mutations to genes like `maxSteps` and `reflection` mostly *break* these agents, so a run with no promotions is the honest outcome, not a failure of the machinery.
+- Real gains will need larger, discriminating exams (see Phase 8's Red Queen exams) and more fresh rounds, not a looser bar.
 
 ## Files changed
 - **Source:** `src/evolve/evolution.js` (fresh-only sequential confirmation, `calibrate`, persisted jobs, calibration jobs), `src/telemetry/bench.js` (4 Helix items), `src/server/server.js` (calibrate, calibration, jobs endpoints; `maxConfirmRounds`), `src/cli/cli.js` (`agents calibrate`, `--confirm-rounds`, `preflight`).

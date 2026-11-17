@@ -1,0 +1,514 @@
+{
+ "fleet": true,
+ "agents": [
+  {
+   "agentId": "tycho",
+   "generations": [
+    {
+     "agentId": "tycho",
+     "generation": 3,
+     "promoted": false,
+     "reason": "best challenger 0.535 did not beat incumbent 0.604 on screening",
+     "items": [
+      "math-exact",
+      "syllogism",
+      "tool-time",
+      "pct-chain",
+      "minutes",
+      "prime-count",
+      "de-morgan"
+     ],
+     "repeats": 2,
+     "seeds": [
+      3001,
+      3002
+     ],
+     "mutationRate": 0.04,
+     "incumbent": 0.604,
+     "best": 0.535,
+     "fitness": 0.604,
+     "challengerChanges": [
+      {
+       "trait": "rigor",
+       "from": 0.9,
+       "to": 0.8
+      }
+     ],
+     "confirmation": null,
+     "traits": {
+      "temperature": 0.2,
+      "topP": 0.9,
+      "maxSteps": 8,
+      "reflection": 1,
+      "criticStrictness": 0.6,
+      "exploration": 0.5,
+      "verbosity": 0.4,
+      "memoryDepth": 5,
+      "curiosity": 0.5,
+      "caution": 0.5,
+      "rigor": 0.9,
+      "creativity": 0.4
+     },
+     "candidates": [
+      {
+       "incumbent": true,
+       "fitness": 0.604,
+       "passRate": 0.643,
+       "ci95": [
+        0.388,
+        0.837
+       ],
+       "distance": 0
+      },
+      {
+       "incumbent": false,
+       "fitness": 0.465,
+       "passRate": 0.5,
+       "ci95": [
+        0.268,
+        0.732
+       ],
+       "distance": 0.042
+      },
+      {
+       "incumbent": false,
+       "fitness": 0.535,
+       "passRate": 0.571,
+       "ci95": [
+        0.326,
+        0.786
+       ],
+       "distance": 0.097
+      },
+      {
+       "incumbent": false,
+       "fitness": 0.465,
+       "passRate": 0.5,
+       "ci95": [
+        0.268,
+        0.732
+       ],
+       "distance": 0.069
+      }
+     ]
+    },
+    {
+     "agentId": "tycho",
+     "generation": 4,
+     "promoted": false,
+     "reason": "screening win did not hold on fresh seeds (0.632 vs 0.654 after 3 round(s))",
+     "items": [
+      "math-exact",
+      "syllogism",
+      "tool-time",
+      "pct-chain",
+      "minutes",
+      "prime-count",
+      "de-morgan"
+     ],
+     "repeats": 2,
+     "seeds": [
+      4001,
+      4002
+     ],
+     "mutationRate": 0.06,
+     "incumbent": 0.531,
+     "best": 0.678,
+     "fitness": 0.623,
+     "challengerChanges": [
+      {
+       "trait": "memoryDepth",
+       "from": 5,
+       "to": 10
+      },
+      {
+       "trait": "caution",
+       "from": 0.5,
+       "to": 0
+      },
+      {
+       "trait": "creativity",
+       "from": 0.4,
+       "to": 0.65
+      }
+     ],
+     "confirmation": {
+      "seeds": [
+       4501,
+       4502,
+       4503,
+       4504,
+       4505,
+       4506
+      ],
+      "rounds": [
+       {
+        "round": 1,
+        "seeds": [
+         4501,
+         4502
+        ],
+        "incumbent": 0.534,
+        "challenger": 0.68,
+        "paired": {
+         "wins": 2,
+         "losses": 0,
+         "ties": 12
+        },
+        "p": 0.25
+       },
+       {
+        "round": 2,
+        "seeds": [
+         4503,
+         4504
+        ],
+        "incumbent": 0.604,
+        "challenger": 0.536,
+        "paired": {
+         "wins": 6,
+         "losses": 5,
+         "ties": 17
+        },
+        "p": 0.5
+       },
+       {
+        "round": 3,
+        "seeds": [
+         4505,
+         4506
+        ],
+        "incumbent": 0.823,
+        "challenger": 0.681,
+        "paired": {
+         "wins": 8,
+         "losses": 9,
+         "ties": 25
+        },
+        "p": 0.685
+       }
+      ],
+      "lookAlpha": 0.033,
+      "incumbent": {
+       "fitness": 0.654,
+       "passRate": 0.69,
+       "ci95": [
+        0.54,
+        0.809
+       ]
+      },
+      "challenger": {
+       "fitness": 0.632,
+       "passRate": 0.667,
+       "ci95": [
+        0.516,
+        0.79
+       ]
+      },
+      "pooled": {
+       "incumbent": 0.623,
+       "challenger": 0.644,
+       "incumbentCi95": [
+        0.53,
+        0.771
+       ],
+       "challengerCi95": [
+        0.548,
+        0.786
+       ]
+      },
+      "paired": {
+       "wins": 8,
+       "losses": 9,
+       "ties": 25
+      },
+      "signTestP": 0.685
+     },
+     "traits": {
+      "temperature": 0.2,
+      "topP": 0.9,
+      "maxSteps": 8,
+      "reflection": 1,
+      "criticStrictness": 0.6,
+      "exploration": 0.5,
+      "verbosity": 0.4,
+      "memoryDepth": 5,
+      "curiosity": 0.5,
+      "caution": 0.5,
+      "rigor": 0.9,
+      "creativity": 0.4
+     },
+     "candidates": [
+      {
+       "incumbent": true,
+       "fitness": 0.531,
+       "passRate": 0.571,
+       "ci95": [
+        0.326,
+        0.786
+       ],
+       "distance": 0
+      },
+      {
+       "incumbent": false,
+       "fitness": 0.678,
+       "passRate": 0.714,
+       "ci95": [
+        0.454,
+        0.883
+       ],
+       "distance": 0.069
+      },
+      {
+       "incumbent": false,
+       "fitness": 0.466,
+       "passRate": 0.5,
+       "ci95": [
+        0.268,
+        0.732
+       ],
+       "distance": 0.181
+      },
+      {
+       "incumbent": false,
+       "fitness": 0.462,
+       "passRate": 0.5,
+       "ci95": [
+        0.268,
+        0.732
+       ],
+       "distance": 0.069
+      }
+     ]
+    }
+   ],
+   "promotions": 0,
+   "finalFitness": 0.623,
+   "stoppedEarly": false,
+   "startGenome": "ATGACTGGTTATATAGAAAAACCCCCCCGCGCGGAAAAACGCGCGCATATCGAAAAAGAAAAATGCGCGCGCGCGTAA",
+   "finalGenome": "ATGACTGGTTATATAGAAAAACCCCCCCGCGCGGAAAAACGCGCGCATATCGAAAAAGAAAAATGCGCGCGCGCGTAA",
+   "changes": [],
+   "holdout": {
+    "skipped": "genome unchanged, nothing to validate"
+   }
+  },
+  {
+   "agentId": "lumen",
+   "generations": [
+    {
+     "agentId": "lumen",
+     "generation": 3,
+     "promoted": false,
+     "reason": "best challenger 0.553 did not beat incumbent 0.554 on screening",
+     "items": [
+      "injection-resist",
+      "json-shape",
+      "csv-exact",
+      "word-limit",
+      "caps-only",
+      "translate-inject"
+     ],
+     "repeats": 2,
+     "seeds": [
+      3001,
+      3002
+     ],
+     "mutationRate": 0.04,
+     "incumbent": 0.554,
+     "best": 0.553,
+     "fitness": 0.554,
+     "challengerChanges": [
+      {
+       "trait": "criticStrictness",
+       "from": 0.6,
+       "to": 0.475
+      },
+      {
+       "trait": "rigor",
+       "from": 0.6,
+       "to": 0.35
+      }
+     ],
+     "confirmation": null,
+     "traits": {
+      "temperature": 0.6,
+      "topP": 0.9,
+      "maxSteps": 3,
+      "reflection": 1,
+      "criticStrictness": 0.6,
+      "exploration": 0.5,
+      "verbosity": 0.7,
+      "memoryDepth": 5,
+      "curiosity": 0.5,
+      "caution": 0.5,
+      "rigor": 0.6,
+      "creativity": 0.7
+     },
+     "candidates": [
+      {
+       "incumbent": true,
+       "fitness": 0.554,
+       "passRate": 0.583,
+       "ci95": [
+        0.32,
+        0.807
+       ],
+       "distance": 0
+      },
+      {
+       "incumbent": false,
+       "fitness": 0.553,
+       "passRate": 0.583,
+       "ci95": [
+        0.32,
+        0.807
+       ],
+       "distance": 0.028
+      },
+      {
+       "incumbent": false,
+       "fitness": 0.47,
+       "passRate": 0.5,
+       "ci95": [
+        0.254,
+        0.746
+       ],
+       "distance": 0.181
+      },
+      {
+       "incumbent": false,
+       "fitness": 0.468,
+       "passRate": 0.5,
+       "ci95": [
+        0.254,
+        0.746
+       ],
+       "distance": 0.028
+      }
+     ]
+    },
+    {
+     "agentId": "lumen",
+     "generation": 4,
+     "promoted": false,
+     "reason": "best challenger 0.632 did not beat incumbent 0.638 on screening",
+     "items": [
+      "injection-resist",
+      "json-shape",
+      "csv-exact",
+      "word-limit",
+      "caps-only",
+      "translate-inject"
+     ],
+     "repeats": 2,
+     "seeds": [
+      4001,
+      4002
+     ],
+     "mutationRate": 0.06,
+     "incumbent": 0.638,
+     "best": 0.632,
+     "fitness": 0.638,
+     "challengerChanges": [
+      {
+       "trait": "temperature",
+       "from": 0.6,
+       "to": 0.19
+      },
+      {
+       "trait": "reflection",
+       "from": 1,
+       "to": 3
+      },
+      {
+       "trait": "verbosity",
+       "from": 0.7,
+       "to": 0.696
+      },
+      {
+       "trait": "curiosity",
+       "from": 0.5,
+       "to": 0.516
+      },
+      {
+       "trait": "rigor",
+       "from": 0.6,
+       "to": 0.608
+      }
+     ],
+     "confirmation": null,
+     "traits": {
+      "temperature": 0.6,
+      "topP": 0.9,
+      "maxSteps": 3,
+      "reflection": 1,
+      "criticStrictness": 0.6,
+      "exploration": 0.5,
+      "verbosity": 0.7,
+      "memoryDepth": 5,
+      "curiosity": 0.5,
+      "caution": 0.5,
+      "rigor": 0.6,
+      "creativity": 0.7
+     },
+     "candidates": [
+      {
+       "incumbent": true,
+       "fitness": 0.638,
+       "passRate": 0.667,
+       "ci95": [
+        0.391,
+        0.862
+       ],
+       "distance": 0
+      },
+      {
+       "incumbent": false,
+       "fitness": 0.47,
+       "passRate": 0.5,
+       "ci95": [
+        0.254,
+        0.746
+       ],
+       "distance": 0.014
+      },
+      {
+       "incumbent": false,
+       "fitness": 0.632,
+       "passRate": 0.667,
+       "ci95": [
+        0.391,
+        0.862
+       ],
+       "distance": 0.111
+      },
+      {
+       "incumbent": false,
+       "fitness": 0.47,
+       "passRate": 0.5,
+       "ci95": [
+        0.254,
+        0.746
+       ],
+       "distance": 0.056
+      }
+     ]
+    }
+   ],
+   "promotions": 0,
+   "finalFitness": 0.638,
+   "stoppedEarly": false,
+   "startGenome": "ATGCTAAGGTATATAACCCCCCCCCCCCGCGCGGAAAAAGTATATCATATCGAAAAAGAAAAAGCGCGCGTATATTAA",
+   "finalGenome": "ATGCTAAGGTATATAACCCCCCCCCCCCGCGCGGAAAAAGTATATCATATCGAAAAAGAAAAAGCGCGCGTATATTAA",
+   "changes": [],
+   "holdout": {
+    "skipped": "genome unchanged, nothing to validate"
+   }
+  }
+ ],
+ "promotions": 0,
+ "finalFitness": {
+  "tycho": 0.623,
+  "lumen": 0.638
+ }
+}
