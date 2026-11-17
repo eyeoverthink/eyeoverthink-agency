@@ -279,15 +279,22 @@ test('the judge: one dissenting agent is not proof; a second agent decides, and 
     const cz = A.agency.crystallizer;
     const sh = { skill: 'compound_discount', input: { price: 95, discounts: [40, 10] }, reason: 'test' }; // skill: 51.3
     const task = 'A $95 helmet gets 40% off and then a further 10% off. What is the price now?';
-    let second = null;
-    cz.agentAnswer = async () => second;
+    let second = null, third = 'No idea, maybe 12.';
+    cz.agentAnswer = async (t, id) => (id === 'forge_keeper' ? third : second);
     assert.equal((await cz.shadowVerdict(sh, task, 'About $51.')).agree, true, '"51" is 51.3 at the agent precision');
     second = 'It costs $51.30.';
     const j = await cz.shadowVerdict(sh, task, 'It costs $240.');
     assert.deepEqual([j.agree, j.second], [true, 51.3], 'the second agent sided with the skill: the first agent erred');
     second = 'Roughly 900.';
-    assert.equal((await cz.shadowVerdict(sh, task + ' ', 'It costs $240.')).agree, null, 'two agents disagree with each other: inconclusive, nothing learned');
+    assert.equal((await cz.shadowVerdict(sh, task + ' ', 'It costs $240.')).agree, null, 'three agents, three answers: inconclusive, nothing learned');
     assert.ok(!cz.examples('compound_discount').some((e) => e.task === task + ' '));
+    third = 'It is $51.30 now.';
+    const j3 = await cz.shadowVerdict(sh, task + '  ', 'It costs $240.');
+    assert.deepEqual([j3.agree, j3.third, j3.by], [true, 51.3, 'third opinion sided with the skill'], '2 of 3: the third agent breaks the tie');
+    third = 'Roughly 900.';
+    const t3 = 'A $95 helmet gets 40% off and then a further 10% off, plus shipping. What is the price now?';
+    const j4 = await cz.shadowVerdict(sh, t3, 'It costs $240.');
+    assert.deepEqual([j4.agree, j4.corroborated], [false, 900], 'the third corroborated the SECOND agent: its answer is the one recorded');
     second = 'Total with tax: $55.40';
     const t2 = 'A $95 helmet gets 40% off, then 8% tax. Total?';
     assert.equal((await cz.shadowVerdict(sh, t2, 'The total is $55.40.')).agree, false, 'corroborated refutation');

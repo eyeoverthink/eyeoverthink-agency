@@ -222,11 +222,64 @@ export class Crystallizer {
     // The reference sees the solved task (ground truth) plus description and schema, but never the candidate's code.
     // Measured: with description + parameter names alone, a reference misread "speed_to/speed_from" and a correct
     // harmonic-mean skill was rejected. The task text is what both implementations should be derived from.
+    // Before the reference reads the contract: it must implement the repaired one (measured: a reference written from
+    // the unrepaired schema implemented whole-number percentages and lost the vote to a candidate passing 8/8 keys).
+    let contractRepaired = null;
+    if (answerKey?.length) {
+      // Contract repair from evidence. Measured: the extractor bound "10%" as 0.1 in every binding but its schema never
+      // said "decimal", so grounding (a conversion only when the contract declares it, Phase 10) refused all of them,
+      // for the candidate and the reference alike. A parameter whose every binding is one of its task's stated
+      // percentages / 100 (or 0 where the task states none) gets the clause it was missing; the key still checks the result.
+      const b = Array.isArray(cand.bindings) ? cand.bindings : [];
+      const props = cand.params?.properties || {};
+      const pcts = (t) => [...String(t).matchAll(/(\d+(?:\.\d+)?)\s*(?:%|percent\b)/gi)].map((m) => Number(m[1]));
+      contractRepaired = Object.keys(props).filter((k) => {
+        if (props[k]?.type !== 'number' || /\b(decimal|fraction)\b/i.test(props[k]?.description || '')) return false;
+        const vals = answerKey.map((key, i) => ({ v: (b[i]?.input ?? b[i])?.[k], p: pcts(key.task) }));
+        return vals.every((x) => typeof x.v === 'number') && vals.some((x) => x.v > 0) && vals.every((x) => x.v === 0 || x.p.some((p) => Math.abs(p / 100 - x.v) < 1e-9));
+      });
+      for (const k of contractRepaired) props[k].description = `${props[k].description ? `${props[k].description} ` : ''}(as a decimal fraction: 0.2 for 20%)`;
+      if (!contractRepaired.length) contractRepaired = null;
+    }
     const spec = `Function: ${cand.description}\nInput schema: ${JSON.stringify(cand.params)}\nThe solved task it generalizes (use it to understand the meaning, then implement the general function):\n${String(source.text).slice(0, 2500)}`;
-    const ref = await this.#reference(spec, 'reason', tests, signal);
+    let ref = await this.#reference(spec, 'reason', tests, signal);
     if (ref.error) return fail(`reference failed: ${ref.error}`);
     const inputs = ref.inputs.slice(0, tests);
     if (inputs.length < 3) return fail('too few test inputs');
+
+    // Answer key FIRST (Phase 13): a skill learned from refused tasks must reproduce, from grounded inputs, the answers
+    // two different agents corroborated for them. Ground truth outranks a vote between models, and it applies to EVERY
+    // implementation. Measured on real models: the 7B extractor treated percentages as fractions (90 x (1 - 20) x
+    // (1 + 6) = -11970) while the blind reference matched all 3 corroborated answers, and the vote threw away the correct
+    // code because it was only the referee. Now a reference that passes the key where the candidate fails is PROMOTED,
+    // and a fresh, independent implementation must agree with it. At most one key in four may miss.
+    let keyRows = null, promoted = null;
+    const scoreKey = async (code) => {
+      const b = Array.isArray(cand.bindings) ? cand.bindings : [];
+      const out = [];
+      for (const [i, k] of answerKey.entries()) {
+        const input = b[i]?.input ?? b[i];
+        const g = !input || typeof input !== 'object' || Array.isArray(input) ? 'no binding' : groundingProblem(input, cand.params, k.task);
+        const run = g ? null : await this.#run(code, input, library);
+        const ok = !g && !run.error && typeof run.out === 'number' && nearAnswer(run.out, k.answer);
+        out.push({ task: k.task, input: input ?? null, expected: k.answer, out: run?.out ?? null, ok, problem: g || run?.error || null });
+      }
+      const pass = out.filter((x) => x.ok).length;
+      return { rows: out, pass, ok: pass >= answerKey.length - Math.floor(answerKey.length / 4) };
+    };
+    if (answerKey?.length) {
+      const kc = await scoreKey(cand.code);
+      keyRows = kc.rows;
+      if (!kc.ok) {
+        const kr = await scoreKey(ref.code);
+        if (!kr.ok) return fail(`reproduces only ${kc.pass}/${answerKey.length} corroborated answers (the blind reference: ${kr.pass}/${answerKey.length})`, { keyRows, refKeyRows: kr.rows });
+        promoted = { from: ex.model, to: ref.model, candidateKey: `${kc.pass}/${answerKey.length}` };
+        cand.code = ref.code; keyRows = kr.rows;
+        const fresh = await this.#reference(spec, 'plan', 0, signal, inputs);
+        if (fresh.error) return fail(`the reference passed the answer key but no independent implementation could check it: ${fresh.error}`, { keyRows });
+        ref = { ...fresh, inputs };
+      }
+    }
 
     const rows = [];
     for (const input of inputs) {
@@ -237,8 +290,9 @@ export class Crystallizer {
     let disagree = rows.filter((x) => x.reference.error || !sameOutput(x.candidate.out, x.reference.out));
     let tiebreak = null;
     if (disagree.length) {
-      // Third blind implementation decides the disputed inputs (2 of 3).
-      const third = await this.#reference(spec, 'plan', 0, signal, inputs);
+      // Third blind implementation decides the disputed inputs (2 of 3). After a promotion the 'plan' model is already
+      // the referee, so the extractor's model writes the third one, this time from the spec alone.
+      const third = await this.#reference(spec, promoted ? 'code' : 'plan', 0, signal, inputs);
       if (third.error) return fail(`implementations disagree on ${disagree.length}/${rows.length} input(s) and the tie-break failed`, { rows });
       tiebreak = [];
       for (const x of disagree) {
@@ -247,30 +301,13 @@ export class Crystallizer {
         // Two of three implementations deliberately reject this input (e.g. a speed of 0 or below): it is outside
         // the function's domain, not evidence that the candidate is wrong. Measured on a correct harmonic-mean skill.
         if (x.reference.error && t.error) { x.outOfDomain = true; continue; }
-        if (t.error || !sameOutput(t.out, x.candidate.out)) return fail(`implementations disagree on ${disagree.length}/${rows.length} input(s); the candidate lost the 2-of-3 vote`, { rows, tiebreak });
+        if (t.error || !sameOutput(t.out, x.candidate.out)) return fail(`implementations disagree on ${disagree.length}/${rows.length} input(s); the candidate lost the 2-of-3 vote`, { rows, tiebreak, keyRows });
       }
       disagree = [];
     }
     const inDomain = rows.filter((x) => !x.outOfDomain);
     if (inDomain.length < 3) return fail(`only ${inDomain.length} in-domain input(s) agree; at least 3 are required`, { rows, tiebreak });
-    // Answer key (Phase 13): a skill learned from refused tasks must reproduce, from grounded inputs, the answers two
-    // different agents corroborated for them. Differential testing checks the code against a blind reimplementation;
-    // the key checks both against the world. At most one key in four may miss (two agents can agree on a wrong answer).
-    let keyRows = null;
-    if (answerKey?.length) {
-      const b = Array.isArray(cand.bindings) ? cand.bindings : [];
-      keyRows = [];
-      for (const [i, k] of answerKey.entries()) {
-        const input = b[i]?.input ?? b[i];
-        const g = !input || typeof input !== 'object' || Array.isArray(input) ? 'no binding' : groundingProblem(input, cand.params, k.task);
-        const run = g ? null : await this.#run(cand.code, input, library);
-        const ok = !g && !run.error && typeof run.out === 'number' && nearAnswer(run.out, k.answer);
-        keyRows.push({ task: k.task, input: input ?? null, expected: k.answer, out: run?.out ?? null, ok, problem: g || run?.error || null });
-      }
-      const pass = keyRows.filter((x) => x.ok).length;
-      if (pass < answerKey.length - Math.floor(answerKey.length / 4)) return fail(`reproduces only ${pass}/${answerKey.length} corroborated answers`, { rows, tiebreak, keyRows });
-    }
-    const verification = { method: answerKey?.length ? 'differential 2 of 3 + corroborated answer key' : 'differential, 2 of 3', answerKey: keyRows ? `${keyRows.filter((x) => x.ok).length}/${keyRows.length}` : undefined, inputs: inDomain.length, outOfDomain: rows.length - inDomain.length, referenceModel: ref.model, extractorModel: ex.model, tiebreak: Boolean(tiebreak), rows: rows.map((x) => ({ input: x.input, out: x.candidate.out })) };
+    const verification = { method: answerKey?.length ? 'differential 2 of 3 + corroborated answer key' : 'differential, 2 of 3', answerKey: keyRows ? `${keyRows.filter((x) => x.ok).length}/${keyRows.length}` : undefined, promoted: promoted || undefined, contractRepaired: contractRepaired || undefined, inputs: inDomain.length, outOfDomain: rows.length - inDomain.length, referenceModel: ref.model, extractorModel: ex.model, tiebreak: Boolean(tiebreak), rows: rows.map((x) => ({ input: x.input, out: x.candidate.out })) };
     const id = newId('sk');
     const codeSha = sha256(cand.code);
     this.store.run('INSERT INTO skills (id, name, description, params, code, code_sha256, status, source, verification, uses, failures, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)',
@@ -445,7 +482,10 @@ export class Crystallizer {
    * right), and demoted 15 of 17 correct speed examples. So, as with the Red Queen keys: one dissent is not proof.
    *   - agreement (to the agent's own rounding: "51" agrees with 51.3) verifies the binding;
    *   - on disagreement a SECOND, different agent answers: it siding with the skill verifies the binding, it
-   *     corroborating the first agent refutes it, anything else is inconclusive and teaches nothing.
+   *     corroborating the first agent refutes it;
+   *   - if the two agents also disagree with each other, a THIRD agent on a different model answers: any two of the
+   *     three agents plus the skill that agree decide (2 of 3), and a three-way split teaches nothing.
+   * A refutation carries the corroborated answer: a solved example of a capability the agency does not own yet.
    * Only the agent's last number that does not already appear in the task counts as its answer.
    */
   async #judge(task, out, firstFinal, answer) {
@@ -457,7 +497,7 @@ export class Crystallizer {
       return Math.abs(n - v) <= Math.max(0.01, Math.abs(v) * 0.002) || (dec <= 2 && Math.abs(n - Number(v.toFixed(dec))) < 1e-9);
     };
     const first = last(firstFinal);
-    const row = { skillOut: out, agentAnswer: first === undefined ? null : Number(first), second: null, agree: null };
+    const row = { skillOut: out, agentAnswer: first === undefined ? null : Number(first), second: null, third: null, agree: null };
     if (first === undefined) return row;
     if (near(first, out)) return { ...row, agree: true };
     const secondFinal = answer ? await answer(task, this.cfg?.skills?.secondOpinion || 'lumen').catch(() => null) : null;
@@ -465,7 +505,17 @@ export class Crystallizer {
     row.second = second === undefined ? null : Number(second);
     if (second === undefined) return row;
     if (near(second, out)) return { ...row, agree: true, by: 'second opinion sided with the skill' };
-    if (near(second, Number(first)) || near(first, Number(second))) return { ...row, agree: false, by: 'second opinion corroborated the first' };
+    if (near(second, Number(first)) || near(first, Number(second))) return { ...row, agree: false, corroborated: Number(first), by: 'second opinion corroborated the first' };
+    // Three different answers so far (skill, first, second). Measured in Phase 13: in most such splits ONE agent was
+    // right (189 vs 196.4; 130.8 vs 191), so a third agent on a different model breaks the tie, 2 of 3 as with the
+    // Red Queen keys. Any two that agree decide; three-way disagreement still teaches nothing.
+    const thirdFinal = answer ? await answer(task, this.cfg?.skills?.thirdOpinion || 'forge_keeper').catch(() => null) : null;
+    const third = last(thirdFinal);
+    row.third = third === undefined ? null : Number(third);
+    if (third === undefined) return row;
+    if (near(third, out)) return { ...row, agree: true, by: 'third opinion sided with the skill' };
+    if (near(third, Number(first)) || near(first, Number(third))) return { ...row, agree: false, corroborated: Number(first), by: 'third opinion corroborated the first' };
+    if (near(third, Number(second)) || near(second, Number(third))) return { ...row, agree: false, corroborated: Number(second), by: 'third opinion corroborated the second' };
     return row;
   }
 
@@ -481,7 +531,7 @@ export class Crystallizer {
     if (r.error || typeof r.out !== 'number') return null;
     const j = await this.#judge(task, r.out, final, this.agentAnswer);
     if (j.agree !== null) this.#example(skill.name, task, j.agree ? shadow.input : null, j.agree ? 'pos' : 'neg');
-    if (j.agree === false && j.second !== null) this.#recordGap(skill.name, task, j.agentAnswer);
+    if (j.agree === false && j.corroborated != null) this.#recordGap(skill.name, task, j.corroborated);
     this.ledger.append('skill.shadow', { skill: skill.name, agentId, missionId, ...j, reason: shadow.reason }, 'crystallizer');
     this.bus?.publish('skill.shadow', { skill: skill.name, agree: j.agree });
     if (j.agree) this.#maybeLearn(skill.name);
@@ -508,7 +558,7 @@ export class Crystallizer {
       const r = await this.#run(skill.code, e.input, []);
       if (r.error || typeof r.out !== 'number') { rows.push({ task: e.task, rare: words_, agree: null }); continue; }
       const j = await this.#judge(e.task, r.out, await answer(e.task), answer);
-      if (j.agree === false) { this.store.run("UPDATE skill_examples SET label = 'neg', input = NULL WHERE id = ?", e.id); if (j.second !== null) this.#recordGap(skillName, e.task, j.agentAnswer); }
+      if (j.agree === false) { this.store.run("UPDATE skill_examples SET label = 'neg', input = NULL WHERE id = ?", e.id); if (j.corroborated != null) this.#recordGap(skillName, e.task, j.corroborated); }
       rows.push({ task: e.task, rare: words_, ...j });
     }
     this.ledger.append('binder.audit_wording', { skill: skillName, checked: rows.length, demoted: rows.filter((x) => x.agree === false).length }, 'crystallizer');
