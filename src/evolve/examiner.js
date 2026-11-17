@@ -19,9 +19,15 @@ export function makeCheck(match, answer) {
   const a = String(answer).trim();
   if (match === 'number') {
     const want = Number(a);
+    // Precision-aware: "43.98" matches a key of 43.9822971502571 (the key rounded to the answer's own decimals),
+    // while integers must match exactly. Measured: an exact compare failed a correct "43.98 cm" circumference.
     return (resp) => {
       const nums = String(resp).replace(/(?<=\d),(?=\d{3}\b)/g, '').match(/-?\d+(?:\.\d+)?/g) || [];
-      return nums.some((n) => Math.abs(Number(n) - want) <= Math.max(1e-9, Math.abs(want) * 1e-9));
+      return nums.some((n) => {
+        const v = Number(n), dec = (n.split('.')[1] || '').length;
+        if (Math.abs(v - want) <= Math.max(1e-9, Math.abs(want) * 1e-9)) return true;
+        return dec >= 2 && Math.abs(Number(want.toFixed(dec)) - v) < 10 ** -(dec + 1);
+      });
     };
   }
   if (match === 'yesno') {
@@ -45,6 +51,16 @@ export function answerKey(match, stdout) {
 }
 
 const norm = (t) => String(t).toLowerCase().replace(/\s+/g, ' ').trim();
+
+/** The single number every answer ends on, when they all agree on one other than the key; else null. */
+export function consistentAnswer(answers, key) {
+  if (answers.length < 2) return null;
+  const finalNumber = (a) => { const nums = String(a).replace(/(?<=\d),(?=\d{3}\b)/g, '').match(/-?\d+(?:\.\d+)?/g); return nums ? Number(nums.at(-1)) : null; };
+  const vals = answers.map(finalNumber);
+  if (vals.some((v) => v == null)) return null;
+  if (!vals.every((v) => Math.abs(v - vals[0]) < 1e-9)) return null;
+  return Math.abs(vals[0] - Number(key)) < 1e-9 ? null : String(vals[0]);
+}
 
 /** Do two independently derived answer keys agree? */
 export function sameAnswer(match, a, b) {
@@ -173,10 +189,12 @@ export class Examiner {
     for (const row of rows) {
       const item = { id: row.id, agent: agentId, category: 'exam', task: row.task, check: makeCheck(row.match, row.answer) };
       let pass = 0, errors = 0;
+      const answers = [];
       for (let r = 0; r < repeats; r++) {
         if (signal?.aborted) throw new Error('aborted');
         const res = await this.bench.runItem(item, { agentOverride: agent, signal, seed: 8000 + r + 1 });
         if (res.error) errors++; else if (res.pass) pass++;
+        if (!res.error) answers.push(String(res.answer ?? ''));
         done++;
         onProgress?.({ agentId, generation: agent.generation || 0, phase: 'exam', done, total });
       }
@@ -186,7 +204,13 @@ export class Examiner {
       let status = row.status, split = row.split;
       if (row.status === 'candidate') {
         if (rate > low && rate < high) { status = 'active'; split = holdoutTurn ? 'holdout' : 'train'; holdoutTurn = !holdoutTurn; out.admitted.push({ id: row.id, rate, split }); }
-        else { status = 'rejected'; out.rejected.push({ id: row.id, rate, reason: rate >= high ? 'too easy (no signal)' : 'too hard (no signal)' }); }
+        else {
+          // An agent that fails every repeat but keeps giving the SAME other answer is more likely right than the key
+          // (measured: both wrong keys in a real cycle scored 0/3 against Tycho's correct answers). Flag, don't bury.
+          const dispute = rate === 0 && row.match === 'number' ? consistentAnswer(answers, row.answer) : null;
+          if (dispute != null) { status = 'disputed'; stats.agentAnswer = dispute; out.rejected.push({ id: row.id, rate, reason: `key disputed: the agent consistently answered ${dispute}` }); }
+          else { status = 'rejected'; out.rejected.push({ id: row.id, rate, reason: rate >= high ? 'too easy (no signal)' : 'too hard (no signal)' }); }
+        }
       } else if (rate >= 0.999 && (row.stats.lastRate ?? 0) >= 0.999) { status = 'retired'; out.retired.push({ id: row.id, reason: 'saturated twice in a row' }); }
       else out.kept.push({ id: row.id, rate });
       this.store.run('UPDATE exam_items SET status = ?, split = ?, stats = ?, updated = ? WHERE id = ?', status, split, JSON.stringify(stats), nowIso(), row.id);

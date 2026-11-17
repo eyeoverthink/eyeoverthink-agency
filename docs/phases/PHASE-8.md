@@ -84,8 +84,18 @@ Phase 6 found that many benchmark items are always passed or always failed, so t
 
 Evolution and A/A calibration pick up admitted items automatically. Answers go into the ledger by hash, so the exam isn't leaked (`agents exam <id>`, `POST /api/exams`, Evolution lab → *Red Queen: grow the exam*). Migration v4 adds the `exam_items` table.
 
-### Measured: Tycho, one cycle on real models
-*(filled in below from the run)*
+### Measured: three real cycles on Tycho (each one exposed the next flaw)
+| Cycle | Key rule | Proposed → accepted | Keys correct (audited by hand) | What it taught |
+|---|---|---|---|---|
+| 1 | examiner program only | 6 → 6 | **1 of 6** (snail 57 vs 58, school 2,388 vs 480, machines 576 vs 144, tank 0.16 vs 0.1, discount ambiguous) | Running a program proves it runs, not that it answers the question |
+| 2 | + blind second key (`code` role) must agree | 8 → **0** (6 disagree, 2 checker failures) | n/a | Agreement blocks bad keys but discards everything; disagreements went unrecorded |
+| 3 | 2-of-3 majority (+ `reason` role), audit storage | 8 → 8 | **6 of 8** (park 9 vs 3, an ill-posed "equal inflow and outflow" tank) | Errors are **correlated**: two models can misread a question the same way |
+
+**What caught the remaining bad keys: the agent.** In cycle 3, both wrong keys scored 0/3 because Tycho kept giving the *correct* answer. But "0/3" also lumped together a correct key with a too-strict checker (circumference 43.982297… vs Tycho's "43.98") and genuinely hard items. **Fixes:**
+- Number matching is now precision-aware: an answer counts when it equals the key rounded to the answer's own decimals.
+- An item the agent fails on every repeat while giving the **same different answer** is marked `disputed` (with the agent's answer recorded), kept out of the exam, and surfaced for review, instead of being labelled "too hard".
+
+Admitted after cycle 3: 2 frontier items (pass rates 0.33 and 0.67), split between training and held-out.
 
 ## 4. Sovereignty Map
 A live view of the boundary, drawn from real events:

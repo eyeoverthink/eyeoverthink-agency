@@ -109,3 +109,21 @@ test('a Red Queen cycle runs as a persisted background job', async () => {
     assert.equal(final.result.agents[0].trial.admitted.length, 1);
   } finally { await A.cleanup(); }
 });
+
+test('real-cycle fixes: precision-aware number matching, and a consistent dissent flags the KEY as disputed', async () => {
+  const { consistentAnswer } = await import('../src/evolve/examiner.js');
+  assert.ok(makeCheck('number', '43.982297150257104')('The circumference is about 43.98 cm.'), 'rounded to the answer\'s own precision');
+  assert.ok(!makeCheck('number', '43.982297150257104')('About 44 cm.'), 'integers still match exactly');
+  assert.ok(!makeCheck('number', '43.982297150257104')('43.90'));
+  assert.equal(consistentAnswer(['You can walk it 3 times.', 'It takes 3 laps.', 'Answer: 3'], '9'), '3');
+  assert.equal(consistentAnswer(['3', '4', '3'], '9'), null, 'no consensus, no dispute');
+  const A = await makeAgency(() => okFinal);
+  try {
+    A.agency.store.run("INSERT INTO exam_items (id, agent_id, task, answer, match, split, status, origin, program, stats, created, updated) VALUES ('ex_park', 'tycho', 'park laps', '9', 'number', 'train', 'candidate', 'test', '', '{}', 'x', 'x')");
+    A.agency.examiner.bench = { runItem: async (item) => ({ id: item.id, pass: false, answer: 'You can walk around it 3 times.', steps: 1 }) };
+    const r = await A.agency.examiner.trial('tycho', { repeats: 3 });
+    assert.match(r.rejected[0].reason, /key disputed: the agent consistently answered 3/);
+    const [row] = A.agency.examiner.list('tycho', 'disputed');
+    assert.equal(row.stats.agentAnswer, '3');
+  } finally { await A.cleanup(); }
+});
