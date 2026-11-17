@@ -1,6 +1,6 @@
 # Phase 12: Verified wording: misroutes stop protecting themselves
 
-Previous: [Phase 11](PHASE-11.md) · [Index](README.md)
+Previous: [Phase 11](PHASE-11.md) · Next: [Phase 13](PHASE-13.md) · [Index](README.md)
 
 ## The problem
 Phase 11 ended with one misroute left: "20% off and then 5% sales tax is added" was answered as if the tax were a second discount. The tax is in the body of the task, not its question, so no question block word could see it.

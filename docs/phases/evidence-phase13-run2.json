@@ -1,0 +1,619 @@
+{
+  "at": "2026-11-17T21:07:29.781Z",
+  "learn": [
+    {
+      "id": "l1",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 10,
+      "tokens": 9791,
+      "ms": 34971,
+      "correct": true,
+      "final": "# Total Cost After Discount and Sales Tax\n$76.32",
+      "miss": "binding rejected: \"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 76.32,
+        "agentId": "tycho",
+        "agree": false,
+        "by": "second opinion corroborated the first",
+        "corroborated": 76.32,
+        "missionId": null,
+        "reason": "\"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "second": 76.32,
+        "skill": "calculate_final_price",
+        "skillOut": 67.67999999999999,
+        "third": null
+      }
+    },
+    {
+      "id": "l2",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 10,
+      "tokens": 9867,
+      "ms": 33703,
+      "correct": true,
+      "final": "You pay $32.40 for the lamp.",
+      "miss": "binding rejected: \"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 32.4,
+        "agentId": "tycho",
+        "agree": false,
+        "by": "second opinion corroborated the first",
+        "corroborated": 32.4,
+        "missionId": null,
+        "reason": "\"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "second": 32.4,
+        "skill": "calculate_final_price",
+        "skillOut": 27.6,
+        "third": null
+      }
+    },
+    {
+      "id": "l3",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 13,
+      "tokens": 12613,
+      "ms": 38022,
+      "correct": true,
+      "final": "$189 total after 10% off and 5% sales tax",
+      "miss": "binding rejected: \"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 189,
+        "agentId": "tycho",
+        "agree": false,
+        "by": "third opinion corroborated the first",
+        "corroborated": 189,
+        "missionId": null,
+        "reason": "\"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "second": 210,
+        "skill": "calculate_final_price",
+        "skillOut": 171,
+        "third": 189
+      }
+    },
+    {
+      "id": "l4",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 14,
+      "tokens": 13767,
+      "ms": 41154,
+      "correct": false,
+      "final": "# Final Cost\n$63",
+      "miss": "binding rejected: \"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 63,
+        "agentId": "tycho",
+        "agree": false,
+        "by": "third opinion corroborated the second",
+        "corroborated": 44.94,
+        "missionId": null,
+        "reason": "\"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "second": 44.94,
+        "skill": "calculate_final_price",
+        "skillOut": 39.059999999999995,
+        "third": 44.94
+      }
+    },
+    {
+      "id": "l5",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 15,
+      "tokens": 12023,
+      "ms": 51596,
+      "correct": false,
+      "final": "# Total Cost\n$281",
+      "miss": "binding rejected: \"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 281,
+        "agentId": "tycho",
+        "agree": false,
+        "by": "third opinion corroborated the second",
+        "corroborated": 130.8,
+        "missionId": null,
+        "reason": "\"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "second": 130.8,
+        "skill": "calculate_final_price",
+        "skillOut": 109.2,
+        "third": 130.8
+      }
+    },
+    {
+      "id": "l6",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 9,
+      "tokens": 9268,
+      "ms": 26610,
+      "correct": false,
+      "final": "(0.9 * 30) + (0.04 * 30)",
+      "miss": "binding rejected: \"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 0.04,
+        "agentId": "tycho",
+        "agree": null,
+        "missionId": null,
+        "reason": "\"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "second": null,
+        "skill": "calculate_final_price",
+        "skillOut": 25.919999999999998,
+        "third": null
+      }
+    },
+    {
+      "id": "l7",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 14,
+      "tokens": 14786,
+      "ms": 35609,
+      "correct": false,
+      "final": "# Total Cost of Sofa\n$425",
+      "miss": "binding rejected: \"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 425,
+        "agentId": "tycho",
+        "agree": null,
+        "missionId": null,
+        "reason": "\"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "second": 450.5,
+        "skill": "calculate_final_price",
+        "skillOut": 399.5,
+        "third": 477.53
+      }
+    },
+    {
+      "id": "l8",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 13,
+      "tokens": 9588,
+      "ms": 37339,
+      "correct": true,
+      "final": "# Final Cost\nThe final cost of the rug is $70.56.\n\n## Calculation Steps:\n* Original price: $80\n* Discount (25%): $20 off ($80 * 0.8)\n* Price after discount: $60\n* Tax (5%): $3.00 ($60 * 0.05)\n* Final cost: $63.00 + tax = $70.56",
+      "miss": "binding rejected: \"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 70.56,
+        "agentId": "tycho",
+        "agree": false,
+        "by": "third opinion corroborated the second",
+        "corroborated": 63,
+        "missionId": null,
+        "reason": "\"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "second": 63,
+        "skill": "calculate_final_price",
+        "skillOut": 57,
+        "third": 63
+      }
+    }
+  ],
+  "gaps": [
+    {
+      "skill": "calculate_final_price",
+      "task": "A $90 blender is 20% off, then 6% sales tax is added. What is the total?",
+      "answer": 76.32,
+      "markers": [
+        "sales",
+        "tax",
+        "added"
+      ],
+      "status": "open",
+      "resolved_by": null
+    },
+    {
+      "skill": "calculate_final_price",
+      "task": "A $40 lamp is 25% off, plus 8% tax. What do I pay?",
+      "answer": 32.4,
+      "markers": [
+        "tax"
+      ],
+      "status": "open",
+      "resolved_by": null
+    },
+    {
+      "skill": "calculate_final_price",
+      "task": "A $200 bike is 10% off, then 5% sales tax is added. What is the total?",
+      "answer": 189,
+      "markers": [
+        "sales",
+        "tax",
+        "added"
+      ],
+      "status": "open",
+      "resolved_by": null
+    },
+    {
+      "skill": "calculate_final_price",
+      "task": "A $60 jacket is 30% off, then 7% tax is added. What is the final cost?",
+      "answer": 44.94,
+      "markers": [
+        "tax",
+        "added"
+      ],
+      "status": "open",
+      "resolved_by": null
+    },
+    {
+      "skill": "calculate_final_price",
+      "task": "A $150 printer is 20% off, plus 9% sales tax. What is the total?",
+      "answer": 130.8,
+      "markers": [
+        "sales",
+        "tax"
+      ],
+      "status": "open",
+      "resolved_by": null
+    },
+    {
+      "skill": "calculate_final_price",
+      "task": "An $80 rug is 25% off, plus 5% tax. What is the final cost?",
+      "answer": 63,
+      "markers": [
+        "tax"
+      ],
+      "status": "open",
+      "resolved_by": null
+    }
+  ],
+  "admitted": [],
+  "rejected": [
+    {
+      "name": "calculate_final_price_with_tax",
+      "reason": "reproduces only 0/6 corroborated answers (the blind reference: 0/6)",
+      "source": "gap:calculate_final_price"
+    },
+    {
+      "name": "calculate_total_price",
+      "reason": "reproduces only 0/5 corroborated answers (the blind reference: 0/5)",
+      "source": "gap:calculate_final_price"
+    },
+    {
+      "name": "calculate_total_price",
+      "reason": "reproduces only 0/4 corroborated answers (the blind reference: 0/4)",
+      "source": "gap:calculate_final_price"
+    },
+    {
+      "name": "calculate_final_price_with_tax",
+      "reason": "reproduces only 0/3 corroborated answers (the blind reference: 0/3)",
+      "source": "gap:calculate_final_price"
+    }
+  ],
+  "test": [
+    {
+      "id": "t-tax-tent",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 12,
+      "tokens": 13442,
+      "ms": 35733,
+      "correct": true,
+      "final": "# Total Cost of Tent\n$97.20",
+      "miss": "binding rejected: \"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 97.2,
+        "agentId": "tycho",
+        "agree": false,
+        "by": "second opinion corroborated the first",
+        "corroborated": 97.2,
+        "missionId": null,
+        "reason": "\"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "second": 97.2,
+        "skill": "calculate_final_price",
+        "skillOut": 82.8,
+        "third": null
+      }
+    },
+    {
+      "id": "t-tax-boots",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 10,
+      "tokens": 9830,
+      "ms": 34525,
+      "correct": true,
+      "final": "$66.78",
+      "miss": "binding rejected: \"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 66.78,
+        "agentId": "tycho",
+        "agree": false,
+        "by": "second opinion corroborated the first",
+        "corroborated": 66.78,
+        "missionId": null,
+        "reason": "\"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "second": 66.78,
+        "skill": "calculate_final_price",
+        "skillOut": 59.22,
+        "third": null
+      }
+    },
+    {
+      "id": "t-tax-grill",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 24,
+      "tokens": 33448,
+      "ms": 102239,
+      "correct": true,
+      "final": "{\"thought\":\"The correct calculation for the final cost is to add the sales tax (16) to the discounted price (320), which results in a total of $336, but this was already calculated and shown to be incorrect by calc tool earlier; let's recal",
+      "miss": "binding rejected: \"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 0.05,
+        "agentId": "tycho",
+        "agree": null,
+        "missionId": null,
+        "reason": "\"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "second": 16,
+        "skill": "calculate_final_price",
+        "skillOut": 304,
+        "third": 336
+      }
+    },
+    {
+      "id": "t-tax-camera",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 13,
+      "tokens": 13143,
+      "ms": 55090,
+      "correct": true,
+      "final": "# Total Price After Discount and Tax\n$187.25",
+      "miss": "binding rejected: \"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 187.25,
+        "agentId": "tycho",
+        "agree": false,
+        "by": "third opinion corroborated the first",
+        "corroborated": 187.25,
+        "missionId": null,
+        "reason": "\"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "second": 0,
+        "skill": "calculate_final_price",
+        "skillOut": 162.75,
+        "third": 187.25
+      }
+    },
+    {
+      "id": "d-coat",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 130,
+      "correct": true,
+      "final": "**Answer: 113.4**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_final_price` (Calculates the final price of an item after applying two successive discounts. Verified by differential testing; code sha256 5db5975d4e69)",
+      "miss": null,
+      "shadow": null
+    },
+    {
+      "id": "d-game",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 127,
+      "correct": true,
+      "final": "**Answer: 28.8**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_final_price` (Calculates the final price of an item after applying two successive discounts. Verified by differential testing; code sha256 5db5975d4e69) ",
+      "miss": null,
+      "shadow": null
+    },
+    {
+      "id": "c-tip",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 10,
+      "tokens": 9676,
+      "ms": 33275,
+      "correct": true,
+      "final": "# Total Price\n$63.72",
+      "miss": "binding rejected: \"added\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 63.72,
+        "agentId": "tycho",
+        "agree": false,
+        "by": "second opinion corroborated the first",
+        "corroborated": 63.72,
+        "missionId": null,
+        "reason": "\"added\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "second": 63.72,
+        "skill": "calculate_final_price",
+        "skillOut": 44.28,
+        "third": null
+      }
+    },
+    {
+      "id": "c-save",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 7,
+      "tokens": 6906,
+      "ms": 26791,
+      "correct": true,
+      "final": "# Amount Saved\nYou save $20.80 by applying a 25% discount followed by a 10% discount on a $64 bag.\n\n## Calculation\nOriginal Price: $64\nFirst Discount (25%): $(1 - 0.25) * 64 = $48\nSecond Discount (10%): $(1 - 0.10) * $48 = $43.2\nAmount Save",
+      "miss": "binding rejected: the task asks for a difference or saving, which this skill does not compute",
+      "shadow": null
+    }
+  ],
+  "skills": [
+    {
+      "name": "calculate_final_price",
+      "description": "Calculates the final price of an item after applying two successive discounts.",
+      "verification": {
+        "method": "differential, 2 of 3",
+        "inputs": 6,
+        "referenceModel": "fraymus-prime:v1",
+        "extractorModel": "qwen2.5-coder:7b",
+        "tiebreak": false
+      },
+      "code": "function main(input) { return input.original_price * (1 - input.discount1) * (1 - input.discount2); }"
+    },
+    {
+      "name": "calculate_average_speed",
+      "description": "Calculates the average speed for a round trip given the speed to and from the destination.",
+      "verification": {
+        "method": "differential, 2 of 3",
+        "inputs": 6,
+        "outOfDomain": 0,
+        "referenceModel": "fraymus-prime:v1",
+        "extractorModel": "qwen2.5-coder:7b",
+        "tiebreak": false
+      },
+      "code": "function main(input) { return 2 * input.speed_to * input.speed_from / (input.speed_to + input.speed_from); }"
+    }
+  ],
+  "summary": {
+    "learn": {
+      "tasks": 8,
+      "routed": 0,
+      "zeroCall": 0,
+      "correct": 4,
+      "byNewSkill": [],
+      "misroutes": [],
+      "calls": 98
+    },
+    "test": {
+      "tasks": 8,
+      "routed": 2,
+      "zeroCall": 2,
+      "correct": 8,
+      "byNewSkill": [],
+      "misroutes": [],
+      "calls": 76
+    }
+  },
+  "binders": [
+    {
+      "skill": "calculate_final_price",
+      "examples": 24,
+      "verification": {
+        "train": "23/23",
+        "heldOut": true,
+        "negatives": "7/7 refused",
+        "coverage": 0.75,
+        "method": "induction",
+        "writer": null,
+        "spec": {
+          "shapes": [
+            "1,2,0"
+          ],
+          "params": {
+            "original_price": {
+              "kind": "currency",
+              "k": 0,
+              "scale": 1
+            },
+            "discount1": {
+              "kind": "percent",
+              "k": 0,
+              "scale": 0.01
+            },
+            "discount2": {
+              "kind": "percent",
+              "k": -1,
+              "scale": 0.01
+            }
+          },
+          "blockWords": [
+            "better",
+            "cheaper",
+            "dollars",
+            "including",
+            "item",
+            "money",
+            "save",
+            "single",
+            "store",
+            "tax",
+            "than",
+            "which"
+          ],
+          "contextBlock": {
+            "kinds": [
+              "percent"
+            ],
+            "words": [
+              "added",
+              "sales",
+              "sells",
+              "store",
+              "tax"
+            ]
+          }
+        },
+        "disputed": [
+          "A $120 bike is 10% off and then 5% sales tax is added. What do I pay?"
+        ]
+      }
+    },
+    {
+      "skill": "calculate_average_speed",
+      "examples": 20,
+      "verification": {
+        "train": "20/20",
+        "heldOut": true,
+        "negatives": "3/3 refused",
+        "coverage": 0.75,
+        "method": "induction",
+        "writer": null,
+        "spec": {
+          "shapes": [
+            "0,0,2"
+          ],
+          "params": {
+            "speed_to": {
+              "kind": "plain",
+              "k": 0,
+              "scale": 1,
+              "units": [
+                "km/h",
+                "knots",
+                "mph"
+              ]
+            },
+            "speed_from": {
+              "kind": "plain",
+              "k": -1,
+              "scale": 1,
+              "units": [
+                "km/h",
+                "knots",
+                "mph"
+              ]
+            }
+          },
+          "blockWords": [],
+          "contextBlock": {
+            "kinds": [
+              "plain"
+            ],
+            "words": [
+              "hour",
+              "hours",
+              "miles"
+            ]
+          }
+        },
+        "disputed": []
+      }
+    }
+  ]
+}
