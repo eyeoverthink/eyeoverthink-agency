@@ -164,3 +164,17 @@ test('an ambiguous composition is decided by the agent loop answer: only the mat
     assert.equal(A.agency.ledger.list({ limit: 1, kind: 'skill.chain_pick' })[0].data.picked, chainSignature(right));
   } finally { await A.cleanup(); }
 });
+
+test('a composed skill knows its verified wording from birth: unseen wording is not routed to it, even with only 2 examples', async () => {
+  const A = await setup();
+  try {
+    const cz = A.agency.crystallizer;
+    for (const t of TASKS.slice(0, 2)) await run(A, t);
+    await cz.composeQueue;
+    const sk = cz.list('active').find((s) => s.source.startsWith('chain:'));
+    assert.equal(cz.examples(sk.name).filter((e) => e.label === 'pos').length, 2);
+    const r = await run(A, 'A $100 dinner is 10% off, then a 5% service fee is added, and the total is split evenly among 2 friends. How much does each pay?');
+    assert.equal(r.skill, undefined);
+    assert.match(A.agency.ledger.list({ limit: 5, kind: 'skill.route_miss' }).map((x) => x.data.reason).join(' | '), /unverified wording \(.*"service"/);
+  } finally { await A.cleanup(); }
+});

@@ -211,7 +211,7 @@ export function composeChainSkill(steps, skills) {
   }
   const body = steps.map((s, i) => `  const s${i + 1} = skill_${s.skill}({ ${Object.entries(s.input).map(([k, v]) => `${JSON.stringify(k)}: ${isRef(v) ? `s${v.ref}` : `input[${JSON.stringify(slots.find((x) => x.step === i && x.key === k).param)}]`}`).join(', ')} });`);
   const code = ['function main(input) {', ...body, `  return s${steps.length};`, '}'].join('\n');
-  const short = (n) => n.replace(/^calculate_/, '').split('_').slice(0, 2).join('_');
+  const short = (n) => n.replace(/^calculate_/, '').split('_').slice(0, 4).join('_');
   let name = steps.map((s) => short(s.skill)).join('_then_').replace(/[^a-z0-9_]/g, '').slice(0, 34);
   name = `${name}_${sha256(chainSignature(steps)).slice(0, 4)}`.replace(/^[^a-z]/, 'c');
   const description = `Composed from owned skills: ${steps.map((s) => skills.find((x) => x.name === s.skill)?.description?.replace(/\.$/, '') || s.skill).join('; then ')}.`.slice(0, 300);
@@ -670,7 +670,11 @@ export class Crystallizer {
     const t = cb && numberTokens(task).find((x) => cb.kinds.includes(x.kind) && x.ctx.some((w) => cb.words.includes(w)));
     if (t) return `"${t.ctx.find((w) => cb.words.includes(w))}" follows a ${t.kind} number, as it only ever did in tasks this skill had to refuse`;
     // Verified wording (Phase 12): once the skill has enough positives, wording none of them used is not trusted yet.
-    if (this.cfg?.skills?.verifyWording !== false && pos.length >= (this.cfg?.skills?.binderMinExamples ?? 3)) {
+    // Skills born from verified examples (composed from chains, or learned from corroborated refusals) know their
+    // verified wording from birth, so the gate applies from the first example. Measured in Phase 14: a composed
+    // discount-then-split skill with 2 examples was chosen by the 3B binder for "...then 8% sales tax is added..." tasks.
+    const born = /^(chain|gap):/.test(this.list('active').find((s) => s.name === skill)?.source || '');
+    if (this.cfg?.skills?.verifyWording !== false && pos.length >= (born ? 1 : this.cfg?.skills?.binderMinExamples ?? 3)) {
       const novel = novelWording(pos, task);
       if (novel.length) return `unverified wording (${novel.slice(0, 4).map((w) => `"${w}"`).join(', ')}): the agent loop answers, and its answer is compared with the skill's`;
     }
