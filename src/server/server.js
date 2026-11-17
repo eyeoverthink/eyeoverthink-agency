@@ -91,9 +91,13 @@ export function createServer(agency) {
   add('POST', '/api/agents/:id/ask', async ({ params, body }) => a.runtime.run(params.id, need(body.task, 'task required'), { privacy: body.privacy }));
   // Evolution runs for minutes on a local GPU, so it is a background job; progress arrives as evolution.* events.
   const evoOpts = (body) => ({ population: body.population || 4, repeats: body.repeats || 2, generations: body.generations || 1, confirm: body.confirm !== false,
-    patience: body.patience ?? 2, adaptive: body.adaptive !== false, holdout: body.holdout !== false, holdoutRepeats: body.holdoutRepeats || 3, alpha: body.alpha ?? 0.1 });
+    patience: body.patience ?? 2, adaptive: body.adaptive !== false, holdout: body.holdout !== false, holdoutRepeats: body.holdoutRepeats || 3, alpha: body.alpha ?? 0.1, maxConfirmRounds: body.maxConfirmRounds || 3 });
   add('POST', '/api/agents/:id/evolve', ({ params, body }) => a.evolution.start(params.id, evoOpts(body)));
   add('POST', '/api/evolution/fleet', ({ body }) => a.evolution.start(need(Array.isArray(body.agents) && body.agents.length ? body.agents : null, 'agents[] required'), evoOpts(body)));
+  // A/A calibration: the same genome twice on identical seeds; the disagreement rate is the noise floor.
+  add('POST', '/api/evolution/calibrate', ({ body }) => a.evolution.start(need(Array.isArray(body.agents) && body.agents.length ? body.agents : null, 'agents[] required'), { kind: 'calibrate', repeats: body.repeats || 3 }));
+  add('GET', '/api/agents/:id/calibration', ({ params }) => a.evolution.calibration(params.id));
+  add('GET', '/api/evolution/jobs', () => a.evolution.listJobs());
   add('GET', '/api/evolution/active', () => (a.evolution.active ? a.evolution.job(a.evolution.active) : null));
   add('GET', '/api/agents/:id/lineage', ({ params }) => a.evolution.lineage(params.id));
   add('GET', '/api/evolution/jobs/:id', ({ params }) => found(a.evolution.job(params.id), 'evolution job'));

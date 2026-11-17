@@ -69,6 +69,11 @@ export const SUITES = {
     { id: 'dna-ok', agent: 'helix', category: 'tools', task: 'Encode the text "OK" as DNA. Report the exact strand.', check: (a) => /CATTCAGT/.test(a), tools: ['dna_encode'] },
     { id: 'dna-decode', agent: 'helix', category: 'tools', task: 'Decode the DNA strand CAACCAGC back to text. Report the exact text.', check: (a) => /\bAI\b/.test(a), tools: ['dna_decode'] },
     { id: 'memory-roundtrip', agent: 'helix', category: 'tools', task: 'Save the fact "the project codename is Bluefin" to memory with the tag codename, then search memory for the codename and report it.', check: (a, r) => /bluefin/i.test(a) && r.steps.some((st) => st.tool === 'memory_save' && st.ok) },
+    // Phase 6: Helix's original held-out items were 100% for every genome (no signal), so these need multi-step use of the codec output.
+    { id: 'dna-gc', agent: 'helix', category: 'tools', task: 'Encode the text "Hi" as DNA and report its GC content as a fraction between 0 and 1.', check: (a) => /\b0?\.75\b|\b75\s?%/.test(a), tools: ['dna_encode'] },
+    { id: 'dna-length', agent: 'helix', category: 'tools', task: 'How many nucleotides long is the DNA encoding of the text "Hello"? Use the encoder and give the number.', check: (a) => /\b20\b/.test(a) && !/\b(5|10|40)\s*nucleotides/i.test(a), tools: ['dna_encode'] },
+    { id: 'dna-decode-long', agent: 'helix', category: 'tools', split: 'holdout', task: 'Decode the DNA strand CAACCGCTCGCCCGTGCGATCTGC back to text. Report the exact text.', check: (a) => /\bAgency\b/.test(a), tools: ['dna_decode'] },
+    { id: 'dna-gc-dna', agent: 'helix', category: 'tools', split: 'holdout', task: 'Encode the text "DNA" as DNA and report its GC content as a fraction between 0 and 1.', check: (a) => /\b0?\.50?\b|\b50\s?%|\bhalf\b/i.test(a) && !/\b0?\.(75|25)\b/.test(a), tools: ['dna_encode'] },
     { id: 'dna-go', agent: 'helix', category: 'tools', split: 'holdout', task: 'Encode the text "Go" as DNA. Report the exact strand.', check: (a) => /CACTCGTT/.test(a), tools: ['dna_encode'] },
     { id: 'dna-decode-ok', agent: 'helix', category: 'tools', split: 'holdout', task: 'Decode the DNA strand CATTCAGT back to text. Report the exact text.', check: (a) => /\bOK\b/.test(a), tools: ['dna_decode'] },
   ],

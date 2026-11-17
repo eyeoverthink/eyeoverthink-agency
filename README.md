@@ -429,7 +429,7 @@ Hybrid inference is part of how the product works: private tasks run only on loc
 
 ## Build log
 
-These are the steps taken to build this repository, in order. Per-phase detail is in [docs/phases](docs/phases/README.md). Contest materials are in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) and [docs/DEVPOST.md](docs/DEVPOST.md).
+These are the steps taken to build this repository, in order. Per-phase detail is in [docs/phases](docs/phases/README.md). Contest materials: [docs/SUBMISSION_CHECKLIST.md](docs/SUBMISSION_CHECKLIST.md) (requirement status), [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) (video script; run `node bin/agency.js preflight` first) and [docs/DEVPOST.md](docs/DEVPOST.md).
 
 1. **Survey.** Inventoried the FRAYMUS Skill Lab (~21k files), Chandra-FRAYMUS, FRAYMUS-Logic-Chain, Fraymus-OS-One, master-system, the claude-brain continuity notes, fraynix-dreamer-120b, Agent Factory Lite and the AgentForge diagnostic lab. Each was analysed for working code versus documentation-only claims.
 2. **Model inventory.** Found 44 local models. Diagnosed that the running Ollama served none because it lacked `OLLAMA_MODELS`, and that `OLLAMA_HOST=0.0.0.0` is a bind address rather than a client URL. Both are now handled in code.

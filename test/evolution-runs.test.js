@@ -43,6 +43,10 @@ test('evolve suite: every checker accepts a correct answer and rejects a wrong o
     'dna-decode': ['The text is "AI".', 'The text is "Al".'],
     'memory-roundtrip': ['The codename is Bluefin.', 'The codename is Bluefin.'], // the wrong case: no memory_save step
     'dna-go': ['CACTCGTT', 'CACTCGTA'],
+    'dna-gc': ['The GC content is 0.75.', 'The GC content is 0.5.'],
+    'dna-length': ['It is 20 nucleotides long.', 'It is 10 nucleotides long.'],
+    'dna-decode-long': ['The text is "Agency".', 'The text is "Agenda".'],
+    'dna-gc-dna': ['GC content: 0.5', 'GC content: 0.75'],
     'dna-decode-ok': ['It decodes to OK.', 'It decodes to Ok.'],
   };
   for (const item of SUITES.evolve) {
@@ -74,21 +78,53 @@ test('sign test: exact values, and a clean-looking 2-0 is not enough to promote'
   assert.equal(signTest(4, 0), 0.063);
   assert.equal(signTest(5, 1), 0.109);
   assert.equal(signTest(1, 3), 0.938);
-  // Phase 4's Helix case: the challenger wins 2 paired cells, loses none, everything else ties.
+});
+
+/** One evolve() on Helix where the incumbent fails `failFresh(itemIndex)` on fresh seeds (and screening cell 0). */
+async function helixCase(failFresh, opts = {}) {
   const A = await makeAgency(() => okFinal);
   try {
     const start = A.agency.agents.get('helix').genome;
-    const items = agentItems('helix', 'train');
-    // Incumbent fails exactly one screening cell and one confirmation cell, in every generation.
-    const flaky = new Set([`${items[0].id}|1`, `${items[1].id}|501`]);
-    const { evo } = stubEvolution(A.agency, ({ item, genome, seed }) => (genome === start ? !flaky.has(`${item.id}|${seed % 1000}`) : true));
-    const r = await evo.evolve('helix', { population: 3, repeats: 1 });
-    assert.equal(r.promoted, false);
-    assert.match(r.reason, /2 wins, 0 losses is not significant \(sign test p = 0\.25/);
-    assert.equal(r.confirmation.signTestP, 0.25);
-    const loose = await evo.evolve('helix', { population: 3, repeats: 1, alpha: 0.3 });
-    assert.equal(loose.promoted, true, `alpha is configurable: ${loose.reason}`);
+    const items = agentItems('helix', 'train').map((i) => i.id);
+    const { evo } = stubEvolution(A.agency, ({ item, genome, seed }) => {
+      if (genome !== start) return true;
+      const s = seed % 1000, idx = items.indexOf(item.id);
+      if (s < 500) return idx !== 0; // incumbent loses one screening cell, so a challenger leads screening
+      return !failFresh(idx, s);
+    });
+    return await evo.evolve('helix', { population: 3, repeats: 1, ...opts });
   } finally { await A.cleanup(); }
+}
+
+test('sequential confirmation: screening wins never count as evidence (winner\'s curse)', async () => {
+  // Incumbent ties every fresh cell: the only "wins" were the screening cells the challenger was chosen for.
+  const r = await helixCase(() => false);
+  assert.equal(r.promoted, false);
+  assert.equal(r.confirmation.paired.wins, 0, 'screening cells are excluded from the paired test');
+  assert.equal(r.confirmation.rounds.length, 3, 'all-tie rounds keep looking until the last round');
+  assert.match(r.reason, /below the minimum 0\.02.*tie/);
+});
+
+test('sequential confirmation: Phase 4\'s Helix case (one fresh win) is noise after 3 rounds', async () => {
+  const r = await helixCase((idx, s) => idx === 1 && s === 501);
+  assert.equal(r.promoted, false);
+  assert.equal(r.confirmation.rounds.length, 3);
+  assert.deepEqual(r.confirmation.paired, { wins: 1, losses: 0, ties: 6 * 3 - 1 }); // 6 training items x 3 rounds
+  assert.equal(r.confirmation.lookAlpha, 0.033);
+  assert.match(r.reason, /not significant after 3 round\(s\) \(sign test p = 0\.5 > 0\.033\)/);
+});
+
+test('sequential confirmation: a real effect is promoted, stopping as soon as it is significant', async () => {
+  const big = await helixCase(() => true); // incumbent fails every fresh cell: 6 wins per round
+  assert.equal(big.promoted, true, big.reason);
+  assert.equal(big.confirmation.rounds.length, 1, 'stops at the first significant look (6-0, p = 0.016 <= 0.033)');
+  const mid = await helixCase((idx) => idx < 2); // 2 wins per round
+  assert.equal(mid.promoted, true, mid.reason);
+  assert.equal(mid.confirmation.rounds.length, 3, '6-0 reaches p = 0.016 <= 0.033 only on the third look');
+  const loose = await helixCase((idx) => idx < 2, { alpha: 0.3 });
+  assert.equal(loose.confirmation.rounds.length, 2, 'alpha is configurable: 4-0 (p = 0.063) passes 0.3 / 3');
+  const futile = await helixCase(() => false, { maxConfirmRounds: 1 });
+  assert.equal(futile.confirmation.rounds.length, 1, 'maxConfirmRounds caps the looks');
 });
 
 test('held-out items are disjoint from training items and never reach selection', async () => {
@@ -176,5 +212,54 @@ test('fleet job evolves several agents in one background job and lineage records
     assert.equal(lin[0].carried, final.result.finalFitness.tycho);
     assert.throws(() => evo.start([]), /no agents/);
     assert.equal(evo.active, null, 'slot is free once evolution.done has fired');
+  } finally { await A.cleanup(); }
+});
+
+test('A/A calibration measures the noise floor: the same genome disagreeing with itself on identical seeds', async () => {
+  const A = await makeAgency(() => okFinal);
+  try {
+    const seen = new Map();
+    // Simulated GPU nondeterminism: the second run of each (item, seed) cell flips for one item.
+    const { evo } = stubEvolution(A.agency, ({ item, seed }) => {
+      const k = `${item.id}|${seed}`;
+      const n = (seen.get(k) || 0) + 1;
+      seen.set(k, n);
+      return item.id === 'minutes' ? n === 1 : true;
+    });
+    const r = await evo.calibrate('tycho', { repeats: 2 });
+    const items = agentItems('tycho', 'train').length + agentItems('tycho', 'holdout').length;
+    assert.equal(r.cells, items * 2);
+    assert.equal(r.discordant, 2, 'one flipping item x 2 seeds');
+    assert.equal(r.noiseRate, Math.round((2 / (items * 2)) * 1000) / 1000);
+    assert.ok(r.seeds.every((s) => s > 7000 && s < 7010), 'a seed block no evolution stage uses');
+    assert.equal(r.perItem.find((i) => i.id === 'minutes').rate, 0.5);
+    assert.ok(r.perItem.some((i) => i.split === 'holdout'), 'difficulty covers held-out items too');
+    assert.deepEqual(evo.calibration('tycho'), r, 'stored for later runs and the dashboard');
+    assert.equal(A.agency.ledger.list({ limit: 1, kind: 'evolution.calibration' }).length, 1);
+  } finally { await A.cleanup(); }
+});
+
+test('evolution jobs persist: finished jobs survive a restart, a job cut off mid-run is reported as interrupted', async () => {
+  const A = await makeAgency(() => okFinal);
+  try {
+    const { evo } = stubEvolution(A.agency, () => true);
+    const done = new Promise((res) => A.agency.bus.once('evolution.done', res));
+    const job = evo.start(['tycho'], { kind: 'calibrate', repeats: 1 });
+    assert.equal(job.kind, 'calibrate');
+    await done;
+    // Simulate a job that was running when the process died.
+    A.agency.store.kvSet('evolution:job:evo_dead', { id: 'evo_dead', kind: 'evolve', agentId: 'lumen', status: 'running', started: '2026-11-17T00:00:00Z', progress: { generation: 2, phase: 'screening' } });
+    A.agency.store.kvSet('evolution:jobs', [...A.agency.store.kvGet('evolution:jobs', []), 'evo_dead']);
+    const reborn = new Evolution({ store: A.agency.store, agents: A.agency.agents, bench: {}, ledger: A.agency.ledger, bus: A.agency.bus });
+    const finished = reborn.job(job.id);
+    assert.equal(finished.status, 'done');
+    assert.equal(finished.result.kind, 'calibrate');
+    assert.equal(finished.result.agents[0].agentId, 'tycho');
+    const dead = reborn.job('evo_dead');
+    assert.equal(dead.status, 'interrupted');
+    assert.match(dead.error, /finished generations are kept/);
+    assert.equal(dead.progress.generation, 2, 'reports where it stopped');
+    assert.deepEqual(reborn.listJobs().map((j) => j.id).sort(), [job.id, 'evo_dead'].sort());
+    assert.equal(reborn.active, null, 'an interrupted job does not block new ones');
   } finally { await A.cleanup(); }
 });

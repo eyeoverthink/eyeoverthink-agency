@@ -26,7 +26,8 @@ Global flags: --home <dir> (data directory)  --ollama <url> (Ollama server)
   agents forge "<description>"     Design and register a new agent
   agents roster "<business>" "<goal>" [--count 4] [--commit]
   agents import <dir> [dir...]     Import FRAYMUS/Chandra *.md manifests
-  agents evolve <id>[,<id>...] [--population 4] [--repeats 2] [--generations 1] [--patience 2] [--holdout-repeats 3] [--alpha 0.1] [--no-confirm] [--no-adaptive] [--no-holdout]
+  agents evolve <id>[,<id>...] [--population 4] [--repeats 2] [--generations 1] [--patience 2] [--holdout-repeats 3] [--alpha 0.1] [--confirm-rounds 3] [--no-confirm] [--no-adaptive] [--no-holdout]
+  agents calibrate <id>[,<id>...] [--repeats 3]   A/A noise floor: same genome twice on identical seeds
   agents export <id> <file>        Export an agent as a signed DNA plasmid (organism)
   agents adopt <file>              Import an organism plasmid
 
@@ -43,6 +44,7 @@ Global flags: --home <dir> (data directory)  --ollama <url> (Ollama server)
   dna encode "<text>" [--codon] | dna decode <strand> [--codon]
   mcp                              Run as an MCP server on stdio (for Claude Code, IDEs)
   edge doctor | edge proof [N]     Check the Firebase AI Logic setup / list ledgered Firebase calls
+  preflight                        Recording/demo GO/NO-GO: self-test, edge doctor, ledger, models, Firebase proof
   token                            Print the API token for the dashboard
 `;
 
@@ -119,6 +121,30 @@ export async function main(argv) {
       case 'token': out(agency.cfg.apiToken); break;
       case 'status': out(await agency.status()); break;
       case 'models': out(await agency.router.status()); break;
+      case 'preflight': {
+        // Recording-day / demo-day GO/NO-GO: every check the video depends on, in one command.
+        const rows = [];
+        const check = (name, ok, detail, blocking = true) => rows.push({ name, ok, detail, blocking });
+        const st = await agency.continuity.selftest();
+        check('self-test', /ALL_CLEAR/.test(st.verdict), st.verdict);
+        const doc = edgeDoctor({ root: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..') });
+        check('Firebase edge config (edge doctor)', doc.ok && doc.configured, doc.checks.filter((c) => c.level === 'error').map((c) => c.message).join(' | ') || 'ready');
+        const v = agency.ledger.verify();
+        check('signed ledger verifies', v.ok, v.ok ? `${v.count} entries` : `BROKEN at #${v.brokenAt}`);
+        const ms = await agency.router.status();
+        const served = ms.ollama?.served?.length ?? 0;
+        check('local models served by Ollama', served > 0, `${served} model(s) at ${agency.cfg.ollama.url}`);
+        for (const role of ['plan', 'reason', 'code', 'critic']) check(`role "${role}" resolves`, (ms.roles[role] || []).length > 0, (ms.roles[role] || []).join(', ') || 'no model');
+        const proof = agency.ledger.list({ limit: 200, kind: 'edge.inference' });
+        const by = (k, f) => proof.filter((e) => e.data[k] === f).length;
+        check('Firebase calls already in the ledger', proof.length > 0, `${proof.length} (${by('inferenceSource', 'IN_CLOUD')} IN_CLOUD, ${by('inferenceSource', 'ON_DEVICE')} ON_DEVICE, ${by('origin', 'agency-job')} by GPU overflow)`, false);
+        check('ON_DEVICE (Gemini Nano) proven', by('inferenceSource', 'ON_DEVICE') > 0, by('inferenceSource', 'ON_DEVICE') ? 'yes' : 'not yet: only claim it on camera if the recording Chrome shows "Gemini Nano on-device: available"', false);
+        for (const r of rows) out(`${r.ok ? 'GO   ' : r.blocking ? 'NO-GO' : 'NOTE '} ${r.name}: ${r.detail}`);
+        const blocking = rows.filter((r) => !r.ok && r.blocking).length;
+        out(blocking ? `NOT READY: ${blocking} blocking check(s) failed` : 'READY TO RECORD');
+        if (blocking) process.exitCode = 5;
+        break;
+      }
       case 'selftest': {
         const r = await agency.continuity.selftest();
         for (const c of r.checks) out(`${c.ok ? 'PASS' : 'FAIL'}  ${c.name}${c.ok ? '' : ` — ${c.error}`}`);
@@ -157,13 +183,23 @@ export async function main(argv) {
         } else if (sub === 'forge') out(await agency.forge.create(pos.slice(2).join(' ')));
         else if (sub === 'roster') out(await agency.forge.roster({ business: pos[2], goal: pos[3], count: Number(flags.count || 4), commit: Boolean(flags.commit) }));
         else if (sub === 'import') out(agency.agents.importManifests(pos.slice(2), known));
+        else if (sub === 'calibrate') {
+          const ids = String(pos[2] || '').split(',').map((x) => x.trim()).filter(Boolean);
+          if (!ids.length) throw new Error('usage: agents calibrate <id>[,<id>...] [--repeats 3]');
+          for (const id of ids) {
+            const r = await agency.evolution.calibrate(id, { repeats: Number(flags.repeats || 3), onProgress: (p) => { if (p.done === p.total || p.done % 6 === 0) process.stderr.write(`${p.agentId} calibrate ${p.done}/${p.total}
+`); } });
+            out(`${id}: noise rate ${r.noiseRate} (${r.discordant}/${r.cells} identical-genome cells disagreed, 95% CI [${r.noiseCi95.join(', ')}]) · arm A ${r.armA} · arm B ${r.armB}`);
+            for (const it of r.perItem) out(`  ${it.id.padEnd(18)} ${it.split.padEnd(8)} ${it.passed}/${it.runs} (${it.rate})`);
+          }
+        }
         else if (sub === 'evolve') {
           // Comma list = fleet run, one agent after another (the GPU runs one model call at a time anyway).
           const ids = String(pos[2] || '').split(',').map((x) => x.trim()).filter(Boolean);
           if (!ids.length) throw new Error('usage: agents evolve <id>[,<id>...]');
           const opts = {
             population: Number(flags.population || 4), repeats: Number(flags.repeats || 2), generations: Number(flags.generations || 1), confirm: !flags['no-confirm'],
-            patience: flags.patience !== undefined ? Number(flags.patience) : 2, adaptive: !flags['no-adaptive'], holdout: !flags['no-holdout'], holdoutRepeats: Number(flags['holdout-repeats'] || 3), alpha: flags.alpha !== undefined ? Number(flags.alpha) : 0.1,
+            patience: flags.patience !== undefined ? Number(flags.patience) : 2, adaptive: !flags['no-adaptive'], holdout: !flags['no-holdout'], holdoutRepeats: Number(flags['holdout-repeats'] || 3), alpha: flags.alpha !== undefined ? Number(flags.alpha) : 0.1, maxConfirmRounds: Number(flags['confirm-rounds'] || 3),
             onProgress: (p) => { if (p.done === p.total || p.done % 3 === 0) process.stderr.write(`${p.agentId} gen ${p.generation} ${p.phase} ${p.done}/${p.total}
 `); },
           };

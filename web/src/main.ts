@@ -329,7 +329,7 @@ function onEvoProgress(e: AgencyEvent) {
   if (e.jobId !== S.evoJob) return;
   const bar = $("#evobar") as HTMLElement | null, txt = $("#evotxt");
   if (bar) bar.style.width = `${Math.round((100 * e.done) / Math.max(1, e.total))}%`;
-  const phase = e.phase === "confirm" ? "confirming on fresh seeds" : e.phase === "holdout" ? "held-out re-test" : "screening";
+  const phase = e.phase === "confirm" ? "confirming on fresh seeds" : e.phase === "holdout" ? "held-out re-test" : e.phase === "calibrate" ? "A/A noise calibration" : "screening";
   const who = e.agentCount > 1 ? `${e.agentId} (${e.agentIndex + 1}/${e.agentCount}) · ` : "";
   if (txt) txt.textContent = `${who}gen ${e.generation} · ${phase} · ${e.done}/${e.total} runs`;
 }
@@ -341,6 +341,12 @@ async function showEvoResult(jobId: string) {
   S.evoJob = "";
   $("#evocancel")?.remove();
   if (job.error) { out.innerHTML = `<p class="err">${esc(job.status)}: ${esc(job.error)}</p>`; return; }
+  if (job.result.kind === "calibrate") {
+    out.innerHTML = job.result.agents.map(renderCalibration).join("");
+    const t = $("#evotxt"); if (t) t.textContent = `done · noise floor measured for ${job.result.agents.length} agent(s)`;
+    const b = $("#evobar") as HTMLElement | null; if (b) b.style.width = "100%";
+    return;
+  }
   const runs: any[] = job.result.fleet ? job.result.agents : [job.result];
   out.innerHTML = runs.map(renderRun).join("");
   const txt = $("#evotxt");
@@ -368,8 +374,15 @@ function renderRun(run: any) {
     <table class="evotbl"><tr><th>candidate</th><th>fitness</th><th>pass rate</th><th>95% CI</th><th>distance</th></tr>
       ${g.candidates.map((c: any, i: number) => `<tr><td>${c.incumbent ? "incumbent" : `mutant ${i}`}</td><td>${c.fitness}</td><td>${c.passRate}</td><td class="mono">${ci(c.ci95)}</td><td>${c.distance}</td></tr>`).join("")}</table>
     ${g.challengerChanges.length ? `<p class="dim">Best challenger's changed genes: ${g.challengerChanges.map((d: any) => `${esc(d.trait)} ${d.from} → ${d.to}`).join(", ")}</p>` : ""}
-    ${g.confirmation ? `<p class="dim">Fresh seeds: challenger ${g.confirmation.challenger.fitness} vs incumbent ${g.confirmation.incumbent.fitness} · paired wins ${g.confirmation.paired.wins}, losses ${g.confirmation.paired.losses}, ties ${g.confirmation.paired.ties}</p>` : ""}
+    ${g.confirmation ? `<p class="dim">Fresh seeds only (screening cells excluded): challenger ${g.confirmation.challenger.fitness} vs incumbent ${g.confirmation.incumbent.fitness} · paired wins ${g.confirmation.paired.wins}, losses ${g.confirmation.paired.losses}, ties ${g.confirmation.paired.ties} · sign test p = ${g.confirmation.signTestP ?? "–"}${g.confirmation.lookAlpha != null ? ` (needs ≤ ${g.confirmation.lookAlpha})` : ""}</p>${g.confirmation.rounds?.length ? `<p class="dim mono">${g.confirmation.rounds.map((r: any) => `round ${r.round}: ${r.paired.wins}–${r.paired.losses} (p ${r.p})`).join(" · ")}</p>` : ""}` : ""}
     <p class="dim mono">mutation rate ${g.mutationRate ?? "–"}</p>`).join("");
+}
+
+/** A/A calibration: the same genome twice on identical seeds. Disagreement = noise every A/B difference must clear. */
+function renderCalibration(c: any) {
+  return `<h3 class="runhead">${esc(c.agentId)} · noise rate ${c.noiseRate} <span class="dim">95% CI ${ci(c.noiseCi95)}</span></h3>
+    <p class="dim">${c.discordant} of ${c.cells} identical-genome cells disagreed (arm A ${c.armA}, arm B ${c.armB}, seeds ${c.seeds.join(", ")}). Item difficulty below shows which items can separate genomes: items near 0 or 1 carry little signal.</p>
+    <table class="evotbl"><tr><th>item</th><th>split</th><th>passed</th><th>rate</th></tr>${c.perItem.map((i: any) => `<tr><td>${esc(i.id)}</td><td>${esc(i.split)}</td><td>${i.passed}/${i.runs}</td><td>${i.rate}</td></tr>`).join("")}</table>`;
 }
 
 /** Fitness by generation: line = fitness carried out of each generation; gold dot = promotion; faint dot = best challenger. */
@@ -431,7 +444,7 @@ async function viewAgents() {
         <label>patience <input id="epat" type="number" min="0" max="10" value="2" /></label>
       </div>
       <div class="row fleetpick">${agents.map((a) => `<label><input type="checkbox" data-fleet="${a.id}"${["tycho", "lumen", "helix"].includes(a.id) ? " checked" : ""} /> ${esc(a.id)}</label>`).join("")}</div>
-      <div class="row"><button id="efleet" class="primary">Evolve selected agents</button></div>
+      <div class="row"><button id="efleet" class="primary">Evolve selected agents</button><button id="ecal" class="ghost">Measure noise floor (A/A)</button></div>
     </section>
     <section class="panel evo" id="evo"${S.evoJob ? "" : " hidden"}></section>
     <section class="cards">${agents.map((a) => `
@@ -489,6 +502,12 @@ async function viewAgents() {
     const job = await guard(() => api<any>(`/api/agents/${b.dataset.evolve}/evolve`, { body: evoOpts() }));
     if (job) openEvoBox(job, `Evolving ${job.agentId}`);
   }));
+  $("#ecal")!.addEventListener("click", async () => {
+    const picked = $$<HTMLInputElement>("[data-fleet]").filter((x) => x.checked).map((x) => x.dataset.fleet!);
+    if (!picked.length) return toast("Pick at least one agent", true);
+    const job = await guard(() => api<any>("/api/evolution/calibrate", { body: { agents: picked, repeats: Number(val("#ereps") || 2) } }));
+    if (job) openEvoBox(job, `Noise floor: ${picked.join(", ")}`);
+  });
   $("#efleet")!.addEventListener("click", async () => {
     const picked = $$<HTMLInputElement>("[data-fleet]").filter((x) => x.checked).map((x) => x.dataset.fleet!);
     if (!picked.length) return toast("Pick at least one agent", true);

@@ -66,7 +66,65 @@ export class Evolution {
     Object.assign(this, { store, agents, bench, ledger, bus });
     this.jobs = new Map();
     this.active = null;
+    // Jobs outlive the process: a job that was running when the server stopped is reported as interrupted.
+    // Its finished generations are already committed (each generation writes its genome and rows atomically),
+    // so starting the agent again simply continues from the last committed generation.
+    for (const id of this.store?.kvGet('evolution:jobs', []) || []) {
+      const j = this.store.kvGet(`evolution:job:${id}`);
+      if (!j) continue;
+      if (j.status === 'running') { j.status = 'interrupted'; j.error = 'the server stopped while this job was running; finished generations are kept'; j.finished = nowIso(); this.store.kvSet(`evolution:job:${id}`, j); }
+      this.jobs.set(id, j);
+    }
   }
+
+  #persist(job) {
+    if (!this.store) return;
+    const { ctrl, ...rest } = job;
+    this.store.kvSet(`evolution:job:${job.id}`, rest);
+    const ids = this.store.kvGet('evolution:jobs', []);
+    if (!ids.includes(job.id)) this.store.kvSet('evolution:jobs', [...ids, job.id].slice(-20));
+  }
+
+  listJobs() {
+    return [...this.jobs.values()].map(({ ctrl, result, ...j }) => ({ ...j, hasResult: Boolean(result) })).sort((a, b) => String(b.started).localeCompare(String(a.started)));
+  }
+
+  /**
+   * A/A calibration: run the CURRENT genome twice on identical seeds. Any disagreement between the two arms is
+   * pure run-to-run noise (GPU nondeterminism, sampling), so the discordance rate is the noise floor that every
+   * A/B difference must clear. Also reports per-item pass rates (item difficulty) over all of the agent's items.
+   */
+  async calibrate(agentId, { repeats = 3, signal, onProgress } = {}) {
+    const agent = this.agents.get(agentId);
+    if (!agent) throw new Error(`agent ${agentId} not found`);
+    repeats = Math.max(1, Math.min(5, repeats | 0));
+    const items = [...this.itemsFor(agentId), ...this.holdoutFor(agentId)];
+    const seeds = Array.from({ length: repeats }, (_, r) => 7000 + r + 1); // a seed block no evolution stage uses
+    const total = items.length * repeats * 2;
+    let done = 0;
+    const onRun = () => { done++; onProgress?.({ agentId, generation: agent.generation || 0, phase: 'calibrate', done, total }); };
+    const a = await this.evaluate(agent, agent.genome, items, seeds, { signal, onRun });
+    const b = await this.evaluate(agent, agent.genome, items, seeds, { signal, onRun });
+    const pr = paired(a.results, b.results);
+    const cells = pr.wins + pr.losses + pr.ties;
+    const discordant = pr.wins + pr.losses;
+    const perItem = items.map((i) => {
+      const rs = [...a.results, ...b.results].filter((r) => r.id === i.id);
+      const k = rs.filter((r) => r.pass).length;
+      return { id: i.id, split: i.split === 'holdout' ? 'holdout' : 'train', passed: k, runs: rs.length, rate: round3(k / Math.max(1, rs.length)) };
+    });
+    const res = {
+      agentId, generation: agent.generation || 0, seeds, cells, discordant,
+      noiseRate: round3(discordant / Math.max(1, cells)), noiseCi95: wilson(discordant, cells),
+      armA: a.passRate, armB: b.passRate, perItem, measured: nowIso(),
+    };
+    this.store.kvSet(`calibration:${agentId}`, res);
+    this.ledger.append('evolution.calibration', { agentId, cells, discordant, noiseRate: res.noiseRate, armA: a.passRate, armB: b.passRate }, 'agency');
+    this.bus?.publish('evolution.calibration', { agentId, noiseRate: res.noiseRate, cells });
+    return res;
+  }
+
+  calibration(agentId) { return this.store.kvGet(`calibration:${agentId}`); }
 
   /** Training items: the only items selection ever sees. */
   itemsFor(agentId) {
@@ -115,7 +173,7 @@ export class Evolution {
   // alpha: the paired sign test must reach p <= alpha before a promotion. Phase 4 measured that a behaviorally
   // identical copy of the incumbent can "win" 2-0 on the same seeds (seeded GPU runs are not fully repeatable),
   // so a clean-looking 2-0 (p = 0.25) is not evidence. Default 0.1 needs at least 4 wins and 0 losses.
-  async evolve(agentId, { population = 4, mutationRate = BASE_RATE, repeats = 1, confirm = true, minGain = 0.02, alpha = 0.1, signal, onProgress } = {}) {
+  async evolve(agentId, { population = 4, mutationRate = BASE_RATE, repeats = 1, confirm = true, minGain = 0.02, alpha = 0.1, maxConfirmRounds = 3, signal, onProgress } = {}) {
     const agent = this.agents.get(agentId);
     if (!agent) throw new Error(`agent ${agentId} not found`);
     population = Math.max(2, Math.min(8, population | 0));
@@ -126,8 +184,9 @@ export class Evolution {
     const generation = (agent.generation || 0) + 1;
     // Same seeds for every candidate in this generation; fresh seeds for confirmation.
     const screenSeeds = Array.from({ length: repeats }, (_, r) => generation * 1000 + r + 1);
-    const confirmSeeds = Array.from({ length: repeats }, (_, r) => generation * 1000 + 500 + r + 1);
-    const totalRuns = items.length * repeats * (genomes.length + (confirm ? 2 : 0));
+    // Confirmation seeds are drawn per round below (501+, never colliding with screening 1..5 or held-out 901+).
+    // totalRuns is an upper bound: sequential confirmation usually stops before its last round.
+    const totalRuns = items.length * repeats * (genomes.length + (confirm ? 2 * Math.max(1, Math.min(5, maxConfirmRounds | 0)) : 0));
     let done = 0, stage = 'screening';
     const progress = (phase, extra = {}) => onProgress?.({ agentId, generation, phase, done, total: totalRuns, ...extra });
     const onRun = () => { done++; progress(stage); };
@@ -150,29 +209,58 @@ export class Evolution {
       reason = promoted ? 'beat incumbent on screening (confirmation disabled)' : `screening gain below the minimum ${minGain}; treated as a tie`;
     }
     else {
+      // Sequential confirmation on FRESH seeds only. The screening cells are excluded from the significance test:
+      // the challenger was selected because it won them, so counting them again is the winner's curse.
+      // Up to maxConfirmRounds looks; each look tests at alpha / maxConfirmRounds (Bonferroni over looks), so
+      // peeking after every round cannot inflate the false-promotion rate above alpha.
       stage = 'confirm';
       progress(stage);
-      const ci = await this.evaluate(agent, incumbent.genome, items, confirmSeeds, { signal, onRun });
-      const cc = await this.evaluate(agent, challenger.genome, items, confirmSeeds, { signal, onRun });
-      const pooledInc = summarize([...incumbent.results, ...ci.results]);
-      const pooledCh = summarize([...challenger.results, ...cc.results]);
+      const rounds = Math.max(1, Math.min(5, maxConfirmRounds | 0));
+      const lookAlpha = round3(alpha / rounds);
+      const ciRuns = [], ccRuns = [], roundLog = [];
+      for (let k = 0; k < rounds; k++) {
+        const seeds = Array.from({ length: repeats }, (_, r) => generation * 1000 + 500 + k * repeats + r + 1);
+        const ci = await this.evaluate(agent, incumbent.genome, items, seeds, { signal, onRun });
+        const cc = await this.evaluate(agent, challenger.genome, items, seeds, { signal, onRun });
+        ciRuns.push(...ci.results);
+        ccRuns.push(...cc.results);
+        const pr = paired(ciRuns, ccRuns);
+        const p = signTest(pr.wins, pr.losses);
+        const confInc = summarize(ciRuns), confCh = summarize(ccRuns);
+        roundLog.push({ round: k + 1, seeds, incumbent: ci.fitness, challenger: cc.fitness, paired: pr, p });
+        const gain = round3(confCh.fitness - confInc.fitness);
+        // Decide after this look.
+        if (confCh.fitness < confInc.fitness) { reason = `screening win did not hold on fresh seeds (${confCh.fitness} vs ${confInc.fitness} after ${k + 1} round(s))`; break; }
+        if (pr.losses > pr.wins) { reason = `challenger lost more fresh paired cells than it won (${pr.wins} wins, ${pr.losses} losses)`; break; }
+        if (pr.wins + pr.losses === 0) {
+          // All ties on correctness: only an efficiency gain of at least minGain counts (otherwise it is drift).
+          if (gain >= minGain) { promoted = true; reason = `efficiency gain ${gain} with identical correctness on ${ciRuns.length} fresh cells`; }
+          else if (k === rounds - 1) reason = `pooled gain ${gain} is below the minimum ${minGain} (${confCh.fitness} vs ${confInc.fitness}); treated as a tie`;
+          if (promoted || k === rounds - 1) break;
+          continue;
+        }
+        if (p <= lookAlpha && gain >= minGain) {
+          promoted = true;
+          reason = `confirmed on fresh seeds after ${k + 1} round(s): ${confCh.fitness} vs ${confInc.fitness} (+${gain}); paired ${pr.wins} wins, ${pr.losses} losses (sign test p = ${p} <= ${lookAlpha})`;
+          break;
+        }
+        if (k === rounds - 1) {
+          reason = p > lookAlpha
+            ? `fresh paired ${pr.wins} wins, ${pr.losses} losses is not significant after ${rounds} round(s) (sign test p = ${p} > ${lookAlpha}); treated as noise`
+            : `significant but the gain ${gain} is below the minimum ${minGain}; treated as a tie`;
+        }
+      }
+      const last = roundLog.at(-1);
+      const confInc = summarize(ciRuns), confCh = summarize(ccRuns);
+      const pooledInc = summarize([...incumbent.results, ...ciRuns]);
+      const pooledCh = summarize([...challenger.results, ...ccRuns]);
       confirmation = {
-        seeds: confirmSeeds,
-        incumbent: { fitness: ci.fitness, passRate: ci.passRate }, challenger: { fitness: cc.fitness, passRate: cc.passRate },
+        seeds: roundLog.flatMap((r) => r.seeds), rounds: roundLog, lookAlpha,
+        incumbent: { fitness: confInc.fitness, passRate: confInc.passRate, ci95: confInc.ci95 },
+        challenger: { fitness: confCh.fitness, passRate: confCh.passRate, ci95: confCh.ci95 },
         pooled: { incumbent: pooledInc.fitness, challenger: pooledCh.fitness, incumbentCi95: pooledInc.ci95, challengerCi95: pooledCh.ci95 },
-        paired: paired([...incumbent.results, ...ci.results], [...challenger.results, ...cc.results]),
+        paired: last.paired, signTestP: last.p,
       };
-      const gain = round3(pooledCh.fitness - pooledInc.fitness);
-      const { wins, losses } = confirmation.paired;
-      const p = signTest(wins, losses);
-      confirmation.signTestP = p;
-      if (cc.fitness < ci.fitness) reason = `screening win did not hold on fresh seeds (${cc.fitness} vs ${ci.fitness})`;
-      else if (losses > wins) reason = `challenger lost more paired cells than it won (${wins} wins, ${losses} losses)`;
-      // Accuracy claims need evidence beyond run-to-run noise. (All-tie, efficiency-only gains are governed by minGain.)
-      else if (wins + losses > 0 && p > alpha) reason = `paired ${wins} wins, ${losses} losses is not significant (sign test p = ${p} > ${alpha}); treated as noise`;
-      // A tie on correctness that differs only by a fraction of a step is noise, not progress (genetic drift).
-      else if (gain < minGain) reason = `pooled gain ${gain} is below the minimum ${minGain} (${pooledCh.fitness} vs ${pooledInc.fitness}); treated as a tie`;
-      else { promoted = true; reason = `confirmed on fresh seeds (${cc.fitness} vs ${ci.fitness}); pooled ${pooledCh.fitness} vs ${pooledInc.fitness} (+${gain}); paired ${wins} wins, ${losses} losses (p = ${p})`; }
     }
 
     for (const s of scored) {
@@ -267,21 +355,33 @@ export class Evolution {
     for (const id of ids) if (!this.agents.get(id)) throw new Error(`agent ${id} not found`);
     if (this.active) throw new Error(`evolution job ${this.active} is already running`);
     const fleet = Array.isArray(target);
+    const kind = opts.kind === 'calibrate' ? 'calibrate' : 'evolve';
     const ctrl = new AbortController();
-    const job = { id: newId('evo'), agentId: fleet ? ids.join(',') : ids[0], agents: ids, status: 'running', started: nowIso(), progress: null, result: null, error: null, ctrl };
+    const job = { id: newId('evo'), kind, agentId: fleet ? ids.join(',') : ids[0], agents: ids, status: 'running', started: nowIso(), progress: null, result: null, error: null, ctrl };
     this.jobs.set(job.id, job);
     this.active = job.id;
+    this.#persist(job);
+    let lastPhase = '';
     const onProgress = (p) => {
       job.progress = { ...p, agentIndex: ids.indexOf(p.agentId), agentCount: ids.length };
       this.bus?.publish('evolution.progress', { jobId: job.id, ...job.progress }, { ephemeral: true });
+      // Persist at stage boundaries (not every run): enough to report where an interrupted job stopped.
+      const phaseKey = `${p.agentId}:${p.generation}:${p.phase}`;
+      if (phaseKey !== lastPhase) { lastPhase = phaseKey; this.#persist(job); }
     };
-    const work = fleet
+    const work = kind === 'calibrate'
       ? (async () => {
         const agents = [];
-        for (const id of ids) agents.push(await this.run(id, { ...opts, signal: ctrl.signal, onProgress }));
-        return { fleet: true, agents, promotions: agents.reduce((s, a) => s + a.promotions, 0), finalFitness: Object.fromEntries(agents.map((a) => [a.agentId, a.finalFitness])) };
+        for (const id of ids) agents.push(await this.calibrate(id, { repeats: opts.repeats, signal: ctrl.signal, onProgress }));
+        return { kind, agents };
       })()
-      : this.run(ids[0], { ...opts, signal: ctrl.signal, onProgress });
+      : fleet
+        ? (async () => {
+          const agents = [];
+          for (const id of ids) agents.push(await this.run(id, { ...opts, signal: ctrl.signal, onProgress }));
+          return { fleet: true, agents, promotions: agents.reduce((s, a) => s + a.promotions, 0), finalFitness: Object.fromEntries(agents.map((a) => [a.agentId, a.finalFitness])) };
+        })()
+        : this.run(ids[0], { ...opts, signal: ctrl.signal, onProgress });
     const agentId = job.agentId;
     work
       // Free the slot BEFORE announcing completion, so a listener can start the next job from evolution.done.
@@ -289,6 +389,7 @@ export class Evolution {
       .finally(() => {
         job.finished = nowIso();
         this.active = null;
+        this.#persist(job);
         this.bus?.publish('evolution.done', job.error ? { jobId: job.id, agentId, error: job.error } : { jobId: job.id, agentId, promotions: job.result.promotions, finalFitness: job.result.finalFitness });
       });
     return this.job(job.id);

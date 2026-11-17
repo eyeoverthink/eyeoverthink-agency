@@ -1,6 +1,6 @@
 # Phase 5: Firebase edge live: real AI Logic calls, GPU overflow, signed proof
 
-Previous: [Phase 4](PHASE-4.md) · [Index](README.md)
+Previous: [Phase 4](PHASE-4.md) · Next: [Phase 6](PHASE-6.md) · [Index](README.md)
 
 ## Summary
 The contest requires Firebase AI Logic to be called at runtime. The edge tier existed since Phase 1, but a review for this phase found three problems that would have made that requirement weak or blocked it outright:
