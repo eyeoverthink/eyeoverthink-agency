@@ -11,3 +11,5 @@ Each phase records what was built, what changed, the patterns used, and running 
 | [5](PHASE-5.md) | Firebase edge live: first real AI Logic calls, GPU overflow, ledgered proof, setup doctor, sign-test guard | 2026-11-17 |
 | [6](PHASE-6.md) | Hardened evolution: fresh-only sequential confirmation, A/A noise floor (~10%), harder items, persistent jobs | 2026-11-17 |
 | [7](PHASE-7.md) | Contest prep: preflight GO/NO-GO, evidence-only demo script, Devpost, submission checklist | 2026-11-17 |
+| [8](PHASE-8.md) | Private yet hybrid: Privacy Membrane, proof-carrying receipts, Red Queen exams, Sovereignty Map (all run end to end) | 2026-11-17 |
+| [9](PHASE-9.md) | Crystallization: solved tasks become verified, owned skills that need no model, and compound | 2026-11-17 |

@@ -23,6 +23,7 @@ import { Dreamer } from './dream/dreamer.js';
 import { Bench } from './telemetry/bench.js';
 import { Evolution } from './evolve/evolution.js';
 import { Examiner } from './evolve/examiner.js';
+import { Crystallizer } from './evolve/crystallizer.js';
 import { Mesh } from './protocols/mesh.js';
 import { McpClient } from './protocols/mcp.js';
 import { Continuity } from './continuity/continuity.js';
@@ -72,6 +73,19 @@ export class Agency {
     // Red Queen: examiner-proposed, program-verified exam items that evolution picks up once admitted.
     this.examiner = new Examiner({ store: this.store, router: this.router, agents: this.agents, bench: this.bench, ledger: this.ledger, bus: this.bus });
     this.evolution.examiner = this.examiner;
+    // Crystallization: solved tasks become verified, owned skills (tools that need no model). Automatic after a
+    // well-scored mission, one at a time, so what the models work out is kept and compounds.
+    this.crystallizer = new Crystallizer({ store: this.store, router: this.router, tools: this.tools, missions: this.missions, ledger: this.ledger, bus: this.bus });
+    this.crystalQueue = Promise.resolve();
+    this.bus.on('mission.status', (e) => {
+      const c = this.cfg.crystallize || {};
+      if (e.status !== 'completed' || c.auto === false) return;
+      const m = this.missions.get(e.missionId);
+      if (!m || (m.score ?? 0) < (c.minScore ?? 0.85) || m.options?.privacy === 'private') return;
+      this.crystalQueue = this.crystalQueue.then(async () => {
+        try { await this.crystallizer.crystallize(this.crystallizer.missionSource(e.missionId)); } catch (err) { this.bus.publish('skill.reject', { name: null, reason: errorMessage(err) }); }
+      });
+    });
     this.mesh = new Mesh({ cfg: this.cfg, store: this.store, keyring: this.keyring, ledger: this.ledger, bus: this.bus, memory: this.memory, runtime: this.runtime, agents: this.agents });
     this.continuity = new Continuity(this);
     this.mcpClients = [];
@@ -109,6 +123,7 @@ export class Agency {
 
   /** Seed agents/workflows, import manifests, connect MCP servers, resume interrupted missions, start schedulers. */
   async boot({ schedulers = true, resume = true } = {}) {
+    this.crystallizer.load(); // learned skills are tools from the first second
     const known = new Set(this.tools.catalog().map((t) => t.name));
     this.agents.seed(known);
     for (const w of SEED_WORKFLOWS) if (!this.workflows.get(w.id)) this.workflows.save(w);

@@ -101,6 +101,12 @@ export function createServer(agency) {
   // Red Queen exams: examiner proposes program-verified questions; frontier items join the agent's exam.
   add('POST', '/api/exams', ({ body }) => a.evolution.start(need(Array.isArray(body.agents) && body.agents.length ? body.agents : null, 'agents[] required'), { kind: 'exam', count: body.count || 6, repeats: body.repeats || 3 }));
   add('GET', '/api/agents/:id/exams', ({ params }) => a.examiner.list(params.id).map(({ program, ...r }) => ({ ...r, hasProgram: Boolean(program) })));
+  // Crystallized skills: verified, owned code distilled from solved tasks.
+  add('GET', '/api/skills', () => ({ stats: a.crystallizer.stats(), skills: a.crystallizer.list().map((s) => ({ ...s, code: undefined, codeLines: s.code.split(String.fromCharCode(10)).length })) }));
+  add('GET', '/api/skills/:name', ({ params }) => found(a.crystallizer.list().find((s) => s.name === params.name), 'skill'));
+  add('POST', '/api/skills/crystallize', async ({ body }) => a.crystallizer.crystallize(body.missionId ? a.crystallizer.missionSource(body.missionId) : { kind: 'text', ref: 'operator', text: need(body.text, 'missionId or text required') }));
+  add('POST', '/api/skills/:name/invoke', async ({ params, body }) => ({ result: await a.crystallizer.invoke(params.name, body.input ?? {}) }));
+  add('POST', '/api/skills/:name/retire', ({ params }) => ({ retired: a.crystallizer.retire(params.name) }));
   add('GET', '/api/agents/:id/calibration', ({ params }) => a.evolution.calibration(params.id));
   add('GET', '/api/evolution/jobs', () => a.evolution.listJobs());
   add('GET', '/api/evolution/active', () => (a.evolution.active ? a.evolution.job(a.evolution.active) : null));

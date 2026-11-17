@@ -1,6 +1,6 @@
 # Phase 8: Private yet hybrid; proof-carrying; the exam evolves
 
-Previous: [Phase 7](PHASE-7.md) · [Index](README.md)
+Previous: [Phase 7](PHASE-7.md) · Next: [Phase 9](PHASE-9.md) · [Index](README.md)
 
 ## Summary
 Phase 8 adds four subsystems. Each answers a question most agent platforms don't ask:

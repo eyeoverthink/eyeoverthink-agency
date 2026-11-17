@@ -1,6 +1,6 @@
 # Phase 7: Contest submission prep
 
-Previous: [Phase 6](PHASE-6.md) · [Index](README.md)
+Previous: [Phase 6](PHASE-6.md) · Next: [Phase 8](PHASE-8.md) · [Index](README.md)
 
 ## Summary
 Phase 7 gets the #BuildHybridAI submission ready (deadline Nov 30, 2026, 2:00 PM PT). The rule applied throughout: **the video and Devpost text may only claim what has actually run on this machine.**

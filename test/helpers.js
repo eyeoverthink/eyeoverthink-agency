@@ -14,7 +14,7 @@ export async function makeAgency(script, extra = {}) {
     home, apiToken: 'test-token',
     ollama: { url: 'http://127.0.0.1:9', modelsDir: '' },
     models: { ...Object.fromEntries(roles.map((r) => [r, ['scripted']])), embed: [] },
-    dream: { enabled: false }, ...extra,
+    dream: { enabled: false }, crystallize: { auto: false }, ...extra,
   });
   const calls = [];
   agency.router.addProvider({

@@ -121,6 +121,12 @@ const MIGRATIONS = [
     stats TEXT NOT NULL DEFAULT '{}', created TEXT NOT NULL, updated TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS exam_items_agent ON exam_items(agent_id, status);`,
+  // v5 — crystallized skills: model reasoning distilled into verified, owned, executable code
+  `CREATE TABLE IF NOT EXISTS skills (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL, params TEXT NOT NULL, code TEXT NOT NULL,
+    code_sha256 TEXT NOT NULL, status TEXT NOT NULL, source TEXT NOT NULL, verification TEXT NOT NULL DEFAULT '{}',
+    uses INTEGER NOT NULL DEFAULT 0, failures INTEGER NOT NULL DEFAULT 0, created TEXT NOT NULL, updated TEXT NOT NULL
+  );`,
 ];
 
 export class Store {

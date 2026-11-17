@@ -47,6 +47,7 @@ Global flags: --home <dir> (data directory)  --ollama <url> (Ollama server)
   mcp                              Run as an MCP server on stdio (for Claude Code, IDEs)
   edge doctor | edge proof [N]     Check the Firebase AI Logic setup / list ledgered Firebase calls
   receipt <missionId> [file] [--goal]   Export a signed, offline-verifiable mission receipt
+  skills | skills crystallize <missionId|text> | skills run <name> '<json>'   Crystallized skills (owned, verified code)
   preflight                        Recording/demo GO/NO-GO: self-test, edge doctor, ledger, models, Firebase proof
   token                            Print the API token for the dashboard
 `;
@@ -129,6 +130,19 @@ export async function main(argv) {
         const file = pos[2] || `receipt-${pos[1]}.json`;
         fs.writeFileSync(file, JSON.stringify(r, null, 1));
         out(`wrote ${file}: ${r.entries.length} signed entries, Merkle root ${r.statement.merkleRoot.slice(0, 16)}…  Verify anywhere: node bin/verify-receipt.js ${file}`);
+        break;
+      }
+      case 'skills': {
+        if (pos[1] === 'crystallize') {
+          const src = pos[2]?.startsWith('ms_') ? agency.crystallizer.missionSource(pos[2]) : { kind: 'text', ref: 'cli', text: pos.slice(2).join(' ') };
+          const r = await agency.crystallizer.crystallize(src);
+          out(r.admitted ? `ADMITTED skill_${r.skill.name}: ${r.skill.description} (${r.reason})` : `not admitted: ${r.reason}`);
+        } else if (pos[1] === 'run') out(await agency.crystallizer.invoke(pos[2], JSON.parse(pos[3] || '{}')));
+        else {
+          const st = agency.crystallizer.stats();
+          out(`${st.active} active skill(s), ${st.uses} use(s) = model calls avoided, ${st.failures} failure(s)`);
+          for (const s of agency.crystallizer.list()) out(`${s.status.padEnd(8)} skill_${s.name.padEnd(28)} uses=${s.uses} from ${s.source}  ${s.description}`);
+        }
         break;
       }
       case 'preflight': {

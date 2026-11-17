@@ -426,6 +426,30 @@ async function loadLineages() {
   }));
 }
 
+/** Crystallized skills: model reasoning kept as verified, owned code that needs no model. */
+async function loadSkills() {
+  const box = $("#skillsp");
+  if (!box) return;
+  const d = await api<any>("/api/skills").catch(() => null);
+  if (!d) { box.innerHTML = '<h2>Crystallized skills</h2><p class="dim">Unavailable.</p>'; return; }
+  const st = d.stats;
+  box.innerHTML = `<h2>Crystallized skills: what the agency has learned</h2>
+    <p class="dim">Most AI products rent intelligence per call and keep nothing. Here, a well-scored mission is distilled into a pure function, verified against an <b>independent</b> implementation written by a different model from the description alone (2 of 3 on disagreement), signed into the ledger, and registered as a tool that answers <b>with no model call</b>. Skills can call earlier skills, so capability compounds and survives a model swap.</p>
+    <section class="stats"><div class="stat"><b>${st.active}</b><span>active skills</span></div><div class="stat"><b>${st.uses}</b><span>uses = model calls avoided</span></div><div class="stat"><b>${st.failures}</b><span>failures in use</span></div><div class="stat"><b>${st.retired}</b><span>retired</span></div></section>
+    ${d.skills.length ? `<table class="evotbl"><tr><th>skill</th><th>what it computes</th><th>verified on</th><th>uses</th><th>learned from</th></tr>${d.skills.map((k: any) => `<tr><td class="mono">skill_${esc(k.name)}${k.status !== "active" ? ` <span class="dim">(${esc(k.status)})</span>` : ""}</td><td>${esc(k.description)}</td><td>${k.verification?.inputs ?? "–"} inputs${k.verification?.tiebreak ? " (2-of-3)" : ""}</td><td>${k.uses}</td><td class="mono">${esc(k.source)}</td></tr>`).join("")}</table>` : '<p class="dim">No skills yet. They appear automatically after well-scored missions, or crystallize one below.</p>'}
+    <div class="row"><input id="crtext" placeholder="Describe a solved task to crystallize, e.g. 'convert a recipe between servings: scale each ingredient quantity by new/old servings'" /><button id="crgo" class="ghost">Crystallize</button></div>
+    <div id="crout"></div>`;
+  $("#crgo")!.addEventListener("click", async (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    busy(btn, true, "Extracting and verifying…");
+    const r = await guard(() => api<any>("/api/skills/crystallize", { body: { text: val("#crtext") } }));
+    busy(btn, false);
+    if (!r) return;
+    $("#crout")!.innerHTML = r.admitted ? `<p class="ok"><b>Admitted</b> <code>skill_${esc(r.skill.name)}</code>: ${esc(r.skill.description)} (${esc(r.reason)})</p>` : `<p class="err"><b>Not admitted:</b> ${esc(r.reason)}</p>`;
+    if (r.admitted) setTimeout(() => void loadSkills(), 400);
+  });
+}
+
 function evoOpts() {
   const n = (sel: string, d: number) => Number(val(sel) || d);
   return { generations: n("#egens", 3), repeats: n("#ereps", 2), population: n("#epop", 4), patience: n("#epat", 2) };
@@ -466,6 +490,7 @@ async function viewAgents() {
       <div class="row fleetpick">${agents.map((a) => `<label><input type="checkbox" data-fleet="${a.id}"${["tycho", "lumen", "helix"].includes(a.id) ? " checked" : ""} /> ${esc(a.id)}</label>`).join("")}</div>
       <div class="row"><button id="efleet" class="primary">Evolve selected agents</button><button id="ecal" class="ghost">Measure noise floor (A/A)</button><button id="eexam" class="ghost">Red Queen: grow the exam</button></div>
     </section>
+    <section class="panel skillsp" id="skillsp"><h2>Crystallized skills: what the agency has learned</h2><p class="dim">Loading…</p></section>
     <section class="panel evo" id="evo"${S.evoJob ? "" : " hidden"}></section>
     <section class="cards">${agents.map((a) => `
       <article class="agent">
@@ -541,6 +566,7 @@ async function viewAgents() {
     if (job) openEvoBox(job, `Evolving fleet: ${picked.join(", ")}`);
   });
   void loadLineages();
+  void loadSkills();
   // Re-attach to a job that is still running (page reload, or started from another tab or the API).
   if (!S.evoJob) {
     const active = await api<any>("/api/evolution/active").catch(() => null);
