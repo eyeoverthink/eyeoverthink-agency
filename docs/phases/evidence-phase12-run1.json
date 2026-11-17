@@ -1,0 +1,817 @@
+{
+  "at": "2026-11-17T19:47:34.561Z",
+  "relearn": {
+    "calculate_final_price": {
+      "admitted": true,
+      "reason": "induced with no model from 26 example(s), each predicted from the others, refuses 5 negative(s), binds 75% of blind paraphrases",
+      "contextBlock": {
+        "kinds": [
+          "percent"
+        ],
+        "words": [
+          "sells",
+          "store"
+        ]
+      },
+      "examples": {
+        "pos": 26,
+        "neg": 5,
+        "disputed": 1
+      }
+    },
+    "calculate_average_speed": {
+      "admitted": true,
+      "reason": "induced with no model from 20 example(s), each predicted from the others, refuses 3 negative(s), binds 100% of blind paraphrases",
+      "contextBlock": {
+        "kinds": [
+          "plain"
+        ],
+        "words": [
+          "hour",
+          "hours",
+          "miles"
+        ]
+      },
+      "examples": {
+        "pos": 20,
+        "neg": 3,
+        "disputed": 0
+      }
+    }
+  },
+  "before": [
+    {
+      "id": "d-coat",
+      "control": false,
+      "family": null,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 128,
+      "input": {
+        "original_price": 180,
+        "discount1": 0.3,
+        "discount2": 0.1
+      },
+      "out": 113.39999999999999,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-game",
+      "control": false,
+      "family": null,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 126,
+      "input": {
+        "original_price": 48,
+        "discount1": 0.25,
+        "discount2": 0.2
+      },
+      "out": 28.8,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-couch",
+      "control": false,
+      "family": null,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 130,
+      "input": {
+        "original_price": 520,
+        "discount1": 0.15,
+        "discount2": 0.1
+      },
+      "out": 397.8,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-helmet",
+      "control": false,
+      "family": null,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 127,
+      "input": {
+        "original_price": 95,
+        "discount1": 0.4,
+        "discount2": 0.1
+      },
+      "out": 51.300000000000004,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-cyclist",
+      "control": false,
+      "family": null,
+      "routed": "calculate_average_speed",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 126,
+      "input": {
+        "speed_to": 20,
+        "speed_from": 30
+      },
+      "out": 24,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-drone",
+      "control": false,
+      "family": null,
+      "routed": "calculate_average_speed",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 155,
+      "input": {
+        "speed_to": 30,
+        "speed_from": 60
+      },
+      "out": 40,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "c-tax-lamp",
+      "control": true,
+      "family": "tax",
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 150,
+      "input": {
+        "original_price": 80,
+        "discount1": 0.25,
+        "discount2": 0.07
+      },
+      "out": 55.8,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-tax-watch",
+      "control": true,
+      "family": "tax",
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 143,
+      "input": {
+        "original_price": 120,
+        "discount1": 0.15,
+        "discount2": 0.08
+      },
+      "out": 93.84,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-tax-scarf",
+      "control": true,
+      "family": "tax",
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 126,
+      "input": {
+        "original_price": 50,
+        "discount1": 0.1,
+        "discount2": 0.06
+      },
+      "out": 42.3,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-tax-desk",
+      "control": true,
+      "family": "tax",
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 126,
+      "input": {
+        "original_price": 300,
+        "discount1": 0.2,
+        "discount2": 0.09
+      },
+      "out": 218.4,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-tip",
+      "control": true,
+      "family": "boundary",
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 130,
+      "input": {
+        "original_price": 60,
+        "discount1": 0.1,
+        "discount2": 0.18
+      },
+      "out": 44.28,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-save",
+      "control": true,
+      "family": null,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 292,
+      "ms": 3985,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "binding rejected: the task asks for a difference or saving, which this skill does not compute"
+    },
+    {
+      "id": "c-left",
+      "control": true,
+      "family": null,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 126,
+      "input": {
+        "original_price": 90,
+        "discount1": 0.2,
+        "discount2": 0.25
+      },
+      "out": 54,
+      "correct": false,
+      "miss": null
+    }
+  ],
+  "lesson": {
+    "examplesBefore": {
+      "pos": 26,
+      "neg": 5,
+      "disputed": 1
+    },
+    "ms": 197286,
+    "mission": {
+      "status": "completed"
+    },
+    "routeRejected": [],
+    "contest": [],
+    "retire": [],
+    "examplesAfter": {
+      "pos": 26,
+      "neg": 5,
+      "disputed": 1
+    },
+    "relearned": {
+      "id": "sb_01m7ngtaw0k95jnexj41e2",
+      "contextBlock": {
+        "kinds": [
+          "percent"
+        ],
+        "words": [
+          "sells",
+          "store"
+        ]
+      },
+      "method": "induction"
+    }
+  },
+  "after": [
+    {
+      "id": "d-coat",
+      "control": false,
+      "family": null,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 126,
+      "input": {
+        "original_price": 180,
+        "discount1": 0.3,
+        "discount2": 0.1
+      },
+      "out": 113.39999999999999,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-game",
+      "control": false,
+      "family": null,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 124,
+      "input": {
+        "original_price": 48,
+        "discount1": 0.25,
+        "discount2": 0.2
+      },
+      "out": 28.8,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-couch",
+      "control": false,
+      "family": null,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 126,
+      "input": {
+        "original_price": 520,
+        "discount1": 0.15,
+        "discount2": 0.1
+      },
+      "out": 397.8,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-helmet",
+      "control": false,
+      "family": null,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 128,
+      "input": {
+        "original_price": 95,
+        "discount1": 0.4,
+        "discount2": 0.1
+      },
+      "out": 51.300000000000004,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-cyclist",
+      "control": false,
+      "family": null,
+      "routed": "calculate_average_speed",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 125,
+      "input": {
+        "speed_to": 20,
+        "speed_from": 30
+      },
+      "out": 24,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-drone",
+      "control": false,
+      "family": null,
+      "routed": "calculate_average_speed",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 124,
+      "input": {
+        "speed_to": 30,
+        "speed_from": 60
+      },
+      "out": 40,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "c-tax-lamp",
+      "control": true,
+      "family": "tax",
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 129,
+      "input": {
+        "original_price": 80,
+        "discount1": 0.25,
+        "discount2": 0.07
+      },
+      "out": 55.8,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-tax-watch",
+      "control": true,
+      "family": "tax",
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 126,
+      "input": {
+        "original_price": 120,
+        "discount1": 0.15,
+        "discount2": 0.08
+      },
+      "out": 93.84,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-tax-scarf",
+      "control": true,
+      "family": "tax",
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 125,
+      "input": {
+        "original_price": 50,
+        "discount1": 0.1,
+        "discount2": 0.06
+      },
+      "out": 42.3,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-tax-desk",
+      "control": true,
+      "family": "tax",
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 126,
+      "input": {
+        "original_price": 300,
+        "discount1": 0.2,
+        "discount2": 0.09
+      },
+      "out": 218.4,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-tip",
+      "control": true,
+      "family": "boundary",
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 125,
+      "input": {
+        "original_price": 60,
+        "discount1": 0.1,
+        "discount2": 0.18
+      },
+      "out": 44.28,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-save",
+      "control": true,
+      "family": null,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 292,
+      "ms": 8730,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "binding rejected: the task asks for a difference or saving, which this skill does not compute"
+    },
+    {
+      "id": "c-left",
+      "control": true,
+      "family": null,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 127,
+      "input": {
+        "original_price": 90,
+        "discount1": 0.2,
+        "discount2": 0.25
+      },
+      "out": 54,
+      "correct": false,
+      "miss": null
+    }
+  ],
+  "model": [
+    {
+      "id": "d-coat",
+      "control": false,
+      "family": null,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 294,
+      "ms": 408,
+      "input": {
+        "original_price": 180,
+        "discount1": 0.3,
+        "discount2": 0.1
+      },
+      "out": 113.39999999999999,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-game",
+      "control": false,
+      "family": null,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 290,
+      "ms": 328,
+      "input": {
+        "original_price": 48,
+        "discount1": 0.25,
+        "discount2": 0.2
+      },
+      "out": 28.8,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-couch",
+      "control": false,
+      "family": null,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 291,
+      "ms": 326,
+      "input": {
+        "original_price": 520,
+        "discount1": 0.15,
+        "discount2": 0.1
+      },
+      "out": 397.8,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-helmet",
+      "control": false,
+      "family": null,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 293,
+      "ms": 315,
+      "input": {
+        "original_price": 95,
+        "discount1": 0.4,
+        "discount2": 0.1
+      },
+      "out": 51.300000000000004,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-cyclist",
+      "control": false,
+      "family": null,
+      "routed": "calculate_average_speed",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 259,
+      "ms": 248,
+      "input": {
+        "speed_to": 20,
+        "speed_from": 30
+      },
+      "out": 24,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-drone",
+      "control": false,
+      "family": null,
+      "routed": "calculate_average_speed",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 257,
+      "ms": 240,
+      "input": {
+        "speed_to": 30,
+        "speed_from": 60
+      },
+      "out": 40,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "c-tax-lamp",
+      "control": true,
+      "family": "tax",
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 293,
+      "ms": 317,
+      "input": {
+        "original_price": 80,
+        "discount1": 0.25,
+        "discount2": 0.07
+      },
+      "out": 55.8,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-tax-watch",
+      "control": true,
+      "family": "tax",
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 290,
+      "ms": 335,
+      "input": {
+        "original_price": 120,
+        "discount1": 0.15,
+        "discount2": 0.08
+      },
+      "out": 93.84,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-tax-scarf",
+      "control": true,
+      "family": "tax",
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 293,
+      "ms": 328,
+      "input": {
+        "original_price": 50,
+        "discount1": 0.1,
+        "discount2": 0.06
+      },
+      "out": 42.3,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-tax-desk",
+      "control": true,
+      "family": "tax",
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 292,
+      "ms": 325,
+      "input": {
+        "original_price": 300,
+        "discount1": 0.2,
+        "discount2": 0.09
+      },
+      "out": 218.4,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-tip",
+      "control": true,
+      "family": "boundary",
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 294,
+      "ms": 326,
+      "input": {
+        "original_price": 60,
+        "discount1": 0.1,
+        "discount2": 0.18
+      },
+      "out": 44.28,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-save",
+      "control": true,
+      "family": null,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 292,
+      "ms": 262,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "binding rejected: the task asks for a difference or saving, which this skill does not compute"
+    },
+    {
+      "id": "c-left",
+      "control": true,
+      "family": null,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 294,
+      "ms": 327,
+      "input": {
+        "original_price": 90,
+        "discount1": 0.2,
+        "discount2": 0.25
+      },
+      "out": 54,
+      "correct": false,
+      "miss": null
+    }
+  ],
+  "summary": {
+    "before": {
+      "matchingRouted": 6,
+      "matchingCorrect": 6,
+      "zeroCall": 12,
+      "calls": 1,
+      "tokens": 292,
+      "taxMisroutes": [
+        "c-tax-lamp",
+        "c-tax-watch",
+        "c-tax-scarf",
+        "c-tax-desk"
+      ],
+      "otherMisroutes": [
+        "c-tip",
+        "c-left"
+      ]
+    },
+    "after": {
+      "matchingRouted": 6,
+      "matchingCorrect": 6,
+      "zeroCall": 12,
+      "calls": 1,
+      "tokens": 292,
+      "taxMisroutes": [
+        "c-tax-lamp",
+        "c-tax-watch",
+        "c-tax-scarf",
+        "c-tax-desk"
+      ],
+      "otherMisroutes": [
+        "c-tip",
+        "c-left"
+      ]
+    },
+    "model": {
+      "matchingRouted": 6,
+      "matchingCorrect": 6,
+      "zeroCall": 0,
+      "calls": 13,
+      "tokens": 3732,
+      "taxMisroutes": [
+        "c-tax-lamp",
+        "c-tax-watch",
+        "c-tax-scarf",
+        "c-tax-desk"
+      ],
+      "otherMisroutes": [
+        "c-tip",
+        "c-left"
+      ]
+    }
+  }
+}

@@ -11,12 +11,21 @@
 const KINDS = ['currency', 'percent', 'plain'];
 const round = (x) => Math.round(x * 1e9) / 1e9;
 
-/** Numbers in a task, each tagged by kind: "$40" currency, "25%" percent, anything else plain. */
+/**
+ * Numbers in a task, each tagged by kind: "$40" currency, "25%" percent, anything else plain. Each also carries its
+ * context: up to 3 content words right after it, within its clause ("5% sales tax is added" -> sales, tax, added).
+ */
 export function numberTokens(task) {
-  const out = [];
+  const s = String(task), out = [];
+  const STOPC = ['and', 'then', 'the', 'that', 'this', 'for', 'with', 'from', 'are', 'was', 'its', 'your'];
   const re = /(\$\s?)?(?<![\w.])(-?\d+(?:\.\d+)?)(\s*%|\s?percent\b)?(?:\s?([a-z]+(?:\/[a-z]+)?))?/gi;
   let m;
-  while ((m = re.exec(String(task)))) out.push({ v: Number(m[2]), kind: m[1] ? 'currency' : m[3] ? 'percent' : 'plain', unit: !m[1] && !m[3] && m[4] ? m[4].toLowerCase() : null });
+  while ((m = re.exec(s))) {
+    const end = m.index + (m[1] || '').length + m[2].length + (m[3] || '').length;
+    const rest = s.slice(end).split(/[,;:?!]|\.(?!\d)|\d/)[0].toLowerCase();
+    const ctx = (rest.match(/[a-z]{3,}/g) || []).filter((w) => !STOPC.includes(w)).slice(0, 3);
+    out.push({ v: Number(m[2]), kind: m[1] ? 'currency' : m[3] ? 'percent' : 'plain', unit: !m[1] && !m[3] && m[4] ? m[4].toLowerCase() : null, ctx });
+  }
   return out;
 }
 
@@ -70,11 +79,66 @@ export function induce(pos, neg, skill) {
     }
     params[key] = hit;
   }
+  return { spec: { shapes, params, ...learnBlocks(pos, neg) } };
+}
+
+/**
+ * What the skill's refusals teach, independent of any binder: question block words, and body block words after
+ * numbers of a "role-marked" kind. Used by induction AND directly by the model binder's gate, so a lesson survives
+ * even when the binder that misrouted is retired and its replacement is not (yet) admitted.
+ */
+export function learnBlocks(pos, neg) {
   // A block word must never occur anywhere in a positive task: measured, a single counter-example otherwise taught
   // the binder to refuse every task containing 'off'.
   const posQ = new Set(pos.flatMap((e) => String(e.task).toLowerCase().match(/[a-z]{3,}/g) || []));
   const blockWords = [...new Set(neg.flatMap((e) => questionWords(e.task)))].filter((w) => !posQ.has(w)).sort();
-  return { spec: { shapes, params, blockWords } };
+  // Body block words (Phase 12). Measured in Phase 11: "20% off and then 5% sales tax is added" got past every
+  // binder, because the tax is in the body, not the question. The words right after a number name its role ("20% OFF",
+  // "5% sales TAX"), but only for number kinds whose role wording REPEATS across good examples (a closed vocabulary:
+  // "off" follows a percentage in most discount tasks). After "$90 jacket" comes an item noun that differs in every
+  // task (an open vocabulary), so a refused jacket task never teaches the binder to refuse jackets.
+  const ctxOf = (task, kind) => numberTokens(task).filter((t) => t.kind === kind).flatMap((t) => t.ctx);
+  const need = Math.max(2, Math.ceil(pos.length / 2));
+  const kinds = KINDS.filter((k) => {
+    const n = new Map();
+    for (const e of pos) for (const w of new Set(ctxOf(e.task, k))) n.set(w, (n.get(w) || 0) + 1);
+    return [...n.values()].some((c) => c >= need);
+  });
+  const words = [...new Set(neg.flatMap((e) => kinds.flatMap((k) => ctxOf(e.task, k))))].filter((w) => !posQ.has(w)).sort();
+  return { blockWords, contextBlock: { kinds, words } };
+}
+
+/**
+ * A confirmed failure contests the positives that look like it. Measured on the live home: four sales-tax misroutes
+ * had been stored as POSITIVE examples (no gate could see them), and because a block word may never occur in a
+ * positive task, they made "tax" impossible to learn: the misroute had immunized itself. When the critic rejects a
+ * route, the rejected task's RARE role words (after a role-marked number, in under 25% of positives: "tax", not "off")
+ * mark every positive that shares them as disputed. If that would contest over a third of the positives, the evidence
+ * conflicts too much and nothing is demoted.
+ */
+export function contested(pos, task) {
+  const { kinds } = learnBlocks(pos, []).contextBlock;
+  const ctx = (t) => new Set(numberTokens(t).filter((x) => kinds.includes(x.kind)).flatMap((x) => x.ctx));
+  const sets = pos.map((e) => ctx(e.task));
+  const words = [...ctx(task)].filter((w) => sets.filter((s) => s.has(w)).length < pos.length * 0.25).sort();
+  const hit = pos.filter((_, i) => words.some((w) => sets[i].has(w)));
+  return hit.length > pos.length / 3 ? { words, examples: [], tooMany: hit.length } : { words, examples: hit };
+}
+
+/** The words that say what a task's numbers MEAN: role words after role-marked numbers, plus its question words. */
+export function wordingOf(task, kinds) {
+  return [...new Set([...numberTokens(task).filter((t) => kinds.includes(t.kind)).flatMap((t) => t.ctx), ...questionWords(task)])];
+}
+
+/**
+ * Wording never seen in a positive example. Measured in Phase 12: every misroute any binder made was recorded as a
+ * positive and then shielded itself, so a binding is only trusted when its wording has been verified before. Novel
+ * wording ("8% tax", "an 18% tip") is not routed; the agent loop answers it, and the answers are compared.
+ */
+export function novelWording(pos, task) {
+  const { kinds } = learnBlocks(pos, []).contextBlock;
+  const known = new Set(pos.flatMap((e) => wordingOf(e.task, kinds)));
+  return wordingOf(task, kinds).filter((w) => !known.has(w));
 }
 
 /** Apply a spec to a task (the same logic the compiled binder runs). */
@@ -83,6 +147,8 @@ export function applySpec(spec, task) {
   if (!spec.shapes.includes(shapeOf(toks))) return null;
   const q = questionWords(task);
   if (spec.blockWords.some((w) => q.includes(w))) return null;
+  const cb = spec.contextBlock;
+  if (cb && toks.some((t) => cb.kinds.includes(t.kind) && t.ctx.some((w) => cb.words.includes(w)))) return null;
   const out = {};
   for (const [k, s] of Object.entries(spec.params)) { const v = pick(toks, s); if (v === undefined) return null; out[k] = v; }
   return out;

@@ -428,6 +428,14 @@ async function loadLineages() {
 
 /** Crystallized skills: model reasoning kept as verified, owned code that needs no model. */
 /** Cumulative tasks answered by owned skills over time: the curve that shows the agency, not the model, improving. */
+/** What a binder learned to refuse: question words, and role words after a number of a role-marked kind. */
+function refusals(spec: any): string {
+  const KIND: Record<string, string> = { percent: "%", currency: "$", plain: "number" };
+  const q = spec?.blockWords || [], cb = spec?.contextBlock;
+  const parts = [q.length ? `question: ${q.join(", ")}` : "", cb?.words?.length ? `after ${cb.kinds.map((x: string) => KIND[x] || x).join("/")}: ${cb.words.join(", ")}` : ""].filter(Boolean);
+  return parts.join(" · ") || "–";
+}
+
 function skillCurve(curve: any[]): string {
   if (!curve.length) return '<p class="dim">No task has been answered skill-first yet.</p>';
   const W = 560, H = 120, P = 24, n = curve.length, max = curve[n - 1].routes;
@@ -456,7 +464,7 @@ async function loadSkills() {
     ${skillCurve(st.curve || [])}
     <h3>Learned binders: the routing step, crystallized</h3>
     <p class="dim">Every grounded model binding is kept as an example, and every refusal as a counter-example. From 3 examples, the agency <b>induces</b> a binder with no model: for each parameter, one rule (number kind, position, scale and unit) that fits every example. It also learns the task's number shape, and question words that only ever appeared in refused tasks. Each example must be predicted from the others; an example the rest contradict is marked disputed and excluded. The binder must also refuse every near-miss. Admitted binders answer matching tasks with <b>no model at all</b>, and their learned block words gate the model binder too. If the critic rejects a binder's answer, that binder is retired.</p>
-    ${(d.binders || []).length ? `<table class="evotbl"><tr><th>skill</th><th>status</th><th>examples</th><th>negatives refused</th><th>blind coverage</th><th>zero-call uses</th></tr>${d.binders.map((b: any) => `<tr><td class="mono">skill_${esc(b.skill)}</td><td>${esc(b.status)}</td><td>${b.examples}</td><td>${esc(b.verification?.negatives ?? "–")}</td><td>${b.verification?.coverage == null ? "–" : Math.round(b.verification.coverage * 100) + "%"}</td><td>${b.uses}</td></tr>`).join("")}</table>` : '<p class="dim">No learned binder yet. Each skill needs 3 grounded routings first.</p>'}
+    ${(d.binders || []).length ? `<table class="evotbl"><tr><th>skill</th><th>status</th><th>examples</th><th>negatives refused</th><th>blind coverage</th><th>zero-call uses</th><th>learned refusals</th></tr>${d.binders.map((b: any) => `<tr><td class="mono">skill_${esc(b.skill)}</td><td>${esc(b.status)}</td><td>${b.examples}</td><td>${esc(b.verification?.negatives ?? "–")}</td><td>${b.verification?.coverage == null ? "–" : Math.round(b.verification.coverage * 100) + "%"}</td><td>${b.uses}</td><td class="mono">${esc(refusals(b.verification?.spec))}</td></tr>`).join("")}</table>` : '<p class="dim">No learned binder yet. Each skill needs 3 grounded routings first.</p>'}
     ${d.skills.length ? `<table class="evotbl"><tr><th>skill</th><th>what it computes</th><th>verified on</th><th>uses</th><th>learned from</th></tr>${d.skills.map((k: any) => `<tr><td class="mono">skill_${esc(k.name)}${k.status !== "active" ? ` <span class="dim">(${esc(k.status)})</span>` : ""}</td><td>${esc(k.description)}</td><td>${k.verification?.inputs ?? "–"} inputs${k.verification?.tiebreak ? " (2-of-3)" : ""}</td><td>${k.uses}</td><td class="mono">${esc(k.source)}</td></tr>`).join("")}</table>` : '<p class="dim">No skills yet. They appear automatically after well-scored missions, or crystallize one below.</p>'}
     <div class="row"><input id="crtext" placeholder="Describe a solved task to crystallize, e.g. 'convert a recipe between servings: scale each ingredient quantity by new/old servings'" /><button id="crgo" class="ghost">Crystallize</button></div>
     <div id="crout"></div>`;

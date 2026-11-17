@@ -1,0 +1,1100 @@
+{
+  "at": "2026-11-17T20:00:53.367Z",
+  "relearn0": {
+    "calculate_final_price": {
+      "admitted": true,
+      "reason": "induced with no model from 26 example(s), each predicted from the others, refuses 5 negative(s), binds 50% of blind paraphrases",
+      "spec": {
+        "blockWords": [
+          "better",
+          "cheaper",
+          "dollars",
+          "including",
+          "item",
+          "money",
+          "save",
+          "single",
+          "store",
+          "than",
+          "which"
+        ],
+        "contextBlock": {
+          "kinds": [
+            "percent"
+          ],
+          "words": [
+            "sells",
+            "store"
+          ]
+        }
+      },
+      "examples": {
+        "pos": 26,
+        "neg": 5,
+        "disputed": 1
+      }
+    },
+    "calculate_average_speed": {
+      "admitted": true,
+      "reason": "induced with no model from 20 example(s), each predicted from the others, refuses 6 negative(s), binds 75% of blind paraphrases",
+      "spec": {
+        "blockWords": [],
+        "contextBlock": {
+          "kinds": [
+            "plain"
+          ],
+          "words": [
+            "hour",
+            "hours",
+            "miles"
+          ]
+        }
+      },
+      "examples": {
+        "pos": 20,
+        "neg": 3,
+        "disputed": 0
+      }
+    }
+  },
+  "before": [
+    {
+      "id": "d-coat",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "ms": 129,
+      "out": 113.39999999999999,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-game",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "ms": 127,
+      "out": 28.8,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-couch",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "ms": 131,
+      "out": 397.8,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-helmet",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "ms": 144,
+      "out": 51.300000000000004,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-cyclist",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 0,
+      "ms": 65,
+      "out": null,
+      "correct": null,
+      "miss": "binding rejected: unverified wording (\"road\"): the agent loop answers, and its answer is compared with the skill's"
+    },
+    {
+      "id": "s-drone",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": true,
+      "calls": 0,
+      "ms": 127,
+      "out": 40,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "c-tax-lamp",
+      "control": true,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "ms": 126,
+      "out": 55.8,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-tax-watch",
+      "control": true,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "ms": 128,
+      "out": 93.84,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-tax-scarf",
+      "control": true,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "ms": 126,
+      "out": 42.3,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-tax-desk",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 0,
+      "ms": 65,
+      "out": null,
+      "correct": null,
+      "miss": "binding rejected: unverified wording (\"charged\"): the agent loop answers, and its answer is compared with the skill's"
+    },
+    {
+      "id": "c-tip",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 0,
+      "ms": 65,
+      "out": null,
+      "correct": null,
+      "miss": "binding rejected: unverified wording (\"tip\"): the agent loop answers, and its answer is compared with the skill's"
+    },
+    {
+      "id": "c-save",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 1,
+      "ms": 3644,
+      "out": null,
+      "correct": null,
+      "miss": "binding rejected: the task asks for a difference or saving, which this skill does not compute"
+    },
+    {
+      "id": "c-left",
+      "control": true,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "ms": 127,
+      "out": 54,
+      "correct": false,
+      "miss": null
+    }
+  ],
+  "audit": {
+    "calculate_final_price": {
+      "rows": [
+        {
+          "task": "A coat is $150. It is marked down 10%, and then another 20% comes off at the register. What is the final price?",
+          "rare": [
+            "comes",
+            "register"
+          ],
+          "skillOut": 108,
+          "agentAnswer": 108,
+          "agree": true
+        },
+        {
+          "task": "Sneakers list at $80; first 25% off, then 10% off the sale price. What do I pay?",
+          "rare": [
+            "sale",
+            "pay"
+          ],
+          "skillOut": 54,
+          "agentAnswer": 54,
+          "agree": true
+        },
+        {
+          "task": "A $45 book gets 20% off and then a 5% member discount. What is the final price?",
+          "rare": [
+            "member",
+            "discount"
+          ],
+          "skillOut": 34.199999999999996,
+          "agentAnswer": 33.75,
+          "agree": false
+        },
+        {
+          "task": "A $300 chair is reduced by 30%, then by a further 15%. What does it cost now?",
+          "rare": [
+            "cost"
+          ],
+          "skillOut": 178.5,
+          "agentAnswer": 178.5,
+          "agree": true
+        },
+        {
+          "task": "Headphones cost $129.99. After a 20% discount and a further 5% coupon, what do they cost?",
+          "rare": [
+            "discount",
+            "further",
+            "coupon",
+            "they",
+            "cost"
+          ],
+          "skillOut": 98.79240000000001,
+          "agentAnswer": 99,
+          "agree": false
+        },
+        {
+          "task": "Groceries total $64. A 10% loyalty discount applies, then a 5% senior discount. What is the total now?",
+          "rare": [
+            "loyalty",
+            "discount",
+            "applies",
+            "senior",
+            "total"
+          ],
+          "skillOut": 54.72,
+          "agentAnswer": 54.72,
+          "agree": true
+        },
+        {
+          "task": "A $40 backpack is 15% off, and then members get another 10% off. What does a member pay?",
+          "rare": [
+            "member",
+            "pay"
+          ],
+          "skillOut": 30.6,
+          "agentAnswer": 30.6,
+          "agree": true
+        },
+        {
+          "task": "Movie tickets total $36. A 25% student discount applies first, then a 10% weekday discount. What is the final cost?",
+          "rare": [
+            "student",
+            "discount",
+            "applies",
+            "weekday",
+            "cost"
+          ],
+          "skillOut": 24.3,
+          "agentAnswer": 24.3,
+          "agree": true
+        },
+        {
+          "task": "An $850 laptop is marked down 12%, then 6% more at checkout. What is the final price?",
+          "rare": [
+            "more",
+            "checkout"
+          ],
+          "skillOut": 703.12,
+          "agentAnswer": 703.12,
+          "agree": true
+        },
+        {
+          "task": "A $25 board game is 40% off, then an extra 20% off clearance. What is the price now?",
+          "rare": [
+            "clearance"
+          ],
+          "skillOut": 12,
+          "agentAnswer": 12,
+          "agree": true
+        },
+        {
+          "task": "An $80 dress gets 25% off, then 10% off. What is the total discount as a percentage?",
+          "rare": [
+            "total",
+            "discount",
+            "percentage"
+          ],
+          "skillOut": 54,
+          "agentAnswer": 0.95,
+          "agree": false
+        },
+        {
+          "task": "A $120 bike is 10% off and then 5% sales tax is added. What do I pay?",
+          "rare": [
+            "sales",
+            "tax",
+            "added",
+            "pay"
+          ],
+          "skillOut": 102.6,
+          "agentAnswer": 113.4,
+          "agree": false
+        },
+        {
+          "task": "A $95 jacket is 30% off, and then a 10% coupon applies. What is the final price?",
+          "rare": [
+            "coupon",
+            "applies"
+          ],
+          "skillOut": 59.85,
+          "agentAnswer": 59.85,
+          "agree": true
+        },
+        {
+          "task": "An $18 pizza gets 15% off, then a 5% app discount. What do I pay?",
+          "rare": [
+            "app",
+            "discount",
+            "pay"
+          ],
+          "skillOut": 14.534999999999998,
+          "agentAnswer": null,
+          "agree": null
+        },
+        {
+          "task": "A $640 TV is cut by 25%, then by another 10%. What does it cost now?",
+          "rare": [
+            "cost"
+          ],
+          "skillOut": 432,
+          "agentAnswer": 48,
+          "agree": false
+        },
+        {
+          "task": "An $80 jacket is 25% off, then 10% off. What fraction of the original price remains?",
+          "rare": [
+            "fraction",
+            "original",
+            "remains"
+          ],
+          "skillOut": 54,
+          "agentAnswer": 67.5,
+          "agree": false
+        },
+        {
+          "task": "A $120 lamp gets 15% off and then 5% sales tax is added. What is the final price?",
+          "rare": [
+            "sales",
+            "tax",
+            "added"
+          ],
+          "skillOut": 96.89999999999999,
+          "agentAnswer": 107.1,
+          "agree": false
+        },
+        {
+          "task": "A $210 drill is 20% off, then 15% off for members. What is the final price?",
+          "rare": [
+            "members"
+          ],
+          "skillOut": 142.79999999999998,
+          "agentAnswer": 142.8,
+          "agree": true
+        },
+        {
+          "task": "A $64 pair of jeans is 25% off, and then 10% more comes off at the register. What do I pay?",
+          "rare": [
+            "more",
+            "comes",
+            "pay"
+          ],
+          "skillOut": 43.2,
+          "agentAnswer": 43.2,
+          "agree": true
+        },
+        {
+          "task": "A $35 toy gets 40% off and then 5% off. What does it cost now?",
+          "rare": [
+            "cost"
+          ],
+          "skillOut": 19.95,
+          "agentAnswer": 19.95,
+          "agree": true
+        },
+        {
+          "task": "A $60 jacket is 30% off, then 10% off. What fraction of the original price is left?",
+          "rare": [
+            "fraction",
+            "original",
+            "left"
+          ],
+          "skillOut": 37.800000000000004,
+          "agentAnswer": 63,
+          "agree": false
+        },
+        {
+          "task": "A $150 phone is 20% off and then 5% sales tax is added. What do I pay?",
+          "rare": [
+            "sales",
+            "tax",
+            "added",
+            "pay"
+          ],
+          "skillOut": 114,
+          "agentAnswer": 126,
+          "agree": false
+        }
+      ],
+      "examples": {
+        "pos": 17,
+        "neg": 14,
+        "disputed": 1
+      }
+    },
+    "calculate_average_speed": {
+      "rows": [
+        {
+          "task": "I jog to the park at 6 mph and walk back the same way at 3 mph. What was my average speed for the round trip?",
+          "rare": [
+            "walk"
+          ],
+          "skillOut": 4,
+          "agentAnswer": 36,
+          "agree": false
+        },
+        {
+          "task": "A plane flies out at 400 km/h and returns over the same route at 600 km/h. What is the average speed for the whole trip?",
+          "rare": [
+            "over"
+          ],
+          "skillOut": 480,
+          "agentAnswer": 4,
+          "agree": false
+        },
+        {
+          "task": "Driving to work I average 30 mph, and on the way home on the same roads 45 mph. What is my average speed there and back?",
+          "rare": [
+            "there"
+          ],
+          "skillOut": 36,
+          "agentAnswer": 2,
+          "agree": false
+        },
+        {
+          "task": "A boat goes upstream at 8 km/h and comes back downstream the same distance at 12 km/h. What is its average speed for the round trip?",
+          "rare": [
+            "comes",
+            "downstream"
+          ],
+          "skillOut": 9.6,
+          "agentAnswer": 9.33,
+          "agree": false
+        },
+        {
+          "task": "I cycle to my friend's house at 10 mph and ride back at 15 mph on the same route. What's my average speed for the round trip?",
+          "rare": [
+            "ride",
+            "route"
+          ],
+          "skillOut": 12,
+          "agentAnswer": 12.5,
+          "agree": false
+        },
+        {
+          "task": "A runner goes out at 9 km/h and returns along the same path at 6 km/h. What is the average speed over the out-and-back?",
+          "rare": [
+            "along",
+            "out"
+          ],
+          "skillOut": 7.2,
+          "agentAnswer": 0.5,
+          "agree": false
+        },
+        {
+          "task": "A delivery van drives to the depot at 50 mph and back at 75 mph. What is the van's average speed for the round trip?",
+          "rare": [
+            "van"
+          ],
+          "skillOut": 60,
+          "agentAnswer": 2,
+          "agree": false
+        },
+        {
+          "task": "A ferry crosses at 20 knots and returns the same distance at 30 knots. What is its average speed for the round trip?",
+          "rare": [
+            "knots"
+          ],
+          "skillOut": 24,
+          "agentAnswer": 15,
+          "agree": false
+        },
+        {
+          "task": "I paddle across the lake at 4 km/h and back the same way at 6 km/h. What is my average speed for the round trip?",
+          "rare": [
+            "way"
+          ],
+          "skillOut": 4.8,
+          "agentAnswer": 5,
+          "agree": false
+        },
+        {
+          "task": "A courier rides to the warehouse at 20 mph and returns along the same road at 30 mph. What is the average speed for the round trip?",
+          "rare": [
+            "along"
+          ],
+          "skillOut": 24,
+          "agentAnswer": 1.92,
+          "agree": false
+        },
+        {
+          "task": "A hiker climbs a trail at 2 mph and comes back down the same trail at 6 mph. What is the average speed for the whole hike?",
+          "rare": [
+            "comes",
+            "hike"
+          ],
+          "skillOut": 3,
+          "agentAnswer": 1,
+          "agree": false
+        },
+        {
+          "task": "A drone flies out at 36 km/h and back over the same distance at 54 km/h. What is its average speed for the round trip?",
+          "rare": [
+            "over"
+          ],
+          "skillOut": 43.2,
+          "agentAnswer": 30,
+          "agree": false
+        },
+        {
+          "task": "A truck hauls a load to the quarry at 40 mph and returns empty on the same road at 60 mph. What is the average speed for the round trip?",
+          "rare": [
+            "empty"
+          ],
+          "skillOut": 48,
+          "agentAnswer": 50,
+          "agree": false
+        },
+        {
+          "task": "A rower goes upstream at 5 km/h and returns downstream over the same stretch at 20 km/h. What is the average speed for the round trip?",
+          "rare": [
+            "downstream",
+            "over"
+          ],
+          "skillOut": 8,
+          "agentAnswer": 8,
+          "agree": true
+        },
+        {
+          "task": "A boat motors out to the island at 15 knots and back at 10 knots. What is the average speed for the round trip?",
+          "rare": [
+            "knots"
+          ],
+          "skillOut": 12,
+          "agentAnswer": 2,
+          "agree": false
+        },
+        {
+          "task": "I walk to school at 4 km/h and run home along the same path at 12 km/h. What is my average speed for the round trip?",
+          "rare": [
+            "run",
+            "home",
+            "along"
+          ],
+          "skillOut": 6,
+          "agentAnswer": 2,
+          "agree": false
+        },
+        {
+          "task": "A skater glides out at 8 km/h and back at 24 km/h over the same route. What is the average speed for the round trip?",
+          "rare": [
+            "over",
+            "route"
+          ],
+          "skillOut": 12,
+          "agentAnswer": 12,
+          "agree": true
+        }
+      ],
+      "examples": {
+        "pos": 5,
+        "neg": 18,
+        "disputed": 0
+      }
+    }
+  },
+  "relearn1": {
+    "calculate_final_price": {
+      "admitted": false,
+      "reason": "would route 2 task(s) that must not bind, e.g. \"A $45 book gets 20% off and then a 5% member discount. What is the final price?\"",
+      "spec": {
+        "blockWords": [
+          "better",
+          "cheaper",
+          "coupon",
+          "dollars",
+          "fraction",
+          "including",
+          "item",
+          "left",
+          "money",
+          "original",
+          "percentage",
+          "remains",
+          "save",
+          "single",
+          "store",
+          "tax",
+          "than",
+          "they",
+          "which"
+        ],
+        "contextBlock": {
+          "kinds": [
+            "percent"
+          ],
+          "words": [
+            "added",
+            "coupon",
+            "sales",
+            "sells",
+            "store",
+            "tax"
+          ]
+        }
+      },
+      "examples": {
+        "pos": 17,
+        "neg": 14,
+        "disputed": 1
+      }
+    },
+    "calculate_average_speed": {
+      "admitted": false,
+      "reason": "does not reproduce 4 recorded binding(s)",
+      "spec": null,
+      "examples": {
+        "pos": 5,
+        "neg": 18,
+        "disputed": 0
+      }
+    }
+  },
+  "after": [
+    {
+      "id": "d-coat",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 129,
+      "correct": true,
+      "final": "**Answer: 113.4**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_final_price` (Calculates the final price of an item after applying two successive discounts. Verified by differential testing; code sha256 5db5975d4e69) on input `{\"original_price\":180,\"discount1\":0.3,\"discount2\"",
+      "miss": null,
+      "shadow": null
+    },
+    {
+      "id": "d-game",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 130,
+      "correct": true,
+      "final": "**Answer: 28.8**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_final_price` (Calculates the final price of an item after applying two successive discounts. Verified by differential testing; code sha256 5db5975d4e69) on input `{\"original_price\":48,\"discount1\":0.25,\"discount2\":",
+      "miss": null,
+      "shadow": null
+    },
+    {
+      "id": "d-couch",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 128,
+      "correct": true,
+      "final": "**Answer: 397.8**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_final_price` (Calculates the final price of an item after applying two successive discounts. Verified by differential testing; code sha256 5db5975d4e69) on input `{\"original_price\":520,\"discount1\":0.15,\"discount2",
+      "miss": null,
+      "shadow": null
+    },
+    {
+      "id": "d-helmet",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 5,
+      "tokens": 5731,
+      "ms": 9951,
+      "correct": false,
+      "final": "The final price of the helmet is $**51.00**.",
+      "miss": "binding rejected: unverified wording (\"further\"): the agent loop answers, and its answer is compared with the skill's",
+      "shadow": {
+        "agentAnswer": 51,
+        "agentId": "tycho",
+        "agree": false,
+        "missionId": null,
+        "reason": "unverified wording (\"further\"): the agent loop answers, and its answer is compared with the skill's",
+        "skill": "calculate_final_price",
+        "skillOut": 51.300000000000004
+      }
+    },
+    {
+      "id": "s-cyclist",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 7,
+      "tokens": 8845,
+      "ms": 14524,
+      "correct": false,
+      "final": "# Average Speed of Round Trip\n## Calculation\nAverage Speed = Total Distance / Total Time\nTotal Distance = 40 km (calculated earlier)\nTotal Time ≈ 0.0833 hours\nAverage Speed ≈ 240 km/h",
+      "miss": "binding rejected: unverified wording (\"road\"): the agent loop answers, and its answer is compared with the skill's",
+      "shadow": {
+        "agentAnswer": 240,
+        "agentId": "tycho",
+        "agree": false,
+        "missionId": null,
+        "reason": "unverified wording (\"road\"): the agent loop answers, and its answer is compared with the skill's",
+        "skill": "calculate_average_speed",
+        "skillOut": 24
+      }
+    },
+    {
+      "id": "s-drone",
+      "control": false,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 6,
+      "tokens": 7590,
+      "ms": 13524,
+      "correct": false,
+      "final": "# Average Speed for Round Trip\n## Calculation\nAverage Speed = Total Distance / Total Time\nTotal Distance = (30 + 60) * (1/2)\nTotal Time = (1/30) + (1/60)\n\n## Results\nTotal Distance: 45 miles\nTotal Time: 0.05 hours\nAverage Speed: 900 mph",
+      "miss": "binding rejected: \"along\" follows a plain number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 900,
+        "agentId": "tycho",
+        "agree": false,
+        "missionId": null,
+        "reason": "\"along\" follows a plain number, as it only ever did in tasks this skill had to refuse",
+        "skill": "calculate_average_speed",
+        "skillOut": 40
+      }
+    },
+    {
+      "id": "c-tax-lamp",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 3,
+      "tokens": 2813,
+      "ms": 6243,
+      "correct": false,
+      "final": "# Total Cost\nThe total cost of the lamp after discount and sales tax is $68.48.\n\n## Calculation:\nDiscounted price: $64 (25% off)\nSales tax: 7%\nof $64 = $4.48\nTotal: $64 + $4.48 = $68.48",
+      "miss": "binding rejected: \"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 68.48,
+        "agentId": "tycho",
+        "agree": false,
+        "missionId": null,
+        "reason": "\"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "skill": "calculate_final_price",
+        "skillOut": 55.8
+      }
+    },
+    {
+      "id": "c-tax-watch",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 5,
+      "tokens": 4459,
+      "ms": 7217,
+      "correct": true,
+      "final": "You will pay $110.16 for the watch.",
+      "miss": "binding rejected: \"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 110.16,
+        "agentId": "tycho",
+        "agree": false,
+        "missionId": null,
+        "reason": "\"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "skill": "calculate_final_price",
+        "skillOut": 93.84
+      }
+    },
+    {
+      "id": "c-tax-scarf",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 4,
+      "tokens": 4029,
+      "ms": 5549,
+      "correct": true,
+      "final": "$47.70",
+      "miss": "binding rejected: \"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 47.7,
+        "agentId": "tycho",
+        "agree": false,
+        "missionId": null,
+        "reason": "\"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "skill": "calculate_final_price",
+        "skillOut": 42.3
+      }
+    },
+    {
+      "id": "c-tax-desk",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 4,
+      "tokens": 4258,
+      "ms": 6757,
+      "correct": true,
+      "final": "# Total Price\n$261.60",
+      "miss": "binding rejected: \"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 261.6,
+        "agentId": "tycho",
+        "agree": false,
+        "missionId": null,
+        "reason": "\"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "skill": "calculate_final_price",
+        "skillOut": 218.4
+      }
+    },
+    {
+      "id": "c-tip",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 4,
+      "tokens": 3930,
+      "ms": 5431,
+      "correct": true,
+      "final": "# Total Price After Discount and Tip\n$63.72",
+      "miss": "binding rejected: \"added\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 63.72,
+        "agentId": "tycho",
+        "agree": false,
+        "missionId": null,
+        "reason": "\"added\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "skill": "calculate_final_price",
+        "skillOut": 44.28
+      }
+    },
+    {
+      "id": "c-save",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 11,
+      "tokens": 12879,
+      "ms": 28525,
+      "correct": true,
+      "final": "You save $4.80 (64 * 0.75 = 48; 48 * 0.9 = 43.2; 64 - 43.2 = 20.8).",
+      "miss": "binding rejected: the task asks for a difference or saving, which this skill does not compute",
+      "shadow": null
+    },
+    {
+      "id": "c-left",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 3,
+      "tokens": 2837,
+      "ms": 8168,
+      "correct": true,
+      "final": "# Fraction Left After Discounts\n## Original Price: $90\n## Discounted Price: $54 (60% of original)\n## Remaining Fraction: 0.6 or 60%\n\nThis means that after applying both discounts sequentially, only 60% of the original price remains.",
+      "miss": "binding rejected: the question uses \"fraction\", which only ever appeared in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 60,
+        "agentId": "tycho",
+        "agree": false,
+        "missionId": null,
+        "reason": "the question uses \"fraction\", which only ever appeared in tasks this skill had to refuse",
+        "skill": "calculate_final_price",
+        "skillOut": 54
+      }
+    }
+  ],
+  "fresh": [
+    {
+      "id": "f-coat2",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 130,
+      "correct": true,
+      "final": "**Answer: 95.2**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_final_price` (Calculates the final price of an item after applying two successive discounts. Verified by differential testing; code sha256 5db5975d4e69) on input `{\"original_price\":140,\"discount1\":0.2,\"discount2\":",
+      "miss": null,
+      "shadow": null
+    },
+    {
+      "id": "f-shirt",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 127,
+      "correct": true,
+      "final": "**Answer: 24.3**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_final_price` (Calculates the final price of an item after applying two successive discounts. Verified by differential testing; code sha256 5db5975d4e69) on input `{\"original_price\":36,\"discount1\":0.25,\"discount2\":",
+      "miss": null,
+      "shadow": null
+    },
+    {
+      "id": "f-tax-chair",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 5,
+      "tokens": 5782,
+      "ms": 8893,
+      "correct": true,
+      "final": "# Total Cost of Chair\n$212",
+      "miss": "binding rejected: \"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 212,
+        "agentId": "tycho",
+        "agree": false,
+        "missionId": null,
+        "reason": "\"sales\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "skill": "calculate_final_price",
+        "skillOut": 188
+      }
+    },
+    {
+      "id": "f-tax-book",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 5,
+      "tokens": 5080,
+      "ms": 20987,
+      "correct": true,
+      "final": "# Price Calculation\nDiscounted price: $37.80\nOriginal price: $40\nDiscount: 10%\nTax rate: 5%\nFinal price: $39.69 (calculated below)\n\n## Step-by-Step Calculation\n1. Calculate discount: $40 * 0.1 = $4\n2. Apply discount to original price: $40 - $4 = $36\n3. Add tax: $36 * 1.05 = $37.80\n4. Final price (ro",
+      "miss": "binding rejected: \"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 39.69,
+        "agentId": "tycho",
+        "agree": false,
+        "missionId": null,
+        "reason": "\"tax\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "skill": "calculate_final_price",
+        "skillOut": 34.199999999999996
+      }
+    },
+    {
+      "id": "f-tip",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 4,
+      "tokens": 4317,
+      "ms": 15548,
+      "correct": true,
+      "final": "# Total Cost of Dinner\n## Discounted Price: $69\n## Tip Calculation:\n* Original price: $80\n* Discount: 25% = $20 off\n* Remaining balance after discount: $80 - $20 = $60\n* Tip (15%): $60 * 0.15 = $9\n## Total Cost: $69 + $9 = $78",
+      "miss": "binding rejected: \"tip\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 78,
+        "agentId": "tycho",
+        "agree": false,
+        "missionId": null,
+        "reason": "\"tip\" follows a percent number, as it only ever did in tasks this skill had to refuse",
+        "skill": "calculate_final_price",
+        "skillOut": 51
+      }
+    },
+    {
+      "id": "f-left",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 6,
+      "tokens": 7233,
+      "ms": 14657,
+      "correct": true,
+      "final": "# Fraction Left After Discounts\nThe kettle was originally priced at $70. It went on sale with two discounts: first, it was discounted by 10%, and then an additional 20% off the already reduced price.\n\nTo find out what fraction of the original price is left after these discounts, we can calculate as ",
+      "miss": "binding rejected: the question uses \"fraction\", which only ever appeared in tasks this skill had to refuse",
+      "shadow": {
+        "agentAnswer": 25,
+        "agentId": "tycho",
+        "agree": false,
+        "missionId": null,
+        "reason": "the question uses \"fraction\", which only ever appeared in tasks this skill had to refuse",
+        "skill": "calculate_final_price",
+        "skillOut": 50.400000000000006
+      }
+    }
+  ],
+  "summary": {
+    "before": {
+      "tasks": 13,
+      "matching": 6,
+      "matchingZeroCall": 5,
+      "routed": 9,
+      "correct": 5,
+      "misroutes": [
+        "c-tax-lamp",
+        "c-tax-watch",
+        "c-tax-scarf",
+        "c-left"
+      ],
+      "calls": 1,
+      "shadows": []
+    },
+    "after": {
+      "tasks": 13,
+      "matching": 6,
+      "matchingZeroCall": 3,
+      "routed": 3,
+      "correct": 9,
+      "misroutes": [],
+      "calls": 52,
+      "shadows": [
+        "d-helmet:disagree",
+        "s-cyclist:disagree",
+        "s-drone:disagree",
+        "c-tax-lamp:disagree",
+        "c-tax-watch:disagree",
+        "c-tax-scarf:disagree",
+        "c-tax-desk:disagree",
+        "c-tip:disagree",
+        "c-left:disagree"
+      ]
+    },
+    "fresh": {
+      "tasks": 6,
+      "matching": 2,
+      "matchingZeroCall": 2,
+      "routed": 2,
+      "correct": 6,
+      "misroutes": [],
+      "calls": 20,
+      "shadows": [
+        "f-tax-chair:disagree",
+        "f-tax-book:disagree",
+        "f-tip:disagree",
+        "f-left:disagree"
+      ]
+    }
+  },
+  "stats": {
+    "active": 2,
+    "retired": 0,
+    "uses": 124,
+    "failures": 0,
+    "modelCallsAvoided": 124,
+    "toolCalls": 1397,
+    "routed": 122,
+    "zeroCall": 28,
+    "binders": 2,
+    "examples": 68,
+    "routeMisses": 49,
+    "routeRejected": 0,
+    "bindCalls": 171,
+    "callsAvoidedMin": 150
+  }
+}

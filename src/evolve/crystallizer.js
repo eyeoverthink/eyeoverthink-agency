@@ -13,7 +13,7 @@
 //   measure : uses, failures, and model calls avoided: the curve that shows the system, not the model, improving.
 import { newId, nowIso, sha256 } from '../core/util.js';
 import { runSandboxedJs } from '../tools/builtin.js';
-import { induce, leaveOneOut, compileSpec, questionWords } from './binder-induction.js';
+import { induce, leaveOneOut, compileSpec, questionWords, numberTokens, learnBlocks, contested, novelWording, wordingOf } from './binder-induction.js';
 
 const NAME = /^[a-z][a-z0-9_]{2,39}$/;
 
@@ -311,6 +311,13 @@ export class Crystallizer {
       if (!b) continue;
       const r = await this.#runBinder(b.code, text);
       if (r.error || !r.out || typeof r.out !== 'object' || Array.isArray(r.out) || bindingProblem(r.out, c.s, text)) { binderNulls.add(c.s.name); continue; }
+      // The learned gate applies to zero-call routes too. A declined binding is kept as a shadow: the agent loop answers
+      // and the two answers are compared. No model binder call is spent re-asking about wording nobody has verified.
+      const gate = this.#learnedBlock(c.s.name, text);
+      if (gate) {
+        this.ledger.append('skill.route_miss', { agentId, missionId, reason: `binding rejected: ${gate}`, candidates: candidates.map((x) => x.s.name), bindModel: 'learned-binder' }, 'crystallizer');
+        return { miss: `binding rejected: ${gate}`, usage: zero, shadow: private_ ? null : { skill: c.s.name, input: r.out, reason: gate } };
+      }
       const run = await this.#run(c.s.code, r.out, active.filter((x) => x.name !== c.s.name));
       if (run.error) { binderNulls.add(c.s.name); continue; }
       this.store.run('UPDATE skill_binders SET uses = uses + 1, updated = ? WHERE id = ?', nowIso(), b.id);
@@ -345,7 +352,7 @@ export class Crystallizer {
     const problem = !input ? 'no input object' : bindingProblem(input, hit.s, text);
     if (problem) return miss(`binding rejected: ${problem}`);
     const blocked = this.#learnedBlock(hit.s.name, text);
-    if (blocked) return miss(`binding rejected: ${blocked}`);
+    if (blocked) return { ...miss(`binding rejected: ${blocked}`), shadow: private_ ? null : { skill: hit.s.name, input, reason: blocked } };
     let out;
     try {
       const library = active.filter((x) => x.name !== hit.s.name);
@@ -371,11 +378,104 @@ export class Crystallizer {
 
   /** Question words this skill's past refusals taught it to refuse; they gate model bindings too, not just the learned binder. */
   #learnedBlock(skill, task) {
-    const b = this.binder(skill);
-    if (!b) return null;
-    const words = JSON.parse(b.verification || '{}').spec?.blockWords || [];
+    // Learned from the recorded examples, not read from the active binder: when the critic retires a binder, the
+    // lesson must hold even before (or if never) a replacement binder is admitted.
+    const ex = this.examples(skill);
+    const pos = ex.filter((e) => e.label === 'pos'), neg = ex.filter((e) => e.label === 'neg');
+    const sig = `${ex.length}:${ex.at(-1)?.id}:${pos.length}:${neg.length}`;
+    this.blockCache ??= new Map();
+    let spec = this.blockCache.get(skill)?.sig === sig ? this.blockCache.get(skill).spec : null;
+    if (!spec) {
+      spec = neg.length ? learnBlocks(pos, neg) : {};
+      this.blockCache.set(skill, { sig, spec });
+    }
+    const words = spec.blockWords || [];
     const hit = questionWords(task).find((w) => words.includes(w));
-    return hit ? `the question uses "${hit}", which only ever appeared in tasks this skill had to refuse` : null;
+    if (hit) return `the question uses "${hit}", which only ever appeared in tasks this skill had to refuse`;
+    const cb = spec.contextBlock;
+    const t = cb && numberTokens(task).find((x) => cb.kinds.includes(x.kind) && x.ctx.some((w) => cb.words.includes(w)));
+    if (t) return `"${t.ctx.find((w) => cb.words.includes(w))}" follows a ${t.kind} number, as it only ever did in tasks this skill had to refuse`;
+    // Verified wording (Phase 12): once the skill has enough positives, wording none of them used is not trusted yet.
+    if (this.cfg?.skills?.verifyWording !== false && pos.length >= (this.cfg?.skills?.binderMinExamples ?? 3)) {
+      const novel = novelWording(pos, task);
+      if (novel.length) return `unverified wording (${novel.slice(0, 4).map((w) => `"${w}"`).join(', ')}): the agent loop answers, and its answer is compared with the skill's`;
+    }
+    return null;
+  }
+
+  /**
+   * Judge a binding against the agent loop, with no model call beyond the agent run(s). Measured in Phase 12 run 2: a
+   * single agent run is a WEAKER judge than the skill (it answered 2, 4 and 900 km/h for round trips the skill got
+   * right), and demoted 15 of 17 correct speed examples. So, as with the Red Queen keys: one dissent is not proof.
+   *   - agreement (to the agent's own rounding: "51" agrees with 51.3) verifies the binding;
+   *   - on disagreement a SECOND, different agent answers: it siding with the skill verifies the binding, it
+   *     corroborating the first agent refutes it, anything else is inconclusive and teaches nothing.
+   * Only the agent's last number that does not already appear in the task counts as its answer.
+   */
+  async #judge(task, out, firstFinal, answer) {
+    const inTask = new Set((String(task).match(NUM) || []).map(Number));
+    const last = (final) => (String(final ?? '').replace(/,(?=\d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
+    const near = (tok, v) => {
+      if (tok === undefined) return null;
+      const n = Number(tok), dec = (tok.split('.')[1] || '').length;
+      return Math.abs(n - v) <= Math.max(0.01, Math.abs(v) * 0.002) || (dec <= 2 && Math.abs(n - Number(v.toFixed(dec))) < 1e-9);
+    };
+    const first = last(firstFinal);
+    const row = { skillOut: out, agentAnswer: first === undefined ? null : Number(first), second: null, agree: null };
+    if (first === undefined) return row;
+    if (near(first, out)) return { ...row, agree: true };
+    const secondFinal = answer ? await answer(task, this.cfg?.skills?.secondOpinion || 'lumen').catch(() => null) : null;
+    const second = last(secondFinal);
+    row.second = second === undefined ? null : Number(second);
+    if (second === undefined) return row;
+    if (near(second, out)) return { ...row, agree: true, by: 'second opinion sided with the skill' };
+    if (near(second, Number(first)) || near(first, Number(second))) return { ...row, agree: false, by: 'second opinion corroborated the first' };
+    return row;
+  }
+
+  /**
+   * Shadow verdict: a task the gate declined (block words or unverified wording) was answered by the agent loop; the
+   * skill's output on the binding it WOULD have used is judged against that answer. Verified: a positive (its wording
+   * is now trusted). Refuted: a negative (its wording becomes block words). Inconclusive: nothing is learned.
+   */
+  async shadowVerdict(shadow, task, final, { agentId = null, missionId = null } = {}) {
+    const skill = this.list('active').find((s) => s.name === shadow?.skill);
+    if (!skill || !final) return null;
+    const r = await this.#run(skill.code, shadow.input, this.list('active').filter((x) => x.name !== skill.name));
+    if (r.error || typeof r.out !== 'number') return null;
+    const j = await this.#judge(task, r.out, final, this.agentAnswer);
+    if (j.agree !== null) this.#example(skill.name, task, j.agree ? shadow.input : null, j.agree ? 'pos' : 'neg');
+    this.ledger.append('skill.shadow', { skill: skill.name, agentId, missionId, ...j, reason: shadow.reason }, 'crystallizer');
+    this.bus?.publish('skill.shadow', { skill: skill.name, agree: j.agree });
+    if (j.agree) this.#maybeLearn(skill.name);
+    return j;
+  }
+
+  /**
+   * Re-verify positives recorded before wording was verified: those using wording rare among positives (under 25%)
+   * are judged like a shadow verdict. Only a refutation corroborated by a second agent demotes one to a negative.
+   * `answer(task, agentId?)` returns the agent loop's final text (skill-first off).
+   */
+  async auditWording(skillName, answer) {
+    const pos = this.examples(skillName).filter((e) => e.label === 'pos');
+    const skill = this.list('active').find((s) => s.name === skillName);
+    const { kinds } = learnBlocks(pos, []).contextBlock;
+    const sets = pos.map((e) => wordingOf(e.task, kinds));
+    const support = new Map();
+    for (const s of sets) for (const w of s) support.set(w, (support.get(w) || 0) + 1);
+    const rare = (w) => support.get(w) < pos.length * 0.25;
+    const rows = [];
+    for (const [i, e] of pos.entries()) {
+      const words_ = sets[i].filter(rare);
+      if (!words_.length) continue;
+      const r = await this.#run(skill.code, e.input, []);
+      if (r.error || typeof r.out !== 'number') { rows.push({ task: e.task, rare: words_, agree: null }); continue; }
+      const j = await this.#judge(e.task, r.out, await answer(e.task), answer);
+      if (j.agree === false) this.store.run("UPDATE skill_examples SET label = 'neg', input = NULL WHERE id = ?", e.id);
+      rows.push({ task: e.task, rare: words_, ...j });
+    }
+    this.ledger.append('binder.audit_wording', { skill: skillName, checked: rows.length, demoted: rows.filter((x) => x.agree === false).length }, 'crystallizer');
+    return rows;
   }
 
   // ---- Learned binders: the routing step, crystallized -------------------------------------------------------------
@@ -529,7 +629,13 @@ export class Crystallizer {
     const t = String(task).slice(0, 3000);
     this.store.run("DELETE FROM skill_examples WHERE skill = ? AND task = ? AND label = 'pos'", skill, t);
     this.#example(skill, t, null, 'neg');
+    const c = contested(this.examples(skill).filter((e) => e.label === 'pos'), t);
+    for (const e of c.examples) this.store.run("UPDATE skill_examples SET label = 'disputed' WHERE id = ?", e.id);
+    if (c.examples.length || c.tooMany) this.ledger.append('binder.contest', { skill, words: c.words, disputed: c.examples.length, tooMany: c.tooMany || 0 }, 'crystallizer');
     if (binderId) this.retireBinder(skill, reason);
+    // Absorb the lesson now, not after 3 more examples: the relearned binder (and its block words, which also gate the
+    // model binder) must refuse this task and others worded like it.
+    if (this.cfg?.skills?.learnBinders !== false) this.binderQueue = (this.binderQueue || Promise.resolve()).then(() => this.learnBinder(skill).catch((e) => this.bus?.publish('binder.reject', { skill, reason: e.message })));
   }
 
   /** A learned binder whose route the critic rejected is withdrawn; the skill stays, and the model binder takes over. */

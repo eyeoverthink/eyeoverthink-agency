@@ -77,6 +77,8 @@ export class Agency {
     // well-scored mission, one at a time, so what the models work out is kept and compounds.
     this.crystallizer = new Crystallizer({ store: this.store, router: this.router, tools: this.tools, missions: this.missions, ledger: this.ledger, bus: this.bus, cfg: this.cfg });
     this.runtime.crystallizer = this.crystallizer; // skill-first: agents use what the agency owns before renting a model
+    // The wording audit re-checks old positives against the agent loop's own answer (skill-first off).
+    this.crystallizer.agentAnswer = async (task, agentId = this.cfg.skills?.auditAgent || 'tycho') => (await this.runtime.run(agentId, task, { skillFirst: false })).final;
     this.crystalQueue = Promise.resolve();
     this.bus.on('mission.status', (e) => {
       const c = this.cfg.crystallize || {};

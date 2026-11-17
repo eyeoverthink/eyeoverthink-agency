@@ -195,3 +195,102 @@ test('a broken learned binder falls through to the model binder; a critic-reject
     assert.equal(A.agency.ledger.list({ limit: 1, kind: 'binder.retire' }).length, 1);
   } finally { await A.cleanup(); }
 });
+
+test('a critic rejection is absorbed at once: the relearned binder refuses other tax wordings, and so does the model binder', async () => {
+  const A = await setup();
+  try {
+    await teach(A);
+    await A.agency.crystallizer.binderQueue;
+    const TAXED = 'A $40 shirt is 20% off, and then 5% sales tax is added. What is the total?';
+    // The binder misroutes the tax task (the tax is in the body); in a mission the critic rejects the route.
+    A.agency.crystallizer.rejectRoute('compound_discount', TAXED, A.agency.crystallizer.binder('compound_discount').id, 'critic rejected');
+    await A.agency.crystallizer.binderQueue;
+    const b = A.agency.crystallizer.binder('compound_discount');
+    assert.ok(b, 'relearned at once, without waiting for 3 new examples');
+    assert.ok(JSON.parse(b.verification).spec.contextBlock.words.includes('tax'));
+    A.calls.length = 0;
+    const r = await A.agency.runtime.run('tycho', 'A $75 bag gets 10% off, then 8% tax. What is the final price?');
+    assert.equal(r.skill, undefined, 'neither the learned binder nor the model binder routes it');
+    assert.match(A.agency.ledger.list({ limit: 1, kind: 'skill.route_miss' })[0].data.reason, /"tax" follows a percent number/);
+    const ok = await A.agency.runtime.run('tycho', NEW);
+    assert.equal(ok.skill, 'compound_discount', 'discount tasks still route');
+  } finally { await A.cleanup(); }
+});
+
+test('the lesson outlives the binder: with the binder retired and no relearn, the model binder still refuses tax in the body', async () => {
+  const A = await setup({}, { learnBinders: false });
+  try {
+    await teach(A);
+    assert.equal((await A.agency.crystallizer.learnBinder('compound_discount')).admitted, true);
+    const b = A.agency.crystallizer.binder('compound_discount');
+    A.agency.crystallizer.rejectRoute('compound_discount', 'A $40 shirt is 20% off, and then 5% sales tax is added. What is the total?', b.id, 'critic rejected');
+    assert.equal(A.agency.crystallizer.binder('compound_discount'), null, 'retired, and learnBinders is off: no replacement');
+    A.calls.length = 0;
+    const r = await A.agency.runtime.run('tycho', 'A $120 watch is 15% off, plus 8% tax. What do I pay?');
+    assert.equal(r.skill, undefined);
+    assert.match(A.agency.ledger.list({ limit: 1, kind: 'skill.route_miss' })[0].data.reason, /"tax" follows a percent number/);
+    assert.equal((await A.agency.runtime.run('tycho', NEW)).skill, 'compound_discount', 'discount tasks still route through the model binder');
+  } finally { await A.cleanup(); }
+});
+
+test('verified wording: unseen wording is not routed; the agent loop answers and the comparison teaches either way', async () => {
+  const A = await setup({}, { learnBinders: false });
+  try {
+    await teach(A);
+    assert.equal((await A.agency.crystallizer.learnBinder('compound_discount')).admitted, true);
+    const cz = A.agency.crystallizer;
+    // 1. Tax in the body, no lesson yet: declined as unverified wording at zero model cost; the agent loop answers.
+    const TAXED = 'A $75 bag gets 10% off, then 8% tax. What is the final price?';
+    const base = script();
+    let agentFinal = 'The final price is $72.90.';
+    A.agency.router.extra[0].chat = async (req) => {
+      A.calls.push(req);
+      const sys = systemOf(req);
+      const body = /You route tasks|independently implement|turn a solved task|test cases/.test(sys) ? base(req)
+        : /reviewing your own draft/.test(sys) ? { issues: [], final: agentFinal, confidence: 0.8 } : { thought: 'by hand', final: agentFinal, confidence: 0.8 };
+      return { text: JSON.stringify(body), model: 'scripted', provider: 'scripted', latencyMs: 1, usage: { prompt: 1, completion: 1 } };
+    };
+    const r = await A.agency.runtime.run('tycho', TAXED);
+    assert.equal(r.skill, undefined);
+    assert.match(A.agency.ledger.list({ limit: 1, kind: 'skill.route_miss' })[0].data.reason, /unverified wording \("tax"\)/);
+    const [sh] = A.agency.ledger.list({ limit: 1, kind: 'skill.shadow' });
+    assert.equal(sh.data.agree, false, 'skill says 62.1, the agent says 72.9 (tax added): the wording is refused from now on');
+    assert.equal(cz.examples('compound_discount').at(-1).label, 'neg');
+    await A.agency.runtime.run('tycho', 'A $40 shirt is 20% off, then 6% tax. What is the final price?');
+    assert.match(A.agency.ledger.list({ limit: 1, kind: 'skill.route_miss' })[0].data.reason, /"tax" follows a percent number/, 'now a learned refusal');
+
+    // 2. A legitimate new wording: declined once, verified by agreement, then routed with zero model calls.
+    const LOYAL = 'A $75 bag gets 10% off, then a 20% loyalty discount. What is the final price?';
+    agentFinal = 'You pay $54.';
+    assert.equal((await A.agency.runtime.run('tycho', LOYAL)).skill, undefined);
+    assert.equal(A.agency.ledger.list({ limit: 1, kind: 'skill.shadow' })[0].data.agree, true);
+    A.calls.length = 0;
+    const again = await A.agency.runtime.run('tycho', 'A $90 coat gets 30% off, then a 10% loyalty discount. What is the final price?');
+    assert.equal(again.skill, 'compound_discount', 'the verified wording now routes');
+    assert.equal(again.binder, cz.binder('compound_discount').id);
+    assert.equal(A.calls.length, 0, 'zero model calls');
+  } finally { await A.cleanup(); }
+});
+
+test('the judge: one dissenting agent is not proof; a second agent decides, and rounding to the agent precision agrees', async () => {
+  const A = await setup({}, { learnBinders: false });
+  try {
+    await teach(A);
+    const cz = A.agency.crystallizer;
+    const sh = { skill: 'compound_discount', input: { price: 95, discounts: [40, 10] }, reason: 'test' }; // skill: 51.3
+    const task = 'A $95 helmet gets 40% off and then a further 10% off. What is the price now?';
+    let second = null;
+    cz.agentAnswer = async () => second;
+    assert.equal((await cz.shadowVerdict(sh, task, 'About $51.')).agree, true, '"51" is 51.3 at the agent precision');
+    second = 'It costs $51.30.';
+    const j = await cz.shadowVerdict(sh, task, 'It costs $240.');
+    assert.deepEqual([j.agree, j.second], [true, 51.3], 'the second agent sided with the skill: the first agent erred');
+    second = 'Roughly 900.';
+    assert.equal((await cz.shadowVerdict(sh, task + ' ', 'It costs $240.')).agree, null, 'two agents disagree with each other: inconclusive, nothing learned');
+    assert.ok(!cz.examples('compound_discount').some((e) => e.task === task + ' '));
+    second = 'Total with tax: $55.40';
+    const t2 = 'A $95 helmet gets 40% off, then 8% tax. Total?';
+    assert.equal((await cz.shadowVerdict(sh, t2, 'The total is $55.40.')).agree, false, 'corroborated refutation');
+    assert.equal(cz.examples('compound_discount').at(-1).label, 'neg');
+  } finally { await A.cleanup(); }
+});

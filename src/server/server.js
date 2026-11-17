@@ -104,6 +104,7 @@ export function createServer(agency) {
   // Crystallized skills: verified, owned code distilled from solved tasks.
   add('GET', '/api/skills', () => ({ stats: a.crystallizer.stats(), skills: a.crystallizer.list().map((s) => ({ ...s, code: undefined, codeLines: s.code.split(String.fromCharCode(10)).length })), binders: a.crystallizer.binders().map((b) => ({ ...b, verification: { ...b.verification, rows: undefined } })) }));
   add('POST', '/api/skills/:name/learn-binder', async ({ params }) => a.crystallizer.learnBinder(params.name));
+  add('POST', '/api/skills/:name/audit-wording', async ({ params }) => ({ rows: await a.crystallizer.auditWording(params.name, (t, id) => a.crystallizer.agentAnswer(t, id)) }));
   add('POST', '/api/skills/:name/retire-binder', ({ params }) => ({ retired: a.crystallizer.retireBinder(params.name) }));
   add('GET', '/api/skills/:name', ({ params }) => found(a.crystallizer.list().find((s) => s.name === params.name), 'skill'));
   add('POST', '/api/skills/crystallize', async ({ body }) => a.crystallizer.crystallize(body.missionId ? a.crystallizer.missionSource(body.missionId) : { kind: 'text', ref: 'operator', text: need(body.text, 'missionId or text required') }));

@@ -1,7 +1,7 @@
 // Binder induction: the agency learns how to bind a skill from its own recorded bindings, with no model.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { numberTokens, shapeOf, questionWords, induce, applySpec, leaveOneOut, compileSpec } from '../src/evolve/binder-induction.js';
+import { numberTokens, shapeOf, questionWords, induce, applySpec, leaveOneOut, compileSpec, contested } from '../src/evolve/binder-induction.js';
 
 // The real learned skill's contract: rates as decimals (Phase 10/11).
 const PRICE = { name: 'calculate_final_price', description: 'Final price after two successive discounts.', params: { type: 'object', required: ['original_price', 'discount1', 'discount2'], properties: {
@@ -66,4 +66,31 @@ test('occurrences count: a repeated number the binding skips is caught, but a mi
   assert.match(bindingProblem({ original_price: 50, discount1: 0.1, discount2: 0.08 }, PRICE, 'A $50 item is 10% off, then 10% off. What is the final price including 8% tax?'), /states 10 once more/);
   assert.equal(bindingProblem({ original_price: 120, discount1: 0.12, discount2: 0.08 }, PRICE, 'Mission goal: A $120 item gets 12% off then 8% off. Final price?\nYour task: Price\nApply 12% then 8% to $120.'), null);
   assert.equal(bindingProblem({ original_price: 100, discount1: 0.2, discount2: 0.2 }, PRICE, 'A $100 watch is 20% off, then 20% off again. What is the final price?'), null);
+});
+
+test('body block words: a refused tax task teaches "tax" after a percentage, but a refused jacket task never blocks jackets', () => {
+  const TAXNEG = { task: 'A $40 shirt is 20% off, and then 5% sales tax is added. What is the total?' };
+  const r = induce(POS, [...NEG, TAXNEG], PRICE);
+  assert.deepEqual(r.spec.contextBlock.kinds, ['percent'], '"off" follows a percentage in most good examples: a closed role vocabulary; item nouns after "$" are open');
+  assert.ok(r.spec.contextBlock.words.includes('tax') && r.spec.contextBlock.words.includes('sales'));
+  assert.ok(!r.spec.contextBlock.words.includes('jacket') && !r.spec.contextBlock.words.includes('shirt'), 'nouns after a currency number are never learned');
+  const bind = new Function(`${compileSpec(r.spec)}; return bind;`)();
+  assert.equal(bind('A $75 bag gets 10% off, then 8% tax. What is the final price?'), null, 'other tax wordings are refused in the body, with no question word to go on');
+  assert.deepEqual(bind('A $75 jacket gets 10% off, then 8% off. What is the final price?'), { original_price: 75, discount1: 0.1, discount2: 0.08 }, 'jackets still bind');
+  assert.deepEqual(bind('A $200 shirt is 25% off, then a 10% loyalty discount. What do I pay?'), { original_price: 200, discount1: 0.25, discount2: 0.1 }, 'unseen role words are not refused: only words from refused tasks block');
+  assert.deepEqual(numberTokens('then 5% sales tax is added. What').map((t) => t.ctx), [['sales', 'tax', 'added']]);
+});
+
+test('a confirmed failure contests look-alike positives: stored tax misroutes no longer immunize "tax"', () => {
+  const clean = [...POS, P('A $70 vase is 10% off, then 20% off. What does it cost now?', 70, 0.1, 0.2), P('A $500 TV gets 15% off and then 10% off. Final price?', 500, 0.15, 0.1),
+    P('A $20 cap is 50% off, then 10% off. What do I pay?', 20, 0.5, 0.1), P('A $90 rug is 30% off, then another 5% off. What is the price?', 90, 0.3, 0.05)];
+  const poisoned = [...clean, P('A $120 bike is 10% off and then 5% sales tax is added. What do I pay?', 120, 0.1, 0.05)];
+  const rejected = 'A $150 phone is 20% off and then 5% sales tax is added. What do I pay?';
+  assert.ok(!induce(poisoned, [{ task: rejected }], PRICE).spec.contextBlock.words.includes('tax'), 'the poisoned positive blocks the lesson');
+  const c = contested(poisoned, rejected);
+  assert.deepEqual(c.words, ['added', 'sales', 'tax'], '"off" is common in positives, so it is never contested');
+  assert.deepEqual(c.examples.map((e) => e.input.original_price), [120]);
+  const kept = poisoned.filter((e) => !c.examples.includes(e));
+  assert.ok(induce(kept, [{ task: rejected }], PRICE).spec.contextBlock.words.includes('tax'), 'with the look-alike disputed, the lesson forms');
+  assert.deepEqual(contested(clean, 'A $40 coat is 25% off, then 10% off. What is the final price?').examples, [], 'a rejected ordinary task contests nothing');
 });

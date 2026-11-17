@@ -142,6 +142,9 @@ export async function main(argv) {
           const r = await agency.crystallizer.learnBinder(pos[2]);
           out(r.admitted ? `ADMITTED binder for skill_${pos[2]}: ${r.reason}` : `not admitted: ${r.reason}`);
           out(JSON.stringify({ ...r.verification, rows: undefined }));
+        } else if (pos[1] === 'audit-wording') {
+          const rows = await agency.crystallizer.auditWording(pos[2], (t, id) => agency.crystallizer.agentAnswer(t, id));
+          for (const r of rows) out(`${r.agree === false ? 'DEMOTED' : r.agree ? 'kept   ' : 'unclear'} skill=${r.skillOut} agent=${r.agentAnswer} rare=${r.rare.join(',')}  ${r.task.slice(0, 90)}`);
         } else {
           const st = agency.crystallizer.stats();
           out(`${st.active} active skill(s), ${st.uses} use(s), ${st.routed} routed skill-first (${st.zeroCall} with zero model calls), ${st.binders} learned binder(s), ${st.failures} failure(s)`);
