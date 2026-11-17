@@ -142,6 +142,12 @@ export async function main(argv) {
           const r = await agency.crystallizer.learnBinder(pos[2]);
           out(r.admitted ? `ADMITTED binder for skill_${pos[2]}: ${r.reason}` : `not admitted: ${r.reason}`);
           out(JSON.stringify({ ...r.verification, rows: undefined }));
+        } else if (pos[1] === 'chains') {
+          for (const c of agency.crystallizer.chains()) out(`${c.label.padEnd(9)} out=${c.out}${c.composed ? ` -> skill_${c.composed}` : ''}  ${c.signature}  | ${c.task.slice(0, 70)}`);
+        } else if (pos[1] === 'compose') {
+          const r = await agency.crystallizer.composeChain(pos.slice(2).join(' '));
+          out(r.admitted ? `ADMITTED skill_${r.skill.name}: ${r.reason}
+${r.code}` : `not admitted: ${r.reason}`);
         } else if (pos[1] === 'gaps') {
           for (const g of agency.crystallizer.gaps(pos[2] || null)) out(`${g.status.padEnd(8)} skill_${g.skill} answer=${g.answer} markers=${g.markers.join(',')}${g.resolved_by ? ` -> skill_${g.resolved_by}` : ''}  ${g.task.slice(0, 80)}`);
         } else if (pos[1] === 'learn-gap') {

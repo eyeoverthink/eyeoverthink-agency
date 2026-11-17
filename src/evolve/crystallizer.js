@@ -129,6 +129,98 @@ export function bindingProblem(input, skill, task) {
   return null;
 }
 
+// ---- Skill composition (Phase 14): chains of owned skills ----------------------------------------------------------
+
+const isRef = (v) => v && typeof v === 'object' && !Array.isArray(v) && Number.isInteger(v.ref);
+
+/** A binder's chain proposal, normalized: 2-3 steps of {skill, input}; refs as {"ref": k} (also "$k" / "step k"). */
+export function normalizeChain(p) {
+  const raw = Array.isArray(p?.steps) ? p.steps : null;
+  if (!raw || raw.length < 2 || raw.length > 3) return null;
+  const steps = [];
+  for (const s of raw) {
+    if (!s || typeof s.skill !== 'string' || !s.input || typeof s.input !== 'object' || Array.isArray(s.input)) return null;
+    const input = {};
+    for (const [k, v] of Object.entries(s.input)) {
+      const m = typeof v === 'string' ? v.trim().match(/^(?:\$|step\s*)(\d)$/i) : null;
+      input[k] = m ? { ref: Number(m[1]) } : isRef(v) ? { ref: v.ref } : v;
+    }
+    steps.push({ skill: s.skill.replace(/^skill_/, ''), input });
+  }
+  return steps;
+}
+
+/** The shape of a chain, independent of its values: which skills, which inputs come from which earlier step. */
+export function chainSignature(steps) {
+  return steps.map((s) => `${s.skill}(${Object.keys(s.input).sort().map((k) => (isRef(s.input[k]) ? `${k}=@${s.input[k].ref}` : k)).join(',')})`).join(' > ');
+}
+
+/**
+ * Why a chain cannot be trusted, or null. The single-skill gates, generalized:
+ *   - every literal is grounded in the task (per parameter contract), every ref points at an EARLIER step;
+ *   - every step but the last feeds a later one (no dead steps), and each step's required inputs are present;
+ *   - every number the task states is used, occurrence by occurrence, somewhere in the chain;
+ *   - the task's answer form (difference, choice, yes/no) must be what the LAST skill computes.
+ */
+export function chainProblem(steps, skills, task) {
+  const used = new Set();
+  const literals = [];
+  for (const [i, s] of steps.entries()) {
+    const sk = skills.find((x) => x.name === s.skill);
+    if (!sk) return `step ${i + 1} names an unknown skill (${s.skill})`;
+    const props = sk.params?.properties || {};
+    for (const k of sk.params?.required || []) if (!(k in s.input)) return `step ${i + 1} (${s.skill}) is missing required input ${k}`;
+    for (const [k, v] of Object.entries(s.input)) {
+      if (isRef(v)) {
+        if (v.ref < 1 || v.ref > i) return `step ${i + 1} refers to step ${v.ref}, which is not an earlier step`;
+        used.add(v.ref);
+        continue;
+      }
+      const g = groundingProblem({ [k]: v }, { type: 'object', properties: { [k]: props[k] || {} } }, task);
+      if (g) return `step ${i + 1} (${s.skill}): ${g}`;
+      walk2(v, literals);
+    }
+  }
+  for (let i = 1; i < steps.length; i++) if (!used.has(i)) return `step ${i} (${steps[i - 1].skill}) feeds nothing: its output is never used`;
+  const lines = String(task).split(/\n+/).map((l) => (l.match(NUM) || []).map(Number));
+  const pool = [...lines.reduce((a, b) => (b.length > a.length ? b : a), [])];
+  for (const v of literals) { const j = pool.findIndex((n) => n === v || n === Math.round(v * 100 * 1e9) / 1e9); if (j >= 0) pool.splice(j, 1); }
+  if (pool.length) return `the task states ${pool.join(', ')} but the chain does not use ${pool.length > 1 ? 'them' : 'it'}`;
+  const last = skills.find((x) => x.name === steps.at(-1).skill);
+  for (const [form, re] of FORMS) if (re.test(String(task)) && !re.test(`${last.name.replace(/_/g, ' ')} ${last.description}`)) return `the task asks for ${form}, which the last step (${last.name}) does not compute`;
+  return null;
+}
+
+/**
+ * A composed skill, written by the agency itself (no model): its code calls the owned skills in order. Every literal
+ * slot of the chain becomes a parameter (step-suffixed when two steps share a name), with its contract copied.
+ */
+export function composeChainSkill(steps, skills) {
+  const counts = {};
+  for (const s of steps) for (const [k, v] of Object.entries(s.input)) if (!isRef(v)) counts[k] = (counts[k] || 0) + 1;
+  const slots = [];
+  const properties = {};
+  for (const [i, s] of steps.entries()) {
+    const sk = skills.find((x) => x.name === s.skill);
+    for (const [k, v] of Object.entries(s.input)) {
+      if (isRef(v)) continue;
+      const param = counts[k] > 1 ? `${k}_${i + 1}` : k;
+      slots.push({ step: i, key: k, param });
+      properties[param] = { ...(sk.params?.properties?.[k] || { type: typeof v === 'number' ? 'number' : 'string' }) };
+    }
+  }
+  const body = steps.map((s, i) => `  const s${i + 1} = skill_${s.skill}({ ${Object.entries(s.input).map(([k, v]) => `${JSON.stringify(k)}: ${isRef(v) ? `s${v.ref}` : `input[${JSON.stringify(slots.find((x) => x.step === i && x.key === k).param)}]`}`).join(', ')} });`);
+  const code = ['function main(input) {', ...body, `  return s${steps.length};`, '}'].join('\n');
+  const short = (n) => n.replace(/^calculate_/, '').split('_').slice(0, 2).join('_');
+  let name = steps.map((s) => short(s.skill)).join('_then_').replace(/[^a-z0-9_]/g, '').slice(0, 34);
+  name = `${name}_${sha256(chainSignature(steps)).slice(0, 4)}`.replace(/^[^a-z]/, 'c');
+  const description = `Composed from owned skills: ${steps.map((s) => skills.find((x) => x.name === s.skill)?.description?.replace(/\.$/, '') || s.skill).join('; then ')}.`.slice(0, 300);
+  return { name, description, params: { type: 'object', properties, required: Object.keys(properties) }, code, slots };
+}
+
+/** The composed skill's input for one verified chain: its literal slots, by parameter name. */
+export const chainInput = (steps, slots) => Object.fromEntries(slots.map((x) => [x.param, steps[x.step].input[x.key]]));
+
 /** Models sometimes double-escape code inside JSON (a literal backslash-n for a newline); such a program is unescaped. */
 export function normalizeCode(code) {
   const c = String(code || '');
@@ -358,13 +450,18 @@ export class Crystallizer {
     const text = String(task);
     const taskWords = new Set(words(text));
     const nums = text.match(NUM) || [];
-    const candidates = active.map((s) => {
+    const scored = active.map((s) => {
       const vocab = new Set([...words(s.name.replace(/_/g, ' ')), ...words(s.description), ...Object.entries(s.params?.properties || {}).flatMap(([k, p]) => words(`${k.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ')} ${p?.description || ''}`))]);
       const shared = [...vocab].filter((w) => taskWords.has(w));
       const needNums = (s.params?.required || []).filter((k) => ['number', 'integer', 'array'].includes(s.params?.properties?.[k]?.type)).length;
-      return { s, score: shared.length, shared, ok: shared.length >= (cfg.minOverlap ?? 1) && nums.length >= needNums };
-    }).filter((c) => c.ok).sort((a, b) => b.score - a.score).slice(0, 3);
-    if (!candidates.length) return { miss: 'no candidate skill', usage: zero };
+      return { s, score: shared.length, shared, related: shared.length >= (cfg.minOverlap ?? 1), ok: shared.length >= (cfg.minOverlap ?? 1) && nums.length >= needNums };
+    }).sort((a, b) => b.score - a.score);
+    const candidates = scored.filter((c) => c.ok).slice(0, 3);
+    // Composition (Phase 14): skills related to the task by wording may chain, each step's output feeding the next.
+    // A step fed by an earlier step needs fewer numbers from the task, so the number-count filter does not apply.
+    const chainCands = cfg.compose === false ? [] : scored.filter((c) => c.related).slice(0, 4);
+    const compose = chainCands.length >= 2;
+    if (!candidates.length && !compose) return { miss: 'no candidate skill', usage: zero };
     const private_ = privacy === 'private' || privacy === 'sealed';
     const ctx = { agentId, missionId, privacy, reflection, active };
 
@@ -392,34 +489,50 @@ export class Crystallizer {
       return this.#commitRoute(c.s, r.out, run.out, { ...ctx, bindModel: 'learned-binder', binderId: b.id, spent: 0, usage: zero });
     }
     // The only candidate declined its own binding: refuse at zero cost (the shadow verdict learns from it).
-    if (gated && candidates.length === 1) {
+    if (gated && candidates.length === 1 && !compose) {
       this.ledger.append('skill.route_miss', { agentId, missionId, reason: `binding rejected: ${gated.reason}`, candidates: [gated.skill], bindModel: 'learned-binder' }, 'crystallizer');
       return { miss: `binding rejected: ${gated.reason}`, usage: zero, shadow: private_ ? null : gated };
     }
 
+    const offered = [...new Map([...candidates, ...chainCands].map((c) => [c.s.name, c.s])).values()];
     let res;
     try {
       res = await this.router.chat({
-        role: cfg.bindRole || 'fast', privacy: 'private', json: true, temperature: 0, maxTokens: 400, signal, missionId,
+        role: cfg.bindRole || 'fast', privacy: 'private', json: true, temperature: 0, maxTokens: compose ? 600 : 400, signal, missionId,
         messages: [
           { role: 'system', content: 'You route tasks to verified functions. A function may be used ONLY if its output alone is the complete answer to what the task asks. Copy input values exactly as written in the task, except where a parameter description in the input schema explicitly asks for another form (for example a percentage as a decimal). Never invent values. Reply with JSON only.' },
-          { role: 'user', content: `Task:\n${text.slice(0, 3000)}\n\nFunctions:\n${candidates.map(({ s }) => `- ${s.name}: ${s.description} Input schema: ${JSON.stringify(s.params)}`).join('\n')}\n\nReturn {"skill":"<name>","input":{...}} or {"skill":null} if none fully answers the task.` },
+          { role: 'user', content: `Task:\n${text.slice(0, 3000)}\n\nFunctions:\n${offered.map((s) => `- ${s.name}: ${s.description} Input schema: ${JSON.stringify(s.params)}`).join('\n')}\n\nReturn {"skill":"<name>","input":{...}}${compose ? ', or, ONLY if no single function answers but a chain of 2 or 3 of them does (each step\'s output feeding a later step), {"steps":[{"skill":"<name>","input":{...}},{"skill":"<name>","input":{"<param>":{"ref":1},...}}]} where {"ref":k} is the output of step k,' : ''} or {"skill":null} if ${compose ? 'neither fully answers' : 'none fully answers'} the task.` },
         ],
       });
     } catch { return { miss: 'binder unavailable', usage: zero }; }
     const usage = res.usage || zero;
     const p = parseJson(res.text);
-    const miss = (reason) => {
-      this.ledger.append('skill.route_miss', { agentId, missionId, reason, candidates: candidates.map((c) => c.s.name), bindModel: res.model }, 'crystallizer');
-      return { miss: reason, usage, bindModel: res.model, shadow: private_ ? null : gated };
+    const miss = (reason, extra = {}) => {
+      this.ledger.append('skill.route_miss', { agentId, missionId, reason, candidates: offered.map((s) => s.name), bindModel: res.model }, 'crystallizer');
+      return { miss: reason, usage, bindModel: res.model, shadow: private_ ? null : gated, ...extra };
     };
+    if (p.steps !== undefined && compose) {
+      const chain = normalizeChain(p);
+      if (!chain) return miss('malformed chain (2-3 steps of {skill, input} expected)');
+      const cp = chainProblem(chain, offered, text);
+      if (cp) return miss(`chain rejected: ${cp}`);
+      const ran = await this.#runChain(chain, active);
+      if (ran.error) return miss(`chain failed: ${ran.error}`);
+      const sig = chainSignature(chain);
+      const verified = this.store.get("SELECT COUNT(*) AS n FROM skill_chains WHERE signature = ? AND label = 'verified'", sig).n;
+      // A new composition is not trusted until the judge has verified its shape (as with new wording, Phase 12): the
+      // agent loop answers and the chain's result is compared with it.
+      if (verified < (cfg.chainTrust ?? 2)) return miss(`unverified composition (${sig}, verified ${verified}x): the agent loop answers, and its answer is compared with the chain's`, { shadow: private_ ? null : { chain, signature: sig, out: ran.out, reason: 'unverified composition' } });
+      return this.#commitChain(chain, sig, ran, { ...ctx, bindModel: res.model, spent: 1, usage });
+    }
     if (typeof p.skill === 'string' && /^(none|null|n\/a|)$/i.test(p.skill.trim())) p.skill = null; // "none" is a refusal
     if (!p.skill) {
       // A refusal is a negative example for every candidate: the learned binder must also say no to tasks like this.
       if (!private_) for (const c of candidates) this.#example(c.s.name, text, null, 'neg');
       return miss('binder found no skill that fully answers the task');
     }
-    const hit = candidates.find((c) => c.s.name === String(p.skill).replace(/^skill_/, ''));
+    const named = offered.find((s) => s.name === String(p.skill).replace(/^skill_/, ''));
+    const hit = named ? { s: named } : null;
     if (!hit) return miss(`binder named an unknown skill (${String(p.skill).slice(0, 40)})`);
     const input = p.input && typeof p.input === 'object' && !Array.isArray(p.input) ? p.input : null;
     const problem = !input ? 'no input object' : bindingProblem(input, hit.s, text);
@@ -525,6 +638,7 @@ export class Crystallizer {
    * is now trusted). Refuted: a negative (its wording becomes block words). Inconclusive: nothing is learned.
    */
   async shadowVerdict(shadow, task, final, { agentId = null, missionId = null } = {}) {
+    if (shadow?.chain) return this.#chainVerdict(shadow, task, final, { agentId, missionId });
     const skill = this.list('active').find((s) => s.name === shadow?.skill);
     if (!skill || !final) return null;
     const r = await this.#run(skill.code, shadow.input, this.list('active').filter((x) => x.name !== skill.name));
@@ -563,6 +677,103 @@ export class Crystallizer {
     }
     this.ledger.append('binder.audit_wording', { skill: skillName, checked: rows.length, demoted: rows.filter((x) => x.agree === false).length }, 'crystallizer');
     return rows;
+  }
+
+  // ---- Skill composition: chains of owned skills (Phase 14) ---------------------------------------------------------
+
+  /** Run a chain in the sandbox: each step's refs are replaced by earlier outputs. */
+  async #runChain(steps, active) {
+    const outs = [];
+    for (const [i, s] of steps.entries()) {
+      const sk = active.find((x) => x.name === s.skill);
+      if (!sk) return { error: `step ${i + 1}: no active skill ${s.skill}` };
+      const input = Object.fromEntries(Object.entries(s.input).map(([k, v]) => [k, v && typeof v === 'object' && Number.isInteger(v.ref) ? outs[v.ref - 1] : v]));
+      const r = await this.#run(sk.code, input, active.filter((x) => x.name !== sk.name));
+      if (r.error) return { error: `step ${i + 1} (${s.skill}): ${r.error}` };
+      if (i < steps.length - 1 && typeof r.out !== 'number') return { error: `step ${i + 1} (${s.skill}) returned a non-number, which cannot feed the next step` };
+      outs.push(r.out);
+    }
+    return { out: outs.at(-1), outs };
+  }
+
+  /** A verified composition answers: every step's skill is credited, and the route is ledgered with the chain. */
+  #commitChain(steps, signature, ran, ctx) {
+    for (const s of steps) this.store.run('UPDATE skills SET uses = uses + 1, updated = ? WHERE name = ? AND status = ?', nowIso(), s.skill, 'active');
+    const active = this.list('active');
+    const pseudo = { id: null, chain: steps, name: steps.map((s) => s.skill).join(' > '), description: `A verified composition of owned skills (${signature}).`,
+      code_sha256: sha256(steps.map((s) => active.find((x) => x.name === s.skill)?.code_sha256 || s.skill).join('|')) };
+    this.ledger.append('skill.chain_route', { signature, outs: ran.outs, agentId: ctx.agentId, missionId: ctx.missionId }, 'crystallizer');
+    return this.#commitRoute(pseudo, Object.fromEntries(steps.map((s, i) => [`step${i + 1}`, { [s.skill]: s.input }])), ran.out, ctx);
+  }
+
+  chains(signature = null) {
+    return this.store.all(`SELECT * FROM skill_chains ${signature ? 'WHERE signature = ?' : ''} ORDER BY created`, ...(signature ? [signature] : [])).map((r) => ({ ...r, steps: JSON.parse(r.steps) }));
+  }
+
+  /** A judged composition: verified chains count toward trust, and enough of them become a composed skill. */
+  async #chainVerdict(shadow, task, final, { agentId = null, missionId = null } = {}) {
+    const ran = await this.#runChain(shadow.chain, this.list('active'));
+    if (ran.error || typeof ran.out !== 'number') return null;
+    const j = await this.#judge(task, ran.out, final, this.agentAnswer);
+    const sig = shadow.signature || chainSignature(shadow.chain);
+    if (j.agree !== null) {
+      const t = String(task).slice(0, 3000);
+      if (!this.store.get('SELECT id FROM skill_chains WHERE signature = ? AND task = ?', sig, t)) {
+        this.store.run('INSERT INTO skill_chains (id, signature, task, steps, out, label, created) VALUES (?, ?, ?, ?, ?, ?, ?)', newId('ch'), sig, t, JSON.stringify(shadow.chain), ran.out, j.agree ? 'verified' : 'refuted', nowIso());
+      }
+    }
+    this.ledger.append('skill.shadow', { chain: sig, agentId, missionId, ...j, reason: shadow.reason }, 'crystallizer');
+    this.bus?.publish('skill.shadow', { chain: sig, agree: j.agree });
+    if (j.agree) this.#maybeCompose(sig);
+    return j;
+  }
+
+  #maybeCompose(signature) {
+    const cfg = this.cfg?.skills || {};
+    if (cfg.composeSkills === false) return;
+    const n = this.store.get("SELECT COUNT(*) AS n FROM skill_chains WHERE signature = ? AND label = 'verified' AND composed IS NULL", signature).n;
+    if (n < (cfg.composeMin ?? 2)) return;
+    this.composeQueue = (this.composeQueue || Promise.resolve()).then(() => this.composeChain(signature).catch((e) => this.bus?.publish('skill.reject', { name: null, reason: e.message })));
+  }
+
+  /**
+   * Crystallize a verified chain shape into a composed skill, written by the agency itself: no model writes this code.
+   * Admission: every verified chain of that shape is reproduced by the composed code from inputs grounded in its task
+   * (the answer key, all-or-nothing, since nothing here is a model's guess). Its examples seed a learned binder.
+   */
+  async composeChain(signature) {
+    const rows = this.chains(signature).filter((r) => r.label === 'verified').slice(-8);
+    if (rows.length < 2) return { admitted: false, reason: 'fewer than 2 verified chains of this shape' };
+    const active = this.list('active');
+    const c = composeChainSkill(rows[0].steps, active);
+    const fail = (reason, verification = {}) => {
+      this.ledger.append('skill.reject', { source: `chain:${signature}`, name: c.name, reason }, 'crystallizer');
+      return { admitted: false, reason, verification };
+    };
+    if (this.store.get('SELECT id FROM skills WHERE name = ?', c.name)) return fail(`a skill named ${c.name} already exists`);
+    if (!rows[0].steps.every((s) => active.some((x) => x.name === s.skill))) return fail('a skill in the chain is no longer active');
+    const keyRows = [];
+    for (const r of rows) {
+      const input = chainInput(r.steps, c.slots);
+      const g = groundingProblem(input, c.params, r.task);
+      const run = g ? null : await this.#run(c.code, input, active);
+      keyRows.push({ task: r.task, input, expected: r.out, out: run?.out ?? null, ok: !g && !run.error && nearAnswer(run.out, r.out), problem: g || run?.error || null });
+    }
+    if (keyRows.some((x) => !x.ok)) return fail(`reproduces ${keyRows.filter((x) => x.ok).length}/${keyRows.length} verified chains`, { keyRows });
+    const verification = { method: 'composed from verified skills (no model wrote this code) + answer key', answerKey: `${keyRows.length}/${keyRows.length}`, signature, steps: rows[0].steps.map((s) => s.skill),
+      rows: keyRows.map((x) => ({ input: x.input, out: x.out })) };
+    const id = newId('sk'), codeSha = sha256(c.code);
+    this.store.run('INSERT INTO skills (id, name, description, params, code, code_sha256, status, source, verification, uses, failures, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)',
+      id, c.name, c.description, JSON.stringify(c.params), c.code, codeSha, 'active', `chain:${signature}`.slice(0, 300), JSON.stringify(verification), nowIso(), nowIso());
+    this.#register(this.list('active').find((s) => s.id === id));
+    for (const [i, r] of rows.entries()) {
+      this.store.run('UPDATE skill_chains SET composed = ? WHERE id = ?', c.name, r.id);
+      this.#example(c.name, r.task, keyRows[i].input, 'pos');
+    }
+    this.ledger.append('skill.compose', { id, name: c.name, signature, chains: rows.length, codeSha256: codeSha }, 'crystallizer');
+    this.bus?.publish('skill.admit', { name: c.name, inputs: rows.length });
+    this.#maybeLearn(c.name);
+    return { admitted: true, skill: { name: c.name, description: c.description, codeSha256: codeSha }, reason: `composed from ${rows[0].steps.length} owned skills; reproduces ${rows.length} verified chain(s)`, verification, code: c.code };
   }
 
   // ---- Capability gaps: refusals become skills (Phase 13) ------------------------------------------------------------
@@ -800,6 +1011,7 @@ export class Crystallizer {
   static answerText(skill, input, out, privacy = 'normal') {
     const shown = typeof out === 'number' ? String(Number(out.toPrecision(12))) : typeof out === 'string' ? out : `\n\n\`\`\`json\n${JSON.stringify(out, null, 2)}\n\`\`\``;
     const inp = privacy === 'normal' ? ` on input \`${JSON.stringify(input)}\`` : '';
+    if (skill.chain) return `**Answer: ${shown}**\n\nComputed exactly by a verified chain of the agency's crystallized skills: ${skill.chain.map((s) => `\`skill_${s.skill}\``).join(' → ')}${inp}. No model reasoning produced this result.`;
     return `**Answer: ${shown}**\n\nComputed exactly by the agency's crystallized skill \`skill_${skill.name}\` (${skill.description} Verified by differential testing; code sha256 ${skill.code_sha256.slice(0, 12)})${inp}. No model reasoning produced this result.`;
   }
 

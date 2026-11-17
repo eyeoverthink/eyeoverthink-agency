@@ -146,6 +146,13 @@ const MIGRATIONS = [
     status TEXT NOT NULL DEFAULT 'open', resolved_by TEXT, created TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS skill_gaps_skill ON skill_gaps(skill, status);`,
+  // v8 — skill composition: chains of owned skills (each step's output feeding the next), judged like any routed
+  // answer; a chain signature verified often enough becomes a composed skill (Phase 14).
+  `CREATE TABLE IF NOT EXISTS skill_chains (
+    id TEXT PRIMARY KEY, signature TEXT NOT NULL, task TEXT NOT NULL, steps TEXT NOT NULL, out REAL, label TEXT NOT NULL,
+    composed TEXT, created TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS skill_chains_sig ON skill_chains(signature, label);`,
 ];
 
 export class Store {
