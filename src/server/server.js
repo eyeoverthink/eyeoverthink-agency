@@ -102,7 +102,9 @@ export function createServer(agency) {
   add('POST', '/api/exams', ({ body }) => a.evolution.start(need(Array.isArray(body.agents) && body.agents.length ? body.agents : null, 'agents[] required'), { kind: 'exam', count: body.count || 6, repeats: body.repeats || 3 }));
   add('GET', '/api/agents/:id/exams', ({ params }) => a.examiner.list(params.id).map(({ program, ...r }) => ({ ...r, hasProgram: Boolean(program) })));
   // Crystallized skills: verified, owned code distilled from solved tasks.
-  add('GET', '/api/skills', () => ({ stats: a.crystallizer.stats(), skills: a.crystallizer.list().map((s) => ({ ...s, code: undefined, codeLines: s.code.split(String.fromCharCode(10)).length })) }));
+  add('GET', '/api/skills', () => ({ stats: a.crystallizer.stats(), skills: a.crystallizer.list().map((s) => ({ ...s, code: undefined, codeLines: s.code.split(String.fromCharCode(10)).length })), binders: a.crystallizer.binders().map((b) => ({ ...b, verification: { ...b.verification, rows: undefined } })) }));
+  add('POST', '/api/skills/:name/learn-binder', async ({ params }) => a.crystallizer.learnBinder(params.name));
+  add('POST', '/api/skills/:name/retire-binder', ({ params }) => ({ retired: a.crystallizer.retireBinder(params.name) }));
   add('GET', '/api/skills/:name', ({ params }) => found(a.crystallizer.list().find((s) => s.name === params.name), 'skill'));
   add('POST', '/api/skills/crystallize', async ({ body }) => a.crystallizer.crystallize(body.missionId ? a.crystallizer.missionSource(body.missionId) : { kind: 'text', ref: 'operator', text: need(body.text, 'missionId or text required') }));
   add('POST', '/api/skills/:name/invoke', async ({ params, body }) => ({ result: await a.crystallizer.invoke(params.name, body.input ?? {}) }));

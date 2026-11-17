@@ -230,7 +230,8 @@ export class MissionEngine {
         critique = await this.#critique(task, result, tspan, signal);
         // A skill-routed answer the critic rejects is evidence against the routing (or the skill): ledger it, and the
         // retry runs the full agent loop.
-        if (result.skill && !critique.pass) this.ledger.append('skill.route_rejected', { skill: result.skill, missionId, taskId: task.id, score: critique.score, defects: critique.defects.slice(0, 3) }, 'critic');
+        if (result.skill && !critique.pass) this.ledger.append('skill.route_rejected', { skill: result.skill, missionId, taskId: task.id, score: critique.score, defects: critique.defects.slice(0, 3), binder: result.binder || null }, 'critic');
+        if (result.skill && !critique.pass) this.runtime.crystallizer?.rejectRoute(result.skill, prompt, result.binder, `critic rejected a skill-first answer (score ${critique.score})`);
         this.bus.publish('task.critique', { missionId, taskId: task.id, attempt: attempts, score: critique.score, pass: critique.pass });
         if (critique.pass) break;
       }

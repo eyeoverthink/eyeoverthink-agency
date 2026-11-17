@@ -45,7 +45,8 @@ export const DEFAULTS = Object.freeze({
   },
   // Skill-first routing: before an agent spends model turns, a matching crystallized skill answers with verified code.
   // The prefilter costs nothing; only a plausible match spends one short bind call (bindRole), grounded against the task.
-  skills: { first: true, bindRole: 'fast', minOverlap: 1 },
+  // learnBinders: grounded model bindings become examples; at binderMinExamples the bind step itself is crystallized.
+  skills: { first: true, bindRole: 'fast', minOverlap: 1, learnBinders: true, binderMinExamples: 3 },
   dream: { enabled: true, intervalMinutes: 30, minEpisodes: 3 },
   autonomy: { enabled: false, intervalMinutes: 15 },
   security: {

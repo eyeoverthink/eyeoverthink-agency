@@ -127,6 +127,18 @@ const MIGRATIONS = [
     code_sha256 TEXT NOT NULL, status TEXT NOT NULL, source TEXT NOT NULL, verification TEXT NOT NULL DEFAULT '{}',
     uses INTEGER NOT NULL DEFAULT 0, failures INTEGER NOT NULL DEFAULT 0, created TEXT NOT NULL, updated TEXT NOT NULL
   );`,
+  // v6 — learned binders: the routing step itself crystallized. Examples come from grounded model bindings
+  // (positive) and binder refusals (negative); never from private or sealed work.
+  `CREATE TABLE IF NOT EXISTS skill_examples (
+    id TEXT PRIMARY KEY, skill TEXT NOT NULL, task TEXT NOT NULL, input TEXT, label TEXT NOT NULL, created TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS skill_examples_skill ON skill_examples(skill, label);
+  CREATE TABLE IF NOT EXISTS skill_binders (
+    id TEXT PRIMARY KEY, skill TEXT NOT NULL, code TEXT NOT NULL, code_sha256 TEXT NOT NULL, status TEXT NOT NULL,
+    verification TEXT NOT NULL DEFAULT '{}', examples INTEGER NOT NULL DEFAULT 0, uses INTEGER NOT NULL DEFAULT 0,
+    created TEXT NOT NULL, updated TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS skill_binders_skill ON skill_binders(skill, status);`,
 ];
 
 export class Store {

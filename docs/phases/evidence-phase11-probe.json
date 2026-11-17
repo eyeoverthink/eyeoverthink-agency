@@ -1,0 +1,242 @@
+{
+  "writer": {
+    "reason": "does not reproduce 8 recorded binding(s)",
+    "captured": {
+      "src": "function bind(task) {\\n  const regex = /(?:jog|walk|fly|drive|cycle|run|deliver) to (.*?) and (?:walk|run|return|come back|ride back) the same way at (.*?) mph/;\\n  const match = task.match(regex);\\n  if (match) {\\n    return {\\n      speed_to: parseFloat(match[1]),\\n      speed_from: parseFloat(match[2])\\n    };\\n  }\\n  return null;\\n}\nconst __out = bind(\"I jog to the park at 6 mph and walk back the same way at 3 mph. What was my average speed for the round trip?\");\nconsole.log(JSON.stringify({ out: __out === undefined ? null : __out }));",
+      "stderr": "[stdin]:1\r\nfunction bind(task) {\\n  const regex = /(?:jog|walk|fly|drive|cycle|run|deliver) to (.*?) and (?:walk|run|return|come back|ride back) the same way at (.*?) mph/;\\n  const match = task.match(regex);\\n  if (match) {\\n    return {\\n      speed_to: parseFloat(match[1]),\\n      speed_from: parseFloat(match[2])\\n    };\\n  }\\n  return null;\\n}\r\n                     ^\r\nExpected unicode escape\r\n\r\nSyntaxError: Invalid or unexpected token\r\n    at makeContextifyScript (node:internal/vm:194:14)\r\n    at compileScript (node:internal/process/execution:388:10)\r\n    at evalTypeScript (node:internal/process/execution:260:22)\r\n    at node:internal/main/eval_stdin:51:5\r\n    at Socket.<anonymous> (node:internal/process/execution:205:5)\r\n    at Socket.emit (node:events:520:35)\r\n    at endReadableNT (node:internal/streams/readable:1701:12)\r\n    at process.processTicksAndRejections (node:internal/process/task_queues:89:21)\r\n\r\nNode.js v24.11.1\r\n"
+    }
+  },
+  "roles": {
+    "fast": {
+      "model": "llama3.2:latest",
+      "posRouted": 4,
+      "negRouted": 5,
+      "rows": [
+        {
+          "kind": "pos",
+          "task": "A $500 sofa is 40% off, then an extra 10% off. What is the price?",
+          "routed": "calculate_final_price",
+          "model": "llama3.2:latest",
+          "miss": null
+        },
+        {
+          "kind": "pos",
+          "task": "A runner goes out at 9 km/h and returns along the same path at 6 km/h. What is the average speed over the out-and-back?",
+          "routed": "calculate_average_speed",
+          "model": "llama3.2:latest",
+          "miss": null
+        },
+        {
+          "kind": "pos",
+          "task": "A delivery van drives to the depot at 50 mph and back at 75 mph. What is the van's average speed for the round trip?",
+          "routed": "calculate_average_speed",
+          "model": "llama3.2:latest",
+          "miss": null
+        },
+        {
+          "kind": "pos",
+          "task": "Headphones cost $129.99. After a 20% discount and a further 5% coupon, what do they cost?",
+          "routed": "calculate_final_price",
+          "model": "llama3.2:latest",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "A $90 jacket gets 30% off, then 10% off. How many dollars cheaper is it than the original price?",
+          "routed": "calculate_final_price",
+          "model": "llama3.2:latest",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "Is 15% off and then 10% off a $100 item better than a single 25% off? Answer yes or no.",
+          "routed": "calculate_final_price",
+          "model": "llama3.2:latest",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "A $200 phone gets 10% off, then 5% off. How much money did I save in total?",
+          "routed": "calculate_final_price",
+          "model": "llama3.2:latest",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "Store A sells a $50 item at 20% off and store B sells it at 15% off. Which store is cheaper?",
+          "routed": "calculate_final_price",
+          "model": "llama3.2:latest",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "A car goes 50 mph for 2 hours and then 70 mph for 1 hour. What is the average speed?",
+          "routed": "calculate_average_speed",
+          "model": "llama3.2:latest",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "A car drives 60 mph for 3 hours and then 40 mph for 1 hour. What is the average speed for the trip?",
+          "routed": null,
+          "model": "llama3.2:latest",
+          "miss": "binding rejected: distance_to = 0 does not appear in the task"
+        }
+      ]
+    },
+    "plan": {
+      "model": "hermes3:latest",
+      "posRouted": 4,
+      "negRouted": 6,
+      "rows": [
+        {
+          "kind": "pos",
+          "task": "A $500 sofa is 40% off, then an extra 10% off. What is the price?",
+          "routed": "calculate_final_price",
+          "model": "hermes3:latest",
+          "miss": null
+        },
+        {
+          "kind": "pos",
+          "task": "A runner goes out at 9 km/h and returns along the same path at 6 km/h. What is the average speed over the out-and-back?",
+          "routed": "calculate_average_speed",
+          "model": "hermes3:latest",
+          "miss": null
+        },
+        {
+          "kind": "pos",
+          "task": "A delivery van drives to the depot at 50 mph and back at 75 mph. What is the van's average speed for the round trip?",
+          "routed": "calculate_average_speed",
+          "model": "hermes3:latest",
+          "miss": null
+        },
+        {
+          "kind": "pos",
+          "task": "Headphones cost $129.99. After a 20% discount and a further 5% coupon, what do they cost?",
+          "routed": "calculate_final_price",
+          "model": "hermes3:latest",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "A $90 jacket gets 30% off, then 10% off. How many dollars cheaper is it than the original price?",
+          "routed": "calculate_final_price",
+          "model": "hermes3:latest",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "Is 15% off and then 10% off a $100 item better than a single 25% off? Answer yes or no.",
+          "routed": "calculate_final_price",
+          "model": "hermes3:latest",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "A $200 phone gets 10% off, then 5% off. How much money did I save in total?",
+          "routed": "calculate_final_price",
+          "model": "hermes3:latest",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "Store A sells a $50 item at 20% off and store B sells it at 15% off. Which store is cheaper?",
+          "routed": "calculate_final_price",
+          "model": "hermes3:latest",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "A car goes 50 mph for 2 hours and then 70 mph for 1 hour. What is the average speed?",
+          "routed": "calculate_average_speed",
+          "model": "hermes3:latest",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "A car drives 60 mph for 3 hours and then 40 mph for 1 hour. What is the average speed for the trip?",
+          "routed": "calculate_average_speed",
+          "model": "hermes3:latest",
+          "miss": null
+        }
+      ]
+    },
+    "reason": {
+      "model": "fraymus-prime:v1",
+      "posRouted": 4,
+      "negRouted": 5,
+      "rows": [
+        {
+          "kind": "pos",
+          "task": "A $500 sofa is 40% off, then an extra 10% off. What is the price?",
+          "routed": "calculate_final_price",
+          "model": "fraymus-prime:v1",
+          "miss": null
+        },
+        {
+          "kind": "pos",
+          "task": "A runner goes out at 9 km/h and returns along the same path at 6 km/h. What is the average speed over the out-and-back?",
+          "routed": "calculate_average_speed",
+          "model": "fraymus-prime:v1",
+          "miss": null
+        },
+        {
+          "kind": "pos",
+          "task": "A delivery van drives to the depot at 50 mph and back at 75 mph. What is the van's average speed for the round trip?",
+          "routed": "calculate_average_speed",
+          "model": "fraymus-prime:v1",
+          "miss": null
+        },
+        {
+          "kind": "pos",
+          "task": "Headphones cost $129.99. After a 20% discount and a further 5% coupon, what do they cost?",
+          "routed": "calculate_final_price",
+          "model": "fraymus-prime:v1",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "A $90 jacket gets 30% off, then 10% off. How many dollars cheaper is it than the original price?",
+          "routed": "calculate_final_price",
+          "model": "fraymus-prime:v1",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "Is 15% off and then 10% off a $100 item better than a single 25% off? Answer yes or no.",
+          "routed": "calculate_final_price",
+          "model": "fraymus-prime:v1",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "A $200 phone gets 10% off, then 5% off. How much money did I save in total?",
+          "routed": "calculate_final_price",
+          "model": "fraymus-prime:v1",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "Store A sells a $50 item at 20% off and store B sells it at 15% off. Which store is cheaper?",
+          "routed": null,
+          "model": "fraymus-prime:v1",
+          "miss": "binding rejected: discount2 = 0 does not appear in the task"
+        },
+        {
+          "kind": "neg",
+          "task": "A car goes 50 mph for 2 hours and then 70 mph for 1 hour. What is the average speed?",
+          "routed": "calculate_average_speed",
+          "model": "fraymus-prime:v1",
+          "miss": null
+        },
+        {
+          "kind": "neg",
+          "task": "A car drives 60 mph for 3 hours and then 40 mph for 1 hour. What is the average speed for the trip?",
+          "routed": "calculate_average_speed",
+          "model": "fraymus-prime:v1",
+          "miss": null
+        }
+      ]
+    }
+  }
+}

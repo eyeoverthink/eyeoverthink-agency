@@ -138,9 +138,13 @@ export async function main(argv) {
           const r = await agency.crystallizer.crystallize(src);
           out(r.admitted ? `ADMITTED skill_${r.skill.name}: ${r.skill.description} (${r.reason})` : `not admitted: ${r.reason}`);
         } else if (pos[1] === 'run') out(await agency.crystallizer.invoke(pos[2], JSON.parse(pos[3] || '{}')));
-        else {
+        else if (pos[1] === 'learn-binder') {
+          const r = await agency.crystallizer.learnBinder(pos[2]);
+          out(r.admitted ? `ADMITTED binder for skill_${pos[2]}: ${r.reason}` : `not admitted: ${r.reason}`);
+          out(JSON.stringify({ ...r.verification, rows: undefined }));
+        } else {
           const st = agency.crystallizer.stats();
-          out(`${st.active} active skill(s), ${st.uses} use(s) = model calls avoided, ${st.failures} failure(s)`);
+          out(`${st.active} active skill(s), ${st.uses} use(s), ${st.routed} routed skill-first (${st.zeroCall} with zero model calls), ${st.binders} learned binder(s), ${st.failures} failure(s)`);
           for (const s of agency.crystallizer.list()) out(`${s.status.padEnd(8)} skill_${s.name.padEnd(28)} uses=${s.uses} from ${s.source}  ${s.description}`);
         }
         break;

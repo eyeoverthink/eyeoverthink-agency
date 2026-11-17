@@ -1,0 +1,846 @@
+{
+  "at": "2026-11-17T15:53:40.214Z",
+  "teach": [],
+  "learn": {
+    "calculate_final_price": [],
+    "calculate_average_speed": [
+      {
+        "admitted": true,
+        "reason": "induced with no model from 16 example(s), each predicted from the others, refuses 5 negative(s), binds 67% of blind paraphrases",
+        "verification": {
+          "train": "16/16",
+          "heldOut": true,
+          "negatives": "5/5 refused",
+          "coverage": 0.6666666666666666,
+          "method": "induction",
+          "writer": null,
+          "spec": {
+            "shapes": [
+              "0,0,2"
+            ],
+            "params": {
+              "speed_to": {
+                "kind": "plain",
+                "k": 0,
+                "scale": 1,
+                "units": [
+                  "km/h",
+                  "knots",
+                  "mph"
+                ]
+              },
+              "speed_from": {
+                "kind": "plain",
+                "k": -1,
+                "scale": 1,
+                "units": [
+                  "km/h",
+                  "knots",
+                  "mph"
+                ]
+              }
+            },
+            "blockWords": []
+          },
+          "disputed": [],
+          "rows": {
+            "train": [
+              {
+                "task": "I jog to the park at 6 mph and walk back the same way at 3 mph. What was my average speed for the round trip?",
+                "ok": true,
+                "got": {
+                  "speed_to": 6,
+                  "speed_from": 3
+                }
+              },
+              {
+                "task": "A plane flies out at 400 km/h and returns over the same route at 600 km/h. What is the average speed for the whole trip?",
+                "ok": true,
+                "got": {
+                  "speed_to": 400,
+                  "speed_from": 600
+                }
+              },
+              {
+                "task": "Driving to work I average 30 mph, and on the way home on the same roads 45 mph. What is my average speed there and back?",
+                "ok": true,
+                "got": {
+                  "speed_to": 30,
+                  "speed_from": 45
+                }
+              },
+              {
+                "task": "A boat goes upstream at 8 km/h and comes back downstream the same distance at 12 km/h. What is its average speed for the round trip?",
+                "ok": true,
+                "got": {
+                  "speed_to": 8,
+                  "speed_from": 12
+                }
+              },
+              {
+                "task": "I cycle to my friend's house at 10 mph and ride back at 15 mph on the same route. What's my average speed for the round trip?",
+                "ok": true,
+                "got": {
+                  "speed_to": 10,
+                  "speed_from": 15
+                }
+              },
+              {
+                "task": "A runner goes out at 9 km/h and returns along the same path at 6 km/h. What is the average speed over the out-and-back?",
+                "ok": true,
+                "got": {
+                  "speed_to": 9,
+                  "speed_from": 6
+                }
+              },
+              {
+                "task": "A delivery van drives to the depot at 50 mph and back at 75 mph. What is the van's average speed for the round trip?",
+                "ok": true,
+                "got": {
+                  "speed_to": 50,
+                  "speed_from": 75
+                }
+              },
+              {
+                "task": "A ferry crosses at 20 knots and returns the same distance at 30 knots. What is its average speed for the round trip?",
+                "ok": true,
+                "got": {
+                  "speed_to": 20,
+                  "speed_from": 30
+                }
+              },
+              {
+                "task": "I paddle across the lake at 4 km/h and back the same way at 6 km/h. What is my average speed for the round trip?",
+                "ok": true,
+                "got": {
+                  "speed_to": 4,
+                  "speed_from": 6
+                }
+              },
+              {
+                "task": "A courier rides to the warehouse at 20 mph and returns along the same road at 30 mph. What is the average speed for the round trip?",
+                "ok": true,
+                "got": {
+                  "speed_to": 20,
+                  "speed_from": 30
+                }
+              },
+              {
+                "task": "A hiker climbs a trail at 2 mph and comes back down the same trail at 6 mph. What is the average speed for the whole hike?",
+                "ok": true,
+                "got": {
+                  "speed_to": 2,
+                  "speed_from": 6
+                }
+              },
+              {
+                "task": "A drone flies out at 36 km/h and back over the same distance at 54 km/h. What is its average speed for the round trip?",
+                "ok": true,
+                "got": {
+                  "speed_to": 36,
+                  "speed_from": 54
+                }
+              },
+              {
+                "task": "I swim out to the buoy at 2 km/h and back at 3 km/h. What is my average speed for the round trip?",
+                "ok": true,
+                "got": {
+                  "speed_to": 2,
+                  "speed_from": 3
+                }
+              },
+              {
+                "task": "A truck hauls a load to the quarry at 40 mph and returns empty on the same road at 60 mph. What is the average speed for the round trip?",
+                "ok": true,
+                "got": {
+                  "speed_to": 40,
+                  "speed_from": 60
+                }
+              },
+              {
+                "task": "A rower goes upstream at 5 km/h and returns downstream over the same stretch at 20 km/h. What is the average speed for the round trip?",
+                "ok": true,
+                "got": {
+                  "speed_to": 5,
+                  "speed_from": 20
+                }
+              },
+              {
+                "task": "A bus drives to the city at 45 mph and back on the same highway at 55 mph. What is its average speed for the round trip?",
+                "ok": true,
+                "got": {
+                  "speed_to": 45,
+                  "speed_from": 55
+                }
+              }
+            ],
+            "heldOut": {
+              "task": "leave-one-out",
+              "ok": true,
+              "loo": "15/16 (+1 novel unit)"
+            },
+            "negatives": [
+              {
+                "task": "A car goes 50 mph for 2 hours and then 70 mph for 1 hour. What is the average speed?",
+                "ok": true,
+                "got": null
+              },
+              {
+                "task": "A train travels 120 miles in 2 hours. What is its average speed?",
+                "ok": true,
+                "got": null
+              },
+              {
+                "task": "What is the total time it took me to drive from A to B?",
+                "ok": true,
+                "got": null
+              },
+              {
+                "task": "I ride a bike at 15 mph and walk back home. What was my average speed for the round trip?",
+                "ok": true,
+                "got": null
+              },
+              {
+                "task": "My dad drives at 45 mph, but I don't know how fast he walks",
+                "ok": true,
+                "got": null
+              }
+            ],
+            "synthPos": [
+              {
+                "task": "I drive to the beach at 25 mph and back home on the highway at 40 mph. What was my average speed for the round trip?",
+                "ok": true,
+                "got": {
+                  "speed_to": 25,
+                  "speed_from": 40
+                }
+              },
+              {
+                "task": "My mom drives me to school at 30 mph and walks back home from there at 4 mph. What is her average driving speed for our entire journey?",
+                "ok": false,
+                "got": {
+                  "speed_to": 30,
+                  "speed_from": 4
+                }
+              },
+              {
+                "task": "I ride my bike to the store at 10 mph and walk back the same way at 3 mph. What was my average speed for the round trip?",
+                "ok": true,
+                "got": {
+                  "speed_to": 10,
+                  "speed_from": 3
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "test": [
+    {
+      "id": "d-drill",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 127,
+      "input": {
+        "original_price": 210,
+        "discount1": 0.2,
+        "discount2": 0.15
+      },
+      "out": 142.79999999999998,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-drill",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 293,
+      "ms": 3677,
+      "input": {
+        "original_price": 210,
+        "discount1": 0.2,
+        "discount2": 0.15
+      },
+      "out": 142.79999999999998,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-jeans",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 124,
+      "input": {
+        "original_price": 64,
+        "discount1": 0.25,
+        "discount2": 0.1
+      },
+      "out": 43.2,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-jeans",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 298,
+      "ms": 390,
+      "input": {
+        "original_price": 64,
+        "discount1": 0.25,
+        "discount2": 0.1
+      },
+      "out": 43.2,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-toy",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 124,
+      "input": {
+        "original_price": 35,
+        "discount1": 0.4,
+        "discount2": 0.05
+      },
+      "out": 19.95,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-toy",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 291,
+      "ms": 312,
+      "input": {
+        "original_price": 35,
+        "discount1": 0.4,
+        "discount2": 0.05
+      },
+      "out": 19.95,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-bike",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 127,
+      "input": {
+        "original_price": 990,
+        "discount1": 0.1,
+        "discount2": 0.1
+      },
+      "out": 801.9,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-bike",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 290,
+      "ms": 324,
+      "input": {
+        "original_price": 990,
+        "discount1": 0.1,
+        "discount2": 0.1
+      },
+      "out": 801.9,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-boat",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 126,
+      "input": {
+        "speed_to": 15,
+        "speed_from": 10
+      },
+      "out": 12,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-boat",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 256,
+      "ms": 254,
+      "input": {
+        "speed_to": 15,
+        "speed_from": 10
+      },
+      "out": 12,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-school",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 125,
+      "input": {
+        "speed_to": 4,
+        "speed_from": 12
+      },
+      "out": 6,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-school",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 260,
+      "ms": 255,
+      "input": {
+        "speed_to": 4,
+        "speed_from": 12
+      },
+      "out": 6,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-airport",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 126,
+      "input": {
+        "speed_to": 35,
+        "speed_from": 70
+      },
+      "out": 46.666666666666664,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-airport",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 260,
+      "ms": 261,
+      "input": {
+        "speed_to": 35,
+        "speed_from": 70
+      },
+      "out": 46.666666666666664,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-skater",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 126,
+      "input": {
+        "speed_to": 8,
+        "speed_from": 24
+      },
+      "out": 12,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-skater",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 261,
+      "ms": 256,
+      "input": {
+        "speed_to": 8,
+        "speed_from": 24
+      },
+      "out": 12,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "c-repeat-tax",
+      "arm": "learned",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 299,
+      "ms": 306,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "binding rejected: the task states 10 once more than the binding uses"
+    },
+    {
+      "id": "c-repeat-tax",
+      "arm": "model",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 299,
+      "ms": 212,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "binding rejected: the task states 10 once more than the binding uses"
+    },
+    {
+      "id": "c-save40",
+      "arm": "learned",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 292,
+      "ms": 307,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "binding rejected: the task asks for a difference or saving, which this skill does not compute"
+    },
+    {
+      "id": "c-save40",
+      "arm": "model",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 292,
+      "ms": 221,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "binding rejected: the task asks for a difference or saving, which this skill does not compute"
+    },
+    {
+      "id": "c-miles",
+      "arm": "learned",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 245,
+      "ms": 252,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "binding rejected: the task states 3 but the binding does not use it"
+    },
+    {
+      "id": "c-miles",
+      "arm": "model",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 241,
+      "ms": 126,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "binder found no skill that fully answers the task"
+    },
+    {
+      "id": "c-runtime",
+      "arm": "learned",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 0,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "no candidate skill"
+    },
+    {
+      "id": "c-runtime",
+      "arm": "model",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 0,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "no candidate skill"
+    },
+    {
+      "id": "c-left",
+      "arm": "learned",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 294,
+      "ms": 325,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "binding rejected: the question uses \"original\", which only ever appeared in tasks this skill had to refuse"
+    },
+    {
+      "id": "c-left",
+      "arm": "model",
+      "control": true,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 294,
+      "ms": 287,
+      "input": {
+        "original_price": 60,
+        "discount1": 0.3,
+        "discount2": 0.1
+      },
+      "out": 37.800000000000004,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-taxphone",
+      "arm": "learned",
+      "control": true,
+      "routed": "calculate_final_price",
+      "zeroCall": true,
+      "calls": 0,
+      "tokens": 0,
+      "ms": 125,
+      "input": {
+        "original_price": 150,
+        "discount1": 0.2,
+        "discount2": 0.05
+      },
+      "out": 114,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-taxphone",
+      "arm": "model",
+      "control": true,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 293,
+      "ms": 326,
+      "input": {
+        "original_price": 150,
+        "discount1": 0.2,
+        "discount2": 0.05
+      },
+      "out": 114,
+      "correct": false,
+      "miss": null
+    }
+  ],
+  "summary": {
+    "learned": {
+      "routedMatching": 8,
+      "correctMatching": 8,
+      "zeroCall": 9,
+      "calls": 4,
+      "tokens": 1130,
+      "ms": 2320,
+      "misroutes": [
+        "c-taxphone"
+      ]
+    },
+    "model": {
+      "routedMatching": 8,
+      "correctMatching": 8,
+      "zeroCall": 0,
+      "calls": 13,
+      "tokens": 3628,
+      "ms": 6901,
+      "misroutes": [
+        "c-left",
+        "c-taxphone"
+      ]
+    }
+  },
+  "stats": {
+    "active": 2,
+    "retired": 0,
+    "uses": 110,
+    "failures": 0,
+    "modelCallsAvoided": 110,
+    "toolCalls": 1276,
+    "routed": 108,
+    "zeroCall": 14,
+    "binders": 2,
+    "examples": 55,
+    "routeMisses": 31,
+    "routeRejected": 0,
+    "bindCalls": 139,
+    "callsAvoidedMin": 122
+  },
+  "binders": [
+    {
+      "id": "sb_01m7n350b4v8nxpfxqt78w",
+      "skill": "calculate_final_price",
+      "code_sha256": "3ffb7471fb1388251a816a396c6dc772a6a19b516c8898a7f3774fb1829eb266",
+      "status": "active",
+      "verification": {
+        "train": "14/14",
+        "heldOut": true,
+        "negatives": "4/4 refused",
+        "coverage": 0.75,
+        "method": "induction",
+        "writer": null,
+        "spec": {
+          "shapes": [
+            "1,2,0"
+          ],
+          "params": {
+            "original_price": {
+              "kind": "currency",
+              "k": 0,
+              "scale": 1
+            },
+            "discount1": {
+              "kind": "percent",
+              "k": 0,
+              "scale": 0.01
+            },
+            "discount2": {
+              "kind": "percent",
+              "k": -1,
+              "scale": 0.01
+            }
+          },
+          "blockWords": [
+            "better",
+            "cheaper",
+            "dollars",
+            "item",
+            "money",
+            "original",
+            "save",
+            "single",
+            "store",
+            "than",
+            "which"
+          ]
+        },
+        "disputed": [
+          "A $60 coat is 20% off, then 10% off. What percent of the original price do I pay?"
+        ]
+      },
+      "examples": 15,
+      "uses": 10,
+      "created": "2026-11-17T15:49:00.900Z"
+    },
+    {
+      "id": "sb_01m7n3dz8wgm7ztj3v7d7y",
+      "skill": "calculate_average_speed",
+      "code_sha256": "80a2db1e1ad8e529fb7b088c262e3a9848d5f42143e51d8c8d6312d909b2c7a1",
+      "status": "active",
+      "verification": {
+        "train": "16/16",
+        "heldOut": true,
+        "negatives": "5/5 refused",
+        "coverage": 0.6666666666666666,
+        "method": "induction",
+        "writer": null,
+        "spec": {
+          "shapes": [
+            "0,0,2"
+          ],
+          "params": {
+            "speed_to": {
+              "kind": "plain",
+              "k": 0,
+              "scale": 1,
+              "units": [
+                "km/h",
+                "knots",
+                "mph"
+              ]
+            },
+            "speed_from": {
+              "kind": "plain",
+              "k": -1,
+              "scale": 1,
+              "units": [
+                "km/h",
+                "knots",
+                "mph"
+              ]
+            }
+          },
+          "blockWords": []
+        },
+        "disputed": []
+      },
+      "examples": 16,
+      "uses": 4,
+      "created": "2026-11-17T15:53:54.716Z"
+    }
+  ]
+}

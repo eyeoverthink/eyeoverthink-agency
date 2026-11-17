@@ -98,10 +98,10 @@ export class AgentRuntime {
       if (routed.skill) {
         const final = Crystallizer.answerText(routed.skill, routed.input, routed.out, opts.privacy || 'normal');
         const summary = truncate(JSON.stringify(routed.out), 400);
-        const steps = [{ thought: `skill-first: skill_${routed.skill.name} answers this task (bound by ${routed.bindModel})`, tool: `skill_${routed.skill.name}`, args: { input: routed.input }, ok: true, summary, evidence: { executed: true, sha256: routed.skill.code_sha256, skill: routed.skill.name } }];
+        const steps = [{ thought: `skill-first: skill_${routed.skill.name} answers this task (bound by ${routed.binderId ? 'a learned binder, zero model calls' : routed.bindModel})`, tool: `skill_${routed.skill.name}`, args: { input: routed.input }, ok: true, summary, evidence: { executed: true, sha256: routed.skill.code_sha256, skill: routed.skill.name } }];
         opts.onStep?.({ agentId: agent.id, thought: steps[0].thought, tool: steps[0].tool, ok: true, summary });
         span?.end('ok', { steps: 1, model: `skill:${routed.skill.name}`, skill: routed.skill.name });
-        return { status: 'done', final, confidence: 0.95, steps, model: `skill:${routed.skill.name}`, usage: routed.usage, toolCalls: 1, agentId: agent.id, skill: routed.skill.name };
+        return { status: 'done', final, confidence: 0.95, steps, model: `skill:${routed.skill.name}`, usage: routed.usage, toolCalls: 1, agentId: agent.id, skill: routed.skill.name, binder: routed.binderId || null };
       }
     }
 

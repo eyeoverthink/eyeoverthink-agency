@@ -13,6 +13,7 @@
 //   measure : uses, failures, and model calls avoided: the curve that shows the system, not the model, improving.
 import { newId, nowIso, sha256 } from '../core/util.js';
 import { runSandboxedJs } from '../tools/builtin.js';
+import { induce, leaveOneOut, compileSpec, questionWords } from './binder-induction.js';
 
 const NAME = /^[a-z][a-z0-9_]{2,39}$/;
 
@@ -69,6 +70,62 @@ export function groundingProblem(input, schema, task) {
     if (!ok) return `${k} should be ${p.type}`;
   }
   return null;
+}
+
+/** Strict structural equality with numeric tolerance (no unwrapping): for comparing two bindings of the same skill. */
+export function sameInput(a, b) {
+  if (typeof a === 'number' && typeof b === 'number') return Math.abs(a - b) <= Math.max(1e-9, Math.abs(a) * 1e-9);
+  if (Array.isArray(a) || Array.isArray(b)) return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => sameInput(x, b[i]));
+  if (a && b && typeof a === 'object' && typeof b === 'object') {
+    const ka = Object.keys(a).sort(), kb = Object.keys(b).sort();
+    return ka.length === kb.length && ka.every((k, i) => k === kb[i] && sameInput(a[k], b[k]));
+  }
+  return a === b;
+}
+
+// Question forms whose answer is not a single computed value: a difference, a choice, a comparison or a yes/no.
+const FORMS = [
+  ['a difference or saving', /\b(sav(e|es|ed|ing|ings)|difference|how (much|many \w+) (more|less|cheaper|lower|higher))\b|\b(cheaper|lower|higher|more|less|faster|slower)\b[^.?!]*\bthan\b/i],
+  ['a choice between options', /\bwhich\b|\b(better|worse|best|worst)\b/i],
+  ['a yes/no answer', /\byes or no\b|\btrue or false\b|(^|[.!?]\s+)(is|are|does|do|can|should|will|would)\s[^.?!]*\?/i],
+];
+
+/**
+ * Structural checks no model can talk its way past, measured on real models in Phase 11 (llama3.2 3B, hermes3 and
+ * fraymus-prime 8B each routed 5-6 of 6 near-miss tasks; model size did not help):
+ *   unused numbers : the task states a number the binding does not use ("60 mph FOR 3 HOURS"), so the skill cannot be
+ *                    using everything the answer depends on;
+ *   answer form    : the task asks for a difference, a choice or a yes/no, and the skill's own description does not say
+ *                    it computes one.
+ * Returns a reason, or null. Grounding (groundingProblem) runs first.
+ */
+const walk2 = (v, out) => { if (Array.isArray(v)) v.forEach((x) => walk2(x, out)); else if (v && typeof v === 'object') Object.values(v).forEach((x) => walk2(x, out)); else if (typeof v === 'number') out.push(v); };
+
+export function bindingProblem(input, skill, task) {
+  const g = groundingProblem(input, skill.params, task);
+  if (g) return g;
+  const used = new Set();
+  const walk = (v) => { if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === 'object') Object.values(v).forEach(walk); else if (typeof v === 'number') { used.add(v); used.add(Math.round(v * 100 * 1e9) / 1e9); } };
+  walk(input);
+  const unused = [...new Set((String(task).match(NUM) || []).map(Number))].filter((n) => !used.has(n));
+  if (unused.length) return `the task states ${unused.slice(0, 3).join(', ')} but the binding does not use ${unused.length > 1 ? 'them' : 'it'}`;
+  // Occurrences, not just values, in the fullest line of the task (mission prompts restate the goal on other lines).
+  // Measured: "10% off, then 10% off ... including 8% tax" bound 10 and 8, and a set-based check saw every value used.
+  const lines = String(task).split(/\n+/).map((l) => (l.match(NUM) || []).map(Number));
+  const fullest = lines.reduce((a, b) => (b.length > a.length ? b : a), []);
+  const pool = [...fullest];
+  const leaves = [];
+  walk2(input, leaves);
+  for (const v of leaves) { const i = pool.findIndex((n) => n === v || n === Math.round(v * 100 * 1e9) / 1e9); if (i >= 0) pool.splice(i, 1); }
+  if (pool.length) return `the task states ${pool.join(', ')} once more than the binding uses`;
+  for (const [form, re] of FORMS) if (re.test(String(task)) && !re.test(`${skill.name.replace(/_/g, ' ')} ${skill.description}`)) return `the task asks for ${form}, which this skill does not compute`;
+  return null;
+}
+
+/** Models sometimes double-escape code inside JSON (a literal backslash-n for a newline); such a program is unescaped. */
+export function normalizeCode(code) {
+  const c = String(code || '');
+  return !c.includes('\n') && /\\n/.test(c) ? c.replace(/\\r\\n|\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"') : c;
 }
 
 const parseJson = (text) => { try { return JSON.parse(String(text).match(/\{[\s\S]*\}/)?.[0] || '{}'); } catch { return {}; } };
@@ -243,6 +300,22 @@ export class Crystallizer {
       return { s, score: shared.length, shared, ok: shared.length >= (cfg.minOverlap ?? 1) && nums.length >= needNums };
     }).filter((c) => c.ok).sort((a, b) => b.score - a.score).slice(0, 3);
     if (!candidates.length) return { miss: 'no candidate skill', usage: zero };
+    const private_ = privacy === 'private' || privacy === 'sealed';
+    const ctx = { agentId, missionId, privacy, reflection, active };
+
+    // Zero-call path: a learned binder (the routing step itself, crystallized and verified) parses the task. Its output
+    // passes the same grounding as a model binding; anything doubtful falls through to the model binder.
+    const binderNulls = new Set();
+    for (const c of candidates) {
+      const b = this.binder(c.s.name);
+      if (!b) continue;
+      const r = await this.#runBinder(b.code, text);
+      if (r.error || !r.out || typeof r.out !== 'object' || Array.isArray(r.out) || bindingProblem(r.out, c.s, text)) { binderNulls.add(c.s.name); continue; }
+      const run = await this.#run(c.s.code, r.out, active.filter((x) => x.name !== c.s.name));
+      if (run.error) { binderNulls.add(c.s.name); continue; }
+      this.store.run('UPDATE skill_binders SET uses = uses + 1, updated = ? WHERE id = ?', nowIso(), b.id);
+      return this.#commitRoute(c.s, r.out, run.out, { ...ctx, bindModel: 'learned-binder', binderId: b.id, spent: 0, usage: zero });
+    }
 
     let res;
     try {
@@ -260,12 +333,19 @@ export class Crystallizer {
       this.ledger.append('skill.route_miss', { agentId, missionId, reason, candidates: candidates.map((c) => c.s.name), bindModel: res.model }, 'crystallizer');
       return { miss: reason, usage, bindModel: res.model };
     };
-    if (!p.skill) return miss('binder found no skill that fully answers the task');
+    if (typeof p.skill === 'string' && /^(none|null|n\/a|)$/i.test(p.skill.trim())) p.skill = null; // "none" is a refusal
+    if (!p.skill) {
+      // A refusal is a negative example for every candidate: the learned binder must also say no to tasks like this.
+      if (!private_) for (const c of candidates) this.#example(c.s.name, text, null, 'neg');
+      return miss('binder found no skill that fully answers the task');
+    }
     const hit = candidates.find((c) => c.s.name === String(p.skill).replace(/^skill_/, ''));
     if (!hit) return miss(`binder named an unknown skill (${String(p.skill).slice(0, 40)})`);
     const input = p.input && typeof p.input === 'object' && !Array.isArray(p.input) ? p.input : null;
-    const problem = !input ? 'no input object' : groundingProblem(input, hit.s.params, text);
+    const problem = !input ? 'no input object' : bindingProblem(input, hit.s, text);
     if (problem) return miss(`binding rejected: ${problem}`);
+    const blocked = this.#learnedBlock(hit.s.name, text);
+    if (blocked) return miss(`binding rejected: ${blocked}`);
     let out;
     try {
       const library = active.filter((x) => x.name !== hit.s.name);
@@ -273,14 +353,190 @@ export class Crystallizer {
       if (r.error) return miss(`skill rejected the bound input: ${r.error}`);
       out = r.out;
     } catch (e) { return miss(`skill run failed: ${e.message}`); }
-    this.store.run('UPDATE skills SET uses = uses + 1, updated = ? WHERE id = ?', nowIso(), hit.s.id);
-    // The agent loop would have spent at least one turn plus its reflection rounds; routing spent one bind call.
+    // A grounded model binding is a positive example; enough of them and the binding step is learned too.
+    if (!private_) { this.#example(hit.s.name, text, input, 'pos'); this.#maybeLearn(hit.s.name); }
+    return this.#commitRoute(hit.s, input, out, { ...ctx, bindModel: res.model, spent: 1, usage, binderMissed: binderNulls.has(hit.s.name) });
+  }
+
+  #commitRoute(skill, input, out, { agentId, missionId, privacy, reflection, bindModel, binderId = null, spent, usage, binderMissed = false }) {
+    this.store.run('UPDATE skills SET uses = uses + 1, updated = ? WHERE id = ?', nowIso(), skill.id);
+    // The agent loop would have spent at least one turn plus its reflection rounds; routing spent `spent` model calls.
     const baselineMin = 1 + Math.min(Math.max(0, reflection | 0), 2);
     const private_ = privacy === 'private' || privacy === 'sealed';
-    this.ledger.append('skill.route', { skill: hit.s.name, codeSha256: hit.s.code_sha256, agentId, missionId, bindModel: res.model,
-      input: private_ ? undefined : input, inputSha256: sha256(JSON.stringify(input)), baselineMin, spent: 1, bindTokens: usage.prompt + usage.completion }, 'crystallizer');
-    this.bus?.publish('skill.route', { skill: hit.s.name, agentId, missionId });
-    return { skill: hit.s, input, out, bindModel: res.model, usage };
+    this.ledger.append('skill.route', { skill: skill.name, codeSha256: skill.code_sha256, agentId, missionId, bindModel, binderId, binderMissed,
+      input: private_ ? undefined : input, inputSha256: sha256(JSON.stringify(input)), baselineMin, spent, bindTokens: usage.prompt + usage.completion }, 'crystallizer');
+    this.bus?.publish('skill.route', { skill: skill.name, agentId, missionId, zeroCall: spent === 0 });
+    return { skill, input, out, bindModel, binderId, usage };
+  }
+
+  /** Question words this skill's past refusals taught it to refuse; they gate model bindings too, not just the learned binder. */
+  #learnedBlock(skill, task) {
+    const b = this.binder(skill);
+    if (!b) return null;
+    const words = JSON.parse(b.verification || '{}').spec?.blockWords || [];
+    const hit = questionWords(task).find((w) => words.includes(w));
+    return hit ? `the question uses "${hit}", which only ever appeared in tasks this skill had to refuse` : null;
+  }
+
+  // ---- Learned binders: the routing step, crystallized -------------------------------------------------------------
+
+  #example(skill, task, input, label) {
+    const t = String(task).slice(0, 3000);
+    if (this.store.get('SELECT id FROM skill_examples WHERE skill = ? AND task = ? AND label = ?', skill, t, label)) return;
+    this.store.run('INSERT INTO skill_examples (id, skill, task, input, label, created) VALUES (?, ?, ?, ?, ?, ?)', newId('se'), skill, t, input ? JSON.stringify(input) : null, label, nowIso());
+  }
+
+  examples(skill) {
+    return this.store.all('SELECT * FROM skill_examples WHERE skill = ? ORDER BY created', skill).map((r) => ({ ...r, input: r.input ? JSON.parse(r.input) : null }));
+  }
+
+  binder(skill) { return this.store.get("SELECT * FROM skill_binders WHERE skill = ? AND status = 'active'", skill) || null; }
+  binders() { return this.store.all('SELECT id, skill, code_sha256, status, verification, examples, uses, created FROM skill_binders ORDER BY created').map((b) => ({ ...b, verification: JSON.parse(b.verification || '{}') })); }
+
+  async #runBinder(code, task) {
+    const r = await this.sandbox(`${code}\nconst __out = bind(${JSON.stringify(String(task))});\nconsole.log(JSON.stringify({ out: __out === undefined ? null : __out }));`, { timeoutMs: 3000 });
+    // Keep the message ("SyntaxError: ..."), not just the "[stdin]:1" location line. Measured: every binder failure
+    // read "[stdin]:1" until this showed the real cause (double-escaped newlines).
+    if (r.exitCode !== 0 || r.timedOut) return { error: (String(r.stderr).split('\n').find((l) => /Error/.test(l)) || r.stderr || 'failed').slice(0, 160) };
+    try { return { out: JSON.parse(String(r.stdout).trim().split(/\r?\n/).at(-1)).out }; } catch { return { error: 'no JSON output' }; }
+  }
+
+  /** Learn automatically once there are enough fresh positive examples (one at a time, in the background). */
+  #maybeLearn(skill) {
+    const cfg = this.cfg?.skills || {};
+    if (cfg.learnBinders === false) return;
+    const pos = this.examples(skill).filter((e) => e.label === 'pos').length;
+    const min = cfg.binderMinExamples ?? 3;
+    const current = this.binder(skill);
+    const tried = this.store.kvGet(`binder:tried:${skill}`, 0);
+    // First binder at `min` examples; relearn once 3 new examples exist that the active binder had not seen.
+    if (pos < min || pos <= tried || (current && pos < current.examples + 3)) return;
+    this.store.kvSet(`binder:tried:${skill}`, pos);
+    this.binderQueue = (this.binderQueue || Promise.resolve()).then(() => this.learnBinder(skill).catch((e) => this.bus?.publish('binder.reject', { skill, reason: e.message })));
+  }
+
+  /**
+   * Crystallize the routing step for one skill: a pure `function bind(task)` that returns the skill's input or null.
+   * Verification, all in the sandbox:
+   *   - every recorded positive except one must reproduce the model's binding (same input, or same skill output);
+   *   - the held-out positive, which the writer never saw, must too: memorizing the examples does not generalize;
+   *   - every negative (recorded refusals plus near-miss tasks a blind model writes) must give null or fail grounding:
+   *     a false route costs correctness, so safety is all-or-nothing;
+   *   - blind-written paraphrases measure coverage (at least half must bind correctly).
+   */
+  async learnBinder(skillName, { signal } = {}) {
+    const skill = this.list('active').find((s) => s.name === skillName);
+    if (!skill) throw new Error(`no active skill ${skillName}`);
+    // Re-audit stored positives with today's structural gates: a binding recorded before a gate existed (measured: a
+    // 3B binder routed "how much did I save" to a final-price skill) becomes a counter-example, never training data.
+    let audited = 0;
+    for (const e of this.examples(skillName).filter((x) => x.label === 'pos')) {
+      if (bindingProblem(e.input, skill, e.task)) { this.store.run("UPDATE skill_examples SET label = 'neg', input = NULL WHERE id = ?", e.id); audited++; }
+    }
+    if (audited) this.ledger.append('binder.audit', { skill: skillName, demoted: audited }, 'crystallizer');
+    const ex = this.examples(skillName);
+    const pos = ex.filter((e) => e.label === 'pos'), neg = ex.filter((e) => e.label === 'neg');
+    const min = this.cfg?.skills?.binderMinExamples ?? 3;
+    const fail = (reason, verification = {}) => {
+      this.ledger.append('binder.reject', { skill: skillName, reason, examples: pos.length }, 'crystallizer');
+      this.bus?.publish('binder.reject', { skill: skillName, reason });
+      return { admitted: false, reason, verification };
+    };
+    if (pos.length < min) return fail(`only ${pos.length} positive example(s); ${min} needed`);
+    const sig = `${skill.name}: ${skill.description} Input schema: ${JSON.stringify(skill.params)}`;
+
+    // 1. Induction, no model: one selector per parameter consistent with every example, checked leave-one-out.
+    //    An example the rest of the evidence refuses is DISPUTED (measured: a misroute recorded as a positive was the
+    //    only leave-one-out miss) and excluded; too many disputes means the examples do not agree on one rule.
+    let method = null, code = null, spec = null, writer = null, train = pos, heldOut = null, disputed = [], loo = null;
+    const firstLoo = leaveOneOut(pos, neg, skill);
+    const misses = firstLoo.filter((x) => !x.ok && !x.novel); // novel units are kept: they widen the unit set
+    if (this.cfg?.skills?.binderInduction !== false && misses.length <= Math.floor(pos.length * 0.25) && pos.length - misses.length >= min) {
+      const kept = pos.filter((e) => !misses.some((m) => m.task === e.task));
+      const ind = induce(kept, neg, skill);
+      loo = leaveOneOut(kept, neg, skill);
+      if (ind.spec && loo.every((x) => x.ok || x.novel)) { method = 'induction'; spec = ind.spec; code = compileSpec(spec); train = kept; disputed = pos.filter((e) => !kept.includes(e)); }
+    }
+    // 2. Fallback: a model writes the parser from all but one example, which it never sees.
+    if (!code) {
+      heldOut = pos.at(-1); train = pos.slice(0, -1);
+      const w = await this.router.chat({
+        role: 'code', privacy: 'private', json: true, temperature: 0.2, maxTokens: 1600, signal,
+        messages: [
+          { role: 'system', content: 'You write a pure JavaScript parser `function bind(task) { ... }` that reads a natural-language task and returns the input object for a given function, or null when the task is NOT asking for exactly what that function computes. Use regular expressions and string logic only: no I/O, network, randomness or dates. It must generalize to new wordings and numbers: never hard-code the example texts or their values. Prefer returning null over guessing. Reply with JSON only.' },
+          { role: 'user', content: `Function: ${sig}\n\nTasks that SHOULD bind, with the correct input:\n${train.map((e) => `- ${JSON.stringify(e.task)} -> ${JSON.stringify(e.input)}`).join('\n')}\n\n${neg.length ? `Tasks that must return null:\n${neg.slice(-6).map((e) => `- ${JSON.stringify(e.task)}`).join('\n')}\n\n` : ''}Return {"code":"function bind(task) { ... }"}` },
+        ],
+      });
+      code = normalizeCode(parseJson(w.text).code);
+      method = 'model-written'; writer = w.model;
+      if (!code.includes('function bind')) return fail(`malformed binder proposal (induction: ${misses.length ? `${misses.length} disputed example(s)` : 'no consistent rule'})`);
+    }
+
+    // Blind tests from a different role: new paraphrases with their correct input, and near-miss tasks.
+    let synth = { positives: [], negatives: [] };
+    try {
+      const t = await this.router.chat({
+        role: 'reason', privacy: 'private', json: true, temperature: 0.4, maxTokens: 1400, signal,
+        messages: [
+          { role: 'system', content: 'You write test cases for a task router. Reply with JSON only.' },
+          { role: 'user', content: `Function: ${sig}\nExample of a task it answers: ${JSON.stringify(train[0].task)} -> ${JSON.stringify(train[0].input)}\n\nWrite 4 NEW tasks in different wordings, with different numbers, that this function answers completely, each with its correct input. Then write 3 near-miss tasks that look similar (same topic, numbers present) but ask for something this function does NOT compute.\nReturn {"positives":[{"task":"...","input":{...}}],"negatives":["..."]}` },
+        ],
+      });
+      const p = parseJson(t.text);
+      synth = { positives: (p.positives || []).filter((x) => x && typeof x.task === 'string' && x.input && typeof x.input === 'object').slice(0, 6), negatives: (p.negatives || []).filter((x) => typeof x === 'string').slice(0, 6) };
+    } catch { /* blind tests are extra evidence; recorded examples still decide */ }
+
+    const library = this.list('active').filter((x) => x.name !== skillName);
+    const agrees = async (task, expected) => {
+      const r = await this.#runBinder(code, task);
+      if (r.error || !r.out || typeof r.out !== 'object' || bindingProblem(r.out, skill, task)) return { ok: false, got: r.out ?? null, error: r.error };
+      if (sameInput(r.out, expected)) return { ok: true, got: r.out };
+      const [a, b] = await Promise.all([this.#run(skill.code, r.out, library), this.#run(skill.code, expected, library)]);
+      return { ok: !a.error && !b.error && sameOutput(a.out, b.out), got: r.out };
+    };
+    const refuses = async (task) => {
+      const r = await this.#runBinder(code, task);
+      return { ok: Boolean(r.error) || r.out === null || typeof r.out !== 'object' || Boolean(bindingProblem(r.out, skill, task)), got: r.out ?? null };
+    };
+    const rows = { train: [], heldOut: null, negatives: [], synthPos: [] };
+    for (const e of train) rows.train.push({ task: e.task, ...(await agrees(e.task, e.input)) });
+    // Induction's held-out check is leave-one-out over every kept example; the model path holds out one example.
+    rows.heldOut = heldOut ? { task: heldOut.task, ...(await agrees(heldOut.task, heldOut.input)) } : { task: 'leave-one-out', ok: loo.every((x) => x.ok || x.novel), loo: `${loo.filter((x) => x.ok).length}/${loo.length}${loo.some((x) => x.novel) ? ` (+${loo.filter((x) => x.novel).length} novel unit)` : ''}` };
+    for (const t of [...neg.map((e) => e.task), ...synth.negatives]) rows.negatives.push({ task: t, ...(await refuses(t)) });
+    for (const s of synth.positives) rows.synthPos.push({ task: s.task, ...(await agrees(s.task, s.input)) });
+
+    const coverage = rows.synthPos.length ? rows.synthPos.filter((x) => x.ok).length / rows.synthPos.length : null;
+    const verification = { train: `${rows.train.filter((x) => x.ok).length}/${rows.train.length}`, heldOut: rows.heldOut.ok,
+      negatives: `${rows.negatives.filter((x) => x.ok).length}/${rows.negatives.length} refused`, coverage, method, writer, spec, disputed: disputed.map((e) => e.task), rows };
+    if (rows.train.some((x) => !x.ok)) return fail(`does not reproduce ${rows.train.filter((x) => !x.ok).length} recorded binding(s)`, verification);
+    if (!rows.heldOut.ok) return fail('fails the held-out example it never saw (memorized, not general)', verification);
+    const falsePos = rows.negatives.filter((x) => !x.ok);
+    if (falsePos.length) return fail(`would route ${falsePos.length} task(s) that must not bind, e.g. ${JSON.stringify(falsePos[0].task).slice(0, 120)}`, verification);
+    if (coverage !== null && coverage < 0.5) return fail(`binds only ${Math.round(coverage * 100)}% of blind paraphrases`, verification);
+
+    for (const e of disputed) this.store.run("UPDATE skill_examples SET label = 'disputed' WHERE id = ?", e.id);
+    this.store.run("UPDATE skill_binders SET status = 'retired', updated = ? WHERE skill = ? AND status = 'active'", nowIso(), skillName);
+    const id = newId('sb'), codeSha = sha256(code);
+    this.store.run('INSERT INTO skill_binders (id, skill, code, code_sha256, status, verification, examples, uses, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)',
+      id, skillName, code, codeSha, 'active', JSON.stringify(verification), pos.length, nowIso(), nowIso());
+    this.ledger.append('binder.admit', { id, skill: skillName, codeSha256: codeSha, examples: train.length, disputed: disputed.length, negatives: rows.negatives.length, coverage, method, writer }, 'crystallizer');
+    this.bus?.publish('binder.admit', { skill: skillName, coverage });
+    return { admitted: true, binder: { id, skill: skillName, codeSha256: codeSha }, reason: `${method === 'induction' ? `induced with no model from ${train.length} example(s), each predicted from the others${disputed.length ? ` (${disputed.length} disputed example(s) excluded)` : ''}` : `model-written; reproduces ${pos.length} recorded binding(s) incl. one held out`}, refuses ${rows.negatives.length} negative(s)${coverage !== null ? `, binds ${Math.round(coverage * 100)}% of blind paraphrases` : ''}`, verification };
+  }
+
+  /** The critic rejected a routed answer: its example becomes a counter-example, and a learned binder that made it is retired. */
+  rejectRoute(skill, task, binderId = null, reason = 'critic rejected') {
+    const t = String(task).slice(0, 3000);
+    this.store.run("DELETE FROM skill_examples WHERE skill = ? AND task = ? AND label = 'pos'", skill, t);
+    this.#example(skill, t, null, 'neg');
+    if (binderId) this.retireBinder(skill, reason);
+  }
+
+  /** A learned binder whose route the critic rejected is withdrawn; the skill stays, and the model binder takes over. */
+  retireBinder(skill, reason = 'operator') {
+    const ok = this.store.run("UPDATE skill_binders SET status = 'retired', updated = ? WHERE skill = ? AND status = 'active'", nowIso(), skill).changes > 0;
+    if (ok) this.ledger.append('binder.retire', { skill, reason }, 'crystallizer');
+    return ok;
   }
 
   /** The final answer a routed task returns: the exact result plus its provenance. */
@@ -306,8 +562,8 @@ export class Crystallizer {
     const misses = this.store.get("SELECT COUNT(*) AS n FROM ledger WHERE kind = 'skill.route_miss'").n;
     const rejected = this.store.get("SELECT COUNT(*) AS n FROM ledger WHERE kind = 'skill.route_rejected'").n;
     let avoided = 0;
-    const curve = routes.map((r, i) => { avoided += Math.max(0, (r.baselineMin ?? 1) - (r.spent ?? 1)); return { at: r.ts, routes: i + 1, avoided, skill: r.skill }; });
+    const curve = routes.map((r, i) => { avoided += Math.max(0, (r.baselineMin ?? 1) - (r.spent ?? 1)); return { at: r.ts, routes: i + 1, avoided, skill: r.skill, zeroCall: r.spent === 0 }; });
     return { active: active.length, retired: this.list('retired').length, uses, failures: active.reduce((s, k) => s + k.failures, 0), modelCallsAvoided: uses, toolCalls: calls,
-      routed: routes.length, routeMisses: misses, routeRejected: rejected, bindCalls: routes.length + misses, callsAvoidedMin: avoided, curve: curve.slice(-200) };
+      routed: routes.length, zeroCall: routes.filter((r) => r.spent === 0).length, binders: this.binders().filter((b) => b.status === 'active').length, examples: this.store.get('SELECT COUNT(*) AS n FROM skill_examples').n, routeMisses: misses, routeRejected: rejected, bindCalls: routes.length + misses, callsAvoidedMin: avoided, curve: curve.slice(-200) };
   }
 }

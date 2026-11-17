@@ -1,0 +1,1058 @@
+{
+  "at": "2026-11-17T15:31:03.899Z",
+  "teach": [
+    {
+      "task": "A coat is $150. It is marked down 10%, and then another 20% comes off at the register. What is the final price?",
+      "routed": "calculate_final_price",
+      "input": {
+        "original_price": 150,
+        "discount1": 0.1,
+        "discount2": 0.2
+      },
+      "miss": null
+    },
+    {
+      "task": "Sneakers list at $80; first 25% off, then 10% off the sale price. What do I pay?",
+      "routed": "calculate_final_price",
+      "input": {
+        "original_price": 80,
+        "discount1": 0.25,
+        "discount2": 0.1
+      },
+      "miss": null
+    },
+    {
+      "task": "A $45 book gets 20% off and then a 5% member discount. What is the final price?",
+      "routed": "calculate_final_price",
+      "input": {
+        "original_price": 45,
+        "discount1": 0.2,
+        "discount2": 0.05
+      },
+      "miss": null
+    },
+    {
+      "task": "A $300 chair is reduced by 30%, then by a further 15%. What does it cost now?",
+      "routed": "calculate_final_price",
+      "input": {
+        "original_price": 300,
+        "discount1": 0.3,
+        "discount2": 0.15
+      },
+      "miss": null
+    },
+    {
+      "task": "A $200 phone gets 10% off, then 5% off. How much money did I save in total?",
+      "routed": "calculate_final_price",
+      "input": {
+        "original_price": 200,
+        "discount1": 0.1,
+        "discount2": 0.05
+      },
+      "miss": null
+    },
+    {
+      "task": "Store A sells a $50 item at 20% off and store B sells it at 15% off. Which store is cheaper?",
+      "routed": "calculate_final_price",
+      "input": {
+        "original_price": 50,
+        "discount1": 0.2,
+        "discount2": 0.15
+      },
+      "miss": null
+    },
+    {
+      "task": "I jog to the park at 6 mph and walk back the same way at 3 mph. What was my average speed for the round trip?",
+      "routed": "calculate_average_speed",
+      "input": {
+        "speed_to": 6,
+        "speed_from": 3
+      },
+      "miss": null
+    },
+    {
+      "task": "A plane flies out at 400 km/h and returns over the same route at 600 km/h. What is the average speed for the whole trip?",
+      "routed": "calculate_average_speed",
+      "input": {
+        "speed_to": 400,
+        "speed_from": 600
+      },
+      "miss": null
+    },
+    {
+      "task": "Driving to work I average 30 mph, and on the way home on the same roads 45 mph. What is my average speed there and back?",
+      "routed": "calculate_average_speed",
+      "input": {
+        "speed_to": 30,
+        "speed_from": 45
+      },
+      "miss": null
+    },
+    {
+      "task": "A boat goes upstream at 8 km/h and comes back downstream the same distance at 12 km/h. What is its average speed for the round trip?",
+      "routed": "calculate_average_speed",
+      "input": {
+        "speed_to": 8,
+        "speed_from": 12
+      },
+      "miss": null
+    },
+    {
+      "task": "A train travels 120 miles in 2 hours. What is its average speed?",
+      "routed": null,
+      "input": null,
+      "miss": "binder named an unknown skill (none)"
+    },
+    {
+      "task": "A car goes 50 mph for 2 hours and then 70 mph for 1 hour. What is the average speed?",
+      "routed": "calculate_average_speed",
+      "input": {
+        "speed_to": 50,
+        "speed_from": 70
+      },
+      "miss": null
+    }
+  ],
+  "learn": {
+    "calculate_final_price": [
+      {
+        "admitted": false,
+        "reason": "does not reproduce 5 recorded binding(s)",
+        "verification": {
+          "train": "0/5",
+          "heldOut": false,
+          "negatives": "0/0 refused",
+          "coverage": 0,
+          "writer": "qwen2.5-coder:7b",
+          "rows": {
+            "train": [
+              {
+                "task": "A coat is $150. It is marked down 10%, and then another 20% comes off at the register. What is the final price?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "Sneakers list at $80; first 25% off, then 10% off the sale price. What do I pay?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A $45 book gets 20% off and then a 5% member discount. What is the final price?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A $300 chair is reduced by 30%, then by a further 15%. What does it cost now?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A $200 phone gets 10% off, then 5% off. How much money did I save in total?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              }
+            ],
+            "heldOut": {
+              "task": "Store A sells a $50 item at 20% off and store B sells it at 15% off. Which store is cheaper?",
+              "ok": false,
+              "got": null,
+              "error": "[stdin]:1\r"
+            },
+            "negatives": [],
+            "synthPos": [
+              {
+                "task": "A shirt is $80. It's discounted 15% at the store, then another 25% off when you check out. What's the final price?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A book costs $120. First, it's marked down by 12%, and next a 18% discount is applied at checkout. How much do you pay in total?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "An item originally priced at $180 gets discounted first by 20%, then another 22% off is taken when purchased. What's the final cost after both discounts are applied?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A pair of shoes initially costs $100. A discount rate of 10% is first subtracted, and then a further 12% off is taken at checkout. What's the final price after both discounts?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "admitted": false,
+        "reason": "does not reproduce 5 recorded binding(s)",
+        "verification": {
+          "train": "0/5",
+          "heldOut": false,
+          "negatives": "0/0 refused",
+          "coverage": 0,
+          "writer": "qwen2.5-coder:7b",
+          "rows": {
+            "train": [
+              {
+                "task": "A coat is $150. It is marked down 10%, and then another 20% comes off at the register. What is the final price?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "Sneakers list at $80; first 25% off, then 10% off the sale price. What do I pay?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A $45 book gets 20% off and then a 5% member discount. What is the final price?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A $300 chair is reduced by 30%, then by a further 15%. What does it cost now?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A $200 phone gets 10% off, then 5% off. How much money did I save in total?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              }
+            ],
+            "heldOut": {
+              "task": "Store A sells a $50 item at 20% off and store B sells it at 15% off. Which store is cheaper?",
+              "ok": false,
+              "got": null,
+              "error": "[stdin]:1\r"
+            },
+            "negatives": [],
+            "synthPos": [
+              {
+                "task": "A shirt is $80. It's discounted 15% at the store, and then another 5% off when you pay.",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "An item originally costs $120. A 12% discount is applied first, followed by a further 8% reduction.",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A book's original price is $90. It gets discounted by 18%, and then another 4% off at checkout.",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "An item originally priced at $60 undergoes two successive discounts: first, a 20% discount is applied, followed by an additional 10% off.",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "admitted": false,
+        "reason": "does not reproduce 5 recorded binding(s)",
+        "verification": {
+          "train": "0/5",
+          "heldOut": false,
+          "negatives": "0/0 refused",
+          "coverage": 0,
+          "writer": "qwen2.5-coder:7b",
+          "rows": {
+            "train": [
+              {
+                "task": "A coat is $150. It is marked down 10%, and then another 20% comes off at the register. What is the final price?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "Sneakers list at $80; first 25% off, then 10% off the sale price. What do I pay?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A $45 book gets 20% off and then a 5% member discount. What is the final price?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A $300 chair is reduced by 30%, then by a further 15%. What does it cost now?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A $200 phone gets 10% off, then 5% off. How much money did I save in total?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              }
+            ],
+            "heldOut": {
+              "task": "Store A sells a $50 item at 20% off and store B sells it at 15% off. Which store is cheaper?",
+              "ok": false,
+              "got": null,
+              "error": "[stdin]:1\r"
+            },
+            "negatives": [],
+            "synthPos": [
+              {
+                "task": "A shirt is $200. It has a 15% discount, and then another 25% comes off at the register. What's the final price?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A pair of shoes is $300. It goes on sale for 20% off first, then an additional 30% discount is applied at checkout. What's the final price?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A dress is $250. It has a 12% initial markdown, followed by another 18% discount at the register. What's its final price?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A hat is $180. It goes on sale for 8% off first, then an additional 22% discount is applied at checkout. What's the final price?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "calculate_average_speed": [
+      {
+        "admitted": false,
+        "reason": "does not reproduce 4 recorded binding(s)",
+        "verification": {
+          "train": "0/4",
+          "heldOut": false,
+          "negatives": "3/3 refused",
+          "coverage": 0,
+          "writer": "qwen2.5-coder:7b",
+          "rows": {
+            "train": [
+              {
+                "task": "I jog to the park at 6 mph and walk back the same way at 3 mph. What was my average speed for the round trip?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A plane flies out at 400 km/h and returns over the same route at 600 km/h. What is the average speed for the whole trip?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "Driving to work I average 30 mph, and on the way home on the same roads 45 mph. What is my average speed there and back?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A boat goes upstream at 8 km/h and comes back downstream the same distance at 12 km/h. What is its average speed for the round trip?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              }
+            ],
+            "heldOut": {
+              "task": "A car goes 50 mph for 2 hours and then 70 mph for 1 hour. What is the average speed?",
+              "ok": false,
+              "got": null,
+              "error": "[stdin]:1\r"
+            },
+            "negatives": [
+              {
+                "task": "What is my total driving distance from city A to B?",
+                "ok": true,
+                "got": null
+              },
+              {
+                "task": "I drive at an average of 60 mph on the highway, but I'm not sure how long it takes me.",
+                "ok": true,
+                "got": null
+              },
+              {
+                "task": "A car travels from point A to B and back again. What was its fuel consumption?",
+                "ok": true,
+                "got": null
+              }
+            ],
+            "synthPos": [
+              {
+                "task": "I drive to the beach at 25 mph and back home at 30 mph. What was my average speed?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A car travels from city A to B at a constant speed of 40 miles per hour, then returns via the same route at 35 miles per hour. Calculate its average speed for the round trip.",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "I walk to school at 5 mph and bike back home at 10 mph. What is my average walking/biking speed?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A person drives from point A to B at an average of 50 miles per hour, then returns via the same route but this time takes a detour and averages 45 miles per hour. Calculate their overall round trip speed.",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "admitted": false,
+        "reason": "does not reproduce 4 recorded binding(s)",
+        "verification": {
+          "train": "0/4",
+          "heldOut": false,
+          "negatives": "3/3 refused",
+          "coverage": 0,
+          "writer": "qwen2.5-coder:7b",
+          "rows": {
+            "train": [
+              {
+                "task": "I jog to the park at 6 mph and walk back the same way at 3 mph. What was my average speed for the round trip?",
+                "ok": false,
+                "got": {
+                  "speed_to": 6,
+                  "speed_from": null
+                }
+              },
+              {
+                "task": "A plane flies out at 400 km/h and returns over the same route at 600 km/h. What is the average speed for the whole trip?",
+                "ok": false,
+                "got": null
+              },
+              {
+                "task": "Driving to work I average 30 mph, and on the way home on the same roads 45 mph. What is my average speed there and back?",
+                "ok": false,
+                "got": null
+              },
+              {
+                "task": "A boat goes upstream at 8 km/h and comes back downstream the same distance at 12 km/h. What is its average speed for the round trip?",
+                "ok": false,
+                "got": null
+              }
+            ],
+            "heldOut": {
+              "task": "A car goes 50 mph for 2 hours and then 70 mph for 1 hour. What is the average speed?",
+              "ok": false,
+              "got": null
+            },
+            "negatives": [
+              {
+                "task": "What was your total time for the road trip from A to B at an average speed of 30 mph and back home at 20 mph?",
+                "ok": true,
+                "got": null
+              },
+              {
+                "task": "I drive my car to work every day. For a round trip from home to office at an average speed of 50 mph, what is the distance covered?",
+                "ok": true,
+                "got": null
+              },
+              {
+                "task": "What was your total fuel consumption for driving to the park at 8 mph?",
+                "ok": true,
+                "got": null
+              }
+            ],
+            "synthPos": [
+              {
+                "task": "I drive to the beach at 25 mph and back home on a bike at 10 mph. What was my average speed for the round trip?",
+                "ok": false,
+                "got": null
+              },
+              {
+                "task": "My car's fuel efficiency is calculated as the total distance divided by the time taken. For a road trip from A to B at an average speed of 40 mph and back home at 20 mph, what was my average speed?",
+                "ok": false,
+                "got": null
+              },
+              {
+                "task": "I ride my bike to school at 15 mph and walk back the same way. What is my average round trip speed?",
+                "ok": false,
+                "got": null
+              }
+            ]
+          }
+        }
+      },
+      {
+        "admitted": false,
+        "reason": "does not reproduce 4 recorded binding(s)",
+        "verification": {
+          "train": "0/4",
+          "heldOut": false,
+          "negatives": "0/0 refused",
+          "coverage": 0,
+          "writer": "qwen2.5-coder:7b",
+          "rows": {
+            "train": [
+              {
+                "task": "I jog to the park at 6 mph and walk back the same way at 3 mph. What was my average speed for the round trip?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A plane flies out at 400 km/h and returns over the same route at 600 km/h. What is the average speed for the whole trip?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "Driving to work I average 30 mph, and on the way home on the same roads 45 mph. What is my average speed there and back?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A boat goes upstream at 8 km/h and comes back downstream the same distance at 12 km/h. What is its average speed for the round trip?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              }
+            ],
+            "heldOut": {
+              "task": "A car goes 50 mph for 2 hours and then 70 mph for 1 hour. What is the average speed?",
+              "ok": false,
+              "got": null,
+              "error": "[stdin]:1\r"
+            },
+            "negatives": [],
+            "synthPos": [
+              {
+                "task": "I drive to work at 40 mph and return home on the highway at 60 mph. What was my average speed for the round trip?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "My friend rides his bike to school at 15 mph, then takes it back home after a long day at 20 mph. What's their average speed for this commute?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "I'm planning a road trip from LA to New York and back. If I drive from LA to NY at an average of 50 mph, what will be my average speed if the return leg takes twice as long?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A delivery truck travels from Chicago to New York at a pace of 45 mph and returns with its cargo at an even faster rate. What's the average speed for this round trip if it takes twice as long on the return leg?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "What is my average driving speed to and from work, given that I drive at 55 mph during rush hour in the morning but only reach 35 mph due to heavy traffic on the return trip?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              },
+              {
+                "task": "A car travels from city A to city B at a speed of 60 mph and returns with its passengers. If it takes twice as long to travel back, what is the average speed for this round trip?",
+                "ok": false,
+                "got": null,
+                "error": "[stdin]:1\r"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "test": [
+    {
+      "id": "d-sofa",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 292,
+      "ms": 3749,
+      "input": {
+        "original_price": 500,
+        "discount1": 0.4,
+        "discount2": 0.1
+      },
+      "out": 270,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-sofa",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 292,
+      "ms": 289,
+      "input": {
+        "original_price": 500,
+        "discount1": 0.4,
+        "discount2": 0.1
+      },
+      "out": 270,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-phones",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 298,
+      "ms": 339,
+      "input": {
+        "original_price": 129.99,
+        "discount1": 0.2,
+        "discount2": 0.05
+      },
+      "out": 98.79240000000001,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-phones",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 298,
+      "ms": 303,
+      "input": {
+        "original_price": 129.99,
+        "discount1": 0.2,
+        "discount2": 0.05
+      },
+      "out": 98.79240000000001,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-jacket",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 288,
+      "ms": 333,
+      "input": {
+        "original_price": 72,
+        "discount1": 0.5,
+        "discount2": 0.25
+      },
+      "out": 27,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-jacket",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 288,
+      "ms": 285,
+      "input": {
+        "original_price": 72,
+        "discount1": 0.5,
+        "discount2": 0.25
+      },
+      "out": 27,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-grocery",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 297,
+      "ms": 311,
+      "input": {
+        "original_price": 64,
+        "discount1": 0.1,
+        "discount2": 0.05
+      },
+      "out": 54.72,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "d-grocery",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 297,
+      "ms": 271,
+      "input": {
+        "original_price": 64,
+        "discount1": 0.1,
+        "discount2": 0.05
+      },
+      "out": 54.72,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-cycle",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 261,
+      "ms": 247,
+      "input": {
+        "speed_to": 10,
+        "speed_from": 15
+      },
+      "out": 12,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-cycle",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 261,
+      "ms": 220,
+      "input": {
+        "speed_to": 10,
+        "speed_from": 15
+      },
+      "out": 12,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-runner",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 260,
+      "ms": 253,
+      "input": {
+        "speed_to": 9,
+        "speed_from": 6
+      },
+      "out": 7.2,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-runner",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 260,
+      "ms": 229,
+      "input": {
+        "speed_to": 9,
+        "speed_from": 6
+      },
+      "out": 7.2,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-van",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 258,
+      "ms": 255,
+      "input": {
+        "speed_to": 50,
+        "speed_from": 75
+      },
+      "out": 60,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-van",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 258,
+      "ms": 224,
+      "input": {
+        "speed_to": 50,
+        "speed_from": 75
+      },
+      "out": 60,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-ferry",
+      "arm": "learned",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 255,
+      "ms": 250,
+      "input": {
+        "speed_to": 20,
+        "speed_from": 30
+      },
+      "out": 24,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "s-ferry",
+      "arm": "model",
+      "control": false,
+      "routed": "calculate_average_speed",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 255,
+      "ms": 221,
+      "input": {
+        "speed_to": 20,
+        "speed_from": 30
+      },
+      "out": 24,
+      "correct": true,
+      "miss": null
+    },
+    {
+      "id": "c-cheaper",
+      "arm": "learned",
+      "control": true,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 296,
+      "ms": 326,
+      "input": {
+        "original_price": 90,
+        "discount1": 0.3,
+        "discount2": 0.1
+      },
+      "out": 56.699999999999996,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-cheaper",
+      "arm": "model",
+      "control": true,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 296,
+      "ms": 288,
+      "input": {
+        "original_price": 90,
+        "discount1": 0.3,
+        "discount2": 0.1
+      },
+      "out": 56.699999999999996,
+      "correct": false,
+      "miss": null
+    },
+    {
+      "id": "c-compare",
+      "arm": "learned",
+      "control": true,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 298,
+      "ms": 308,
+      "input": {
+        "original_price": 100,
+        "discount1": 0.15,
+        "discount2": 0.1
+      },
+      "out": 76.5,
+      "correct": null,
+      "miss": null
+    },
+    {
+      "id": "c-compare",
+      "arm": "model",
+      "control": true,
+      "routed": "calculate_final_price",
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 298,
+      "ms": 277,
+      "input": {
+        "original_price": 100,
+        "discount1": 0.15,
+        "discount2": 0.1
+      },
+      "out": 76.5,
+      "correct": null,
+      "miss": null
+    },
+    {
+      "id": "c-dist",
+      "arm": "learned",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 245,
+      "ms": 172,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "binder named an unknown skill (null)"
+    },
+    {
+      "id": "c-dist",
+      "arm": "model",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 245,
+      "ms": 139,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "binder named an unknown skill (none)"
+    },
+    {
+      "id": "c-weighted",
+      "arm": "learned",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 267,
+      "ms": 268,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "binding rejected: distance_to = 0 does not appear in the task"
+    },
+    {
+      "id": "c-weighted",
+      "arm": "model",
+      "control": true,
+      "routed": null,
+      "zeroCall": false,
+      "calls": 1,
+      "tokens": 267,
+      "ms": 235,
+      "input": null,
+      "out": null,
+      "correct": null,
+      "miss": "binding rejected: distance_to = 0 does not appear in the task"
+    }
+  ],
+  "summary": {
+    "learned": {
+      "routedMatching": 8,
+      "correctMatching": 8,
+      "zeroCall": 0,
+      "calls": 12,
+      "tokens": 3315,
+      "ms": 6811,
+      "misroutes": [
+        "c-cheaper",
+        "c-compare"
+      ]
+    },
+    "model": {
+      "routedMatching": 8,
+      "correctMatching": 8,
+      "zeroCall": 0,
+      "calls": 12,
+      "tokens": 3315,
+      "ms": 2981,
+      "misroutes": [
+        "c-cheaper",
+        "c-compare"
+      ]
+    }
+  },
+  "stats": {
+    "active": 2,
+    "retired": 0,
+    "uses": 40,
+    "failures": 0,
+    "modelCallsAvoided": 40,
+    "toolCalls": 1276,
+    "routed": 38,
+    "zeroCall": 0,
+    "binders": 0,
+    "examples": 21,
+    "routeMisses": 9,
+    "routeRejected": 0,
+    "bindCalls": 47,
+    "callsAvoidedMin": 38
+  },
+  "binders": []
+}

@@ -1,6 +1,6 @@
 # Phase 10: Skill-first routing: use what the agency owns before renting a model
 
-Previous: [Phase 9](PHASE-9.md) · [Index](README.md)
+Previous: [Phase 9](PHASE-9.md) · Next: [Phase 11](PHASE-11.md) · [Index](README.md)
 
 ## The problem
 Phase 9 gave the agency skills of its own: verified code learned from solved tasks that answers with no model call. But they were only *tools an agent might pick*. An agent still spent several model turns before (maybe) calling one, and usually it just did the arithmetic itself, sometimes wrongly. Owning a capability is worth little if the system doesn't reach for it.
