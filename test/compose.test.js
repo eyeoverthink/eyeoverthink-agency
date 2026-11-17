@@ -125,3 +125,42 @@ test('a chain the judge refutes is never trusted or composed', async () => {
     assert.ok(realTruth);
   } finally { await A.cleanup(); }
 });
+
+// The real live-home skills (Phase 14 run 1) and the 3B binder's real replies.
+const REAL = [
+  { name: 'calculate_final_price', description: 'Calculates the final price of an item after applying two successive discounts.', params: { type: 'object', properties: { original_price: { type: 'number' }, discount1: { type: 'number', description: 'The first discount rate as a decimal (e.g., 0.12 for 12%).' }, discount2: { type: 'number', description: 'The second discount rate as a decimal (e.g., 0.08 for 8%).' } }, required: ['original_price', 'discount1', 'discount2'] } },
+  { name: 'calculate_final_price_with_tax', description: 'Calculates the final price of an item after applying a discount and adding sales tax.', params: { type: 'object', properties: { original_price: { type: 'number' }, discount: { type: 'number', description: '(as a decimal fraction: 0.2 for 20%)' }, tax_rate: { type: 'number', description: '(as a decimal fraction: 0.2 for 20%)' } }, required: ['original_price', 'discount', 'tax_rate'] } },
+  { name: 'calculate_individual_share', description: 'Calculates the amount each person pays when splitting a total amount evenly among a given number of people.', params: { type: 'object', properties: { total_amount: { type: 'number' }, number_of_people: { type: 'number' } }, required: ['total_amount', 'number_of_people'] } },
+];
+
+test('the model gives values, the agency gives structure: a flat "chain" binding becomes a unique chain', async () => {
+  const { inferChain, extendChain } = await import('../src/evolve/crystallizer.js');
+  const task = 'A $200 dinner is 20% off, then 8% sales tax is added, and the total is split evenly among 4 friends. How much does each friend pay?';
+  // Real llama3.2 reply: {"skill":"chain","input":{"original_price":200,"discount":0.2,"tax_rate":0.08,"number_of_people":4}}
+  const [chain, ...more] = inferChain({ original_price: 200, discount: 0.2, tax_rate: 0.08, number_of_people: 4 }, REAL);
+  assert.equal(more.length, 0, 'exactly one structure uses every value');
+  assert.equal(chainSignature(chain), 'calculate_final_price_with_tax(discount,original_price,tax_rate) > calculate_individual_share(number_of_people,total_amount=@1)');
+  assert.equal(chainProblem(chain, REAL, task), null);
+  assert.deepEqual(inferChain({ original_price: 200, discount: 0.2 }, REAL), [], 'no structure uses exactly these values');
+  // Real reply for the two-discount task: the single skill, leaving "3 friends" unused.
+  const t2 = 'A $300 hotel room is 20% off, then another 10% off, and the cost is split evenly among 3 friends. How much does each friend pay?';
+  const ext = extendChain(REAL[0], { original_price: 300, discount1: 0.2, discount2: 0.1 }, [3], REAL);
+  assert.deepEqual(ext.map(chainSignature).sort(), ['calculate_final_price(discount1,discount2,original_price) > calculate_individual_share(number_of_people,total_amount=@1)', 'calculate_final_price(discount1,discount2,original_price) > calculate_individual_share(number_of_people=@1,total_amount)'], 'the output could feed either input: both are kept, and the judge decides');
+  assert.ok(ext.every((c) => chainProblem(c, REAL, t2) === null));
+  assert.deepEqual(extendChain(REAL[0], { original_price: 300, discount1: 0.2, discount2: 0.1 }, [3, 5, 7], REAL), [], 'no skill consumes exactly the unused numbers');
+});
+
+test('an ambiguous composition is decided by the agent loop answer: only the matching structure is judged and learned', async () => {
+  const A = await setup();
+  try {
+    const cz = A.agency.crystallizer;
+    const t = 'A $300 hotel room is 20% off, and the cost is split evenly among 4 friends. How much does each friend pay?';
+    const right = [{ skill: 'discount_price', input: { price: 300, discount: 20 } }, { skill: 'split_evenly', input: { total: { ref: 1 }, people: 4 } }];
+    const wrong = [{ skill: 'discount_price', input: { price: 300, discount: 20 } }, { skill: 'split_evenly', input: { total: 4, people: { ref: 1 } } }];
+    cz.agentAnswer = async () => 'Each pays $60.';
+    const j = await cz.shadowVerdict({ candidates: [{ chain: wrong, signature: chainSignature(wrong), out: 4 / 240 }, { chain: right, signature: chainSignature(right), out: 60 }], reason: 'ambiguous composition' }, t, 'Each friend pays $60.');
+    assert.equal(j.agree, true);
+    assert.deepEqual(cz.chains().map((c) => [c.signature, c.label]), [[chainSignature(right), 'verified']]);
+    assert.equal(A.agency.ledger.list({ limit: 1, kind: 'skill.chain_pick' })[0].data.picked, chainSignature(right));
+  } finally { await A.cleanup(); }
+});

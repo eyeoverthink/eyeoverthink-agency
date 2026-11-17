@@ -218,6 +218,64 @@ export function composeChainSkill(steps, skills) {
   return { name, description, params: { type: 'object', properties, required: Object.keys(properties) }, code, slots };
 }
 
+/**
+ * Chain inference: the model gives the values, the agency gives the structure. Measured in Phase 14: the 3B binder
+ * understood that a task needed composing and bound every value correctly, but answered {"skill":"chain","input":
+ * {original_price, discount, tax_rate, number_of_people}} instead of steps. Given such a flat binding, search the
+ * orders of 2-3 offered skills in which every step's required inputs come from the binding by name, except exactly one
+ * input of each later step, which is fed by the step before; every bound value must be used exactly once. Only a
+ * Every structure that fits is returned; the judge decides between them (the chain whose result matches the agent
+ * loop's answer), and each still faces chainProblem.
+ */
+export function inferChain(flat, skills) {
+  if (!flat || typeof flat !== 'object' || Array.isArray(flat)) return null;
+  const keys = Object.keys(flat);
+  const found = new Map();
+  const orders = [];
+  for (const a of skills) for (const b of skills) if (b !== a) { orders.push([a, b]); for (const c of skills) if (c !== a && c !== b) orders.push([a, b, c]); }
+  for (const order of orders) {
+    const used = new Set();
+    const steps = [];
+    let ok = true;
+    for (const [i, s] of order.entries()) {
+      const props = Object.keys(s.params?.properties || {});
+      const required = s.params?.required || props;
+      const input = {};
+      const missing = [];
+      for (const k of props) {
+        if (k in flat && !used.has(k)) { input[k] = flat[k]; used.add(k); }
+        else if (required.includes(k)) missing.push(k);
+      }
+      if (i === 0 ? missing.length : missing.length !== 1) { ok = false; break; }
+      if (i > 0) input[missing[0]] = { ref: i };
+      steps.push({ skill: s.name, input });
+    }
+    if (ok && used.size === keys.length) found.set(chainSignature(steps), steps);
+  }
+  return [...found.values()];
+}
+
+/**
+ * Chain extension: a single-skill binding that leaves task numbers unused ("split among 3 friends" after a discount)
+ * is extended by ONE step: an offered skill with exactly one required input fed by the bound step and the rest filled,
+ * in order, by the unused numbers. Measured ambiguity: the bound step's output could feed total_amount OR
+ * number_of_people; both are returned and the agent loop's answer picks one.
+ */
+export function extendChain(skill, input, unused, skills) {
+  const found = [];
+  for (const s of skills) {
+    if (s.name === skill.name) continue;
+    const required = s.params?.required || Object.keys(s.params?.properties || {});
+    if (required.length !== unused.length + 1) continue;
+    for (const fed of required) {
+      const rest = required.filter((k) => k !== fed);
+      if (!rest.every((k) => ['number', 'integer'].includes(s.params?.properties?.[k]?.type))) continue;
+      found.push([{ skill: skill.name, input }, { skill: s.name, input: { [fed]: { ref: 1 }, ...Object.fromEntries(rest.map((k, i) => [k, unused[i]])) } }]);
+    }
+  }
+  return found;
+}
+
 /** The composed skill's input for one verified chain: its literal slots, by parameter name. */
 export const chainInput = (steps, slots) => Object.fromEntries(slots.map((x) => [x.param, steps[x.step].input[x.key]]));
 
@@ -511,21 +569,42 @@ export class Crystallizer {
       this.ledger.append('skill.route_miss', { agentId, missionId, reason, candidates: offered.map((s) => s.name), bindModel: res.model }, 'crystallizer');
       return { miss: reason, usage, bindModel: res.model, shadow: private_ ? null : gated, ...extra };
     };
-    if (p.steps !== undefined && compose) {
-      const chain = normalizeChain(p);
-      if (!chain) return miss('malformed chain (2-3 steps of {skill, input} expected)');
+    const tryChain = async (chain, how) => {
       const cp = chainProblem(chain, offered, text);
-      if (cp) return miss(`chain rejected: ${cp}`);
+      if (cp) return miss(`chain rejected${how ? ` (${how})` : ''}: ${cp}`);
       const ran = await this.#runChain(chain, active);
       if (ran.error) return miss(`chain failed: ${ran.error}`);
       const sig = chainSignature(chain);
       const verified = this.store.get("SELECT COUNT(*) AS n FROM skill_chains WHERE signature = ? AND label = 'verified'", sig).n;
       // A new composition is not trusted until the judge has verified its shape (as with new wording, Phase 12): the
       // agent loop answers and the chain's result is compared with it.
-      if (verified < (cfg.chainTrust ?? 2)) return miss(`unverified composition (${sig}, verified ${verified}x): the agent loop answers, and its answer is compared with the chain's`, { shadow: private_ ? null : { chain, signature: sig, out: ran.out, reason: 'unverified composition' } });
+      if (verified < (cfg.chainTrust ?? 2)) return miss(`unverified composition${how ? ` (${how})` : ''} (${sig}, verified ${verified}x): the agent loop answers, and its answer is compared with the chain's`, { shadow: private_ ? null : { chain, signature: sig, out: ran.out, reason: 'unverified composition' } });
       return this.#commitChain(chain, sig, ran, { ...ctx, bindModel: res.model, spent: 1, usage });
+    };
+    // Several candidate structures (inferred or extended): a single verified shape is used; otherwise all valid ones
+    // are run and kept as the shadow, and the agent loop's answer decides which (if any) is right.
+    const tryChains = async (list, how) => {
+      const valid = list.filter((c) => !chainProblem(c, offered, text));
+      if (!valid.length) return list.length ? tryChain(list[0], how) : null;
+      if (valid.length === 1) return tryChain(valid[0], how);
+      const trusted = valid.filter((c) => this.store.get("SELECT COUNT(*) AS n FROM skill_chains WHERE signature = ? AND label = 'verified'", chainSignature(c)).n >= (cfg.chainTrust ?? 2));
+      if (trusted.length === 1) return tryChain(trusted[0], how);
+      const runs = [];
+      for (const c of valid.slice(0, 4)) { const ran = await this.#runChain(c, active); if (!ran.error && typeof ran.out === 'number') runs.push({ chain: c, signature: chainSignature(c), out: ran.out }); }
+      if (!runs.length) return miss(`chain failed (${how})`);
+      return miss(`ambiguous composition (${how}): ${runs.length} structures fit; the agent loop answers, and its answer picks one`, { shadow: private_ ? null : { candidates: runs, reason: 'ambiguous composition' } });
+    };
+    if (p.steps !== undefined && compose) {
+      const chain = normalizeChain(p);
+      if (!chain) return miss('malformed chain (2-3 steps of {skill, input} expected)');
+      return tryChain(chain, null);
     }
     if (typeof p.skill === 'string' && /^(none|null|n\/a|)$/i.test(p.skill.trim())) p.skill = null; // "none" is a refusal
+    // A binding to no known skill, but with values: the agency infers the chain structure itself (unique or nothing).
+    if (compose && p.skill && !offered.some((s) => s.name === String(p.skill).replace(/^skill_/, '')) && p.input && typeof p.input === 'object') {
+      const r = await tryChains(inferChain(p.input, offered), 'structure inferred from a flat binding');
+      if (r) return r;
+    }
     if (!p.skill) {
       // A refusal is a negative example for every candidate: the learned binder must also say no to tasks like this.
       if (!private_) for (const c of candidates) this.#example(c.s.name, text, null, 'neg');
@@ -536,6 +615,15 @@ export class Crystallizer {
     if (!hit) return miss(`binder named an unknown skill (${String(p.skill).slice(0, 40)})`);
     const input = p.input && typeof p.input === 'object' && !Array.isArray(p.input) ? p.input : null;
     const problem = !input ? 'no input object' : bindingProblem(input, hit.s, text);
+    if (problem && compose && input && !groundingProblem(input, hit.s.params, text)) {
+      // A grounded single binding that leaves numbers unused may be one step short of a chain.
+      const usedLeaves = [];
+      walk2(input, usedLeaves);
+      const pool = [...(text.split(/\n+/).map((l) => (l.match(NUM) || []).map(Number)).reduce((a, b) => (b.length > a.length ? b : a), []))];
+      for (const v of usedLeaves) { const j = pool.findIndex((n) => n === v || n === Math.round(v * 100 * 1e9) / 1e9); if (j >= 0) pool.splice(j, 1); }
+      const r = pool.length ? await tryChains(extendChain(hit.s, input, pool, offered), 'single binding extended by one step') : null;
+      if (r) return r;
+    }
     if (problem) return miss(`binding rejected: ${problem}`);
     const blocked = this.#learnedBlock(hit.s.name, text);
     if (blocked) return { ...miss(`binding rejected: ${blocked}`), shadow: private_ ? null : { skill: hit.s.name, input, reason: blocked } };
@@ -638,6 +726,15 @@ export class Crystallizer {
    * is now trusted). Refuted: a negative (its wording becomes block words). Inconclusive: nothing is learned.
    */
   async shadowVerdict(shadow, task, final, { agentId = null, missionId = null } = {}) {
+    if (shadow?.candidates) {
+      // Ambiguous structure: the candidate whose result the agent loop's answer matches is judged; none or several, nothing.
+      const inTask = new Set((String(task).match(NUM) || []).map(Number));
+      const tok = (String(final ?? '').replace(/,(?=d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
+      const pick = tok === undefined ? [] : shadow.candidates.filter((c) => nearAnswer(c.out, Number(tok)) || nearAnswer(Number(tok), c.out));
+      this.ledger.append('skill.chain_pick', { candidates: shadow.candidates.map((c) => c.signature), agentAnswer: tok ?? null, picked: pick.length === 1 ? pick[0].signature : null }, 'crystallizer');
+      if (pick.length !== 1) return null;
+      return this.#chainVerdict({ chain: pick[0].chain, signature: pick[0].signature, reason: shadow.reason }, task, final, { agentId, missionId });
+    }
     if (shadow?.chain) return this.#chainVerdict(shadow, task, final, { agentId, missionId });
     const skill = this.list('active').find((s) => s.name === shadow?.skill);
     if (!skill || !final) return null;
