@@ -579,7 +579,7 @@ export class Crystallizer {
       // A new composition is not trusted until the judge has verified its shape (as with new wording, Phase 12): the
       // agent loop answers and the chain's result is compared with it.
       if (verified < (cfg.chainTrust ?? 2)) return miss(`unverified composition${how ? ` (${how})` : ''} (${sig}, verified ${verified}x): the agent loop answers, and its answer is compared with the chain's`, { shadow: private_ ? null : { chain, signature: sig, out: ran.out, reason: 'unverified composition' } });
-      return this.#commitChain(chain, sig, ran, { ...ctx, bindModel: res.model, spent: 1, usage });
+      return this.#commitChain(chain, sig, ran, { ...ctx, task: text, bindModel: res.model, spent: 1, usage });
     };
     // Several candidate structures (inferred or extended): a single verified shape is used; otherwise all valid ones
     // are run and kept as the shadow, and the agent loop's answer decides which (if any) is right.
@@ -804,6 +804,13 @@ export class Crystallizer {
     const pseudo = { id: null, chain: steps, name: steps.map((s) => s.skill).join(' > '), description: `A verified composition of owned skills (${signature}).`,
       code_sha256: sha256(steps.map((s) => active.find((x) => x.name === s.skill)?.code_sha256 || s.skill).join('|')) };
     this.ledger.append('skill.chain_route', { signature, outs: ran.outs, agentId: ctx.agentId, missionId: ctx.missionId }, 'crystallizer');
+    // A trusted chain route is an example of the composed skill of the same shape (if there is one): its binder learns
+    // from it, so the next task of this shape needs no model call at all.
+    const composed = active.find((s) => s.source === `chain:${signature}`.slice(0, 300));
+    if (composed && ctx.privacy === 'normal' && ctx.task) {
+      this.#example(composed.name, ctx.task, chainInput(steps, composeChainSkill(steps, active).slots), 'pos');
+      this.#maybeLearn(composed.name);
+    }
     return this.#commitRoute(pseudo, Object.fromEntries(steps.map((s, i) => [`step${i + 1}`, { [s.skill]: s.input }])), ran.out, ctx);
   }
 
@@ -964,12 +971,23 @@ export class Crystallizer {
     try { return { out: JSON.parse(String(r.stdout).trim().split(/\r?\n/).at(-1)).out }; } catch { return { error: 'no JSON output' }; }
   }
 
+  /**
+   * Examples needed before a binder is learned. A skill born from verified examples (composed from chains, or learned
+   * from corroborated refusals) starts with 2 that are already verified; measured in Phase 14, waiting for a third
+   * left composed skills unrouted, because the 3B binder rarely picked them among six offered skills.
+   */
+  #minExamples(skill) {
+    const born = /^(chain|gap):/.test(this.list('active').find((s) => s.name === skill)?.source || '');
+    const min = this.cfg?.skills?.binderMinExamples ?? 3;
+    return born ? Math.min(2, min) : min;
+  }
+
   /** Learn automatically once there are enough fresh positive examples (one at a time, in the background). */
   #maybeLearn(skill) {
     const cfg = this.cfg?.skills || {};
     if (cfg.learnBinders === false) return;
     const pos = this.examples(skill).filter((e) => e.label === 'pos').length;
-    const min = cfg.binderMinExamples ?? 3;
+    const min = this.#minExamples(skill);
     const current = this.binder(skill);
     const tried = this.store.kvGet(`binder:tried:${skill}`, 0);
     // First binder at `min` examples; relearn once 3 new examples exist that the active binder had not seen.
@@ -999,7 +1017,7 @@ export class Crystallizer {
     if (audited) this.ledger.append('binder.audit', { skill: skillName, demoted: audited }, 'crystallizer');
     const ex = this.examples(skillName);
     const pos = ex.filter((e) => e.label === 'pos'), neg = ex.filter((e) => e.label === 'neg');
-    const min = this.cfg?.skills?.binderMinExamples ?? 3;
+    const min = this.#minExamples(skillName);
     const fail = (reason, verification = {}) => {
       this.ledger.append('binder.reject', { skill: skillName, reason, examples: pos.length }, 'crystallizer');
       this.bus?.publish('binder.reject', { skill: skillName, reason });

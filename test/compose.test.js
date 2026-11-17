@@ -178,3 +178,19 @@ test('a composed skill knows its verified wording from birth: unseen wording is 
     assert.match(A.agency.ledger.list({ limit: 5, kind: 'skill.route_miss' }).map((x) => x.data.reason).join(' | '), /unverified wording \(.*"service"/);
   } finally { await A.cleanup(); }
 });
+
+test('a composed skill learns its binder at birth from its 2 verified chains: the very next task costs zero model calls', async () => {
+  const A = await setup();
+  try {
+    const cz = A.agency.crystallizer;
+    for (const t of TASKS.slice(0, 2)) await run(A, t);
+    await cz.composeQueue; await cz.binderQueue;
+    const sk = cz.list('active').find((s) => s.source.startsWith('chain:'));
+    assert.ok(cz.binder(sk.name), 'binder induced from the 2 verified chains');
+    A.calls.length = 0;
+    const r = await run(A, TASKS[2]);
+    assert.equal(r.skill, sk.name);
+    assert.equal(A.calls.length, 0);
+    assert.match(r.final, /\*\*Answer: 135\.15\*\*/);
+  } finally { await A.cleanup(); }
+});
