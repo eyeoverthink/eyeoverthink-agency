@@ -1,4 +1,4 @@
-# Phase 20: Program-verified judge voice
+# Phase 20: Program-verified judge voice (and 20b: unsupported positives)
 
 Previous: [Phase 19](PHASE-19.md) · [Index](README.md)
 
@@ -84,7 +84,28 @@ Evidence: [hard v1](evidence-phase20-hard-v1.json), [hard v2](evidence-phase20-h
 - **None of the four voices supported the skill's answer (54).**
 - The judge's rule is "two voices must agree on an answer". It has no rule for "no voice supports the positive". That rule is the natural next step, and it is not built here.
 
-Evidence: [audit v1](evidence-phase20-audit-v1.json), [audit v2](evidence-phase20-audit-v2.json).
+### Phase 20b: demote a positive that no voice supports
+**The rule.** It applies only in a wording audit (`auditWording`):
+- If the judge ends undecided after **at least `skills.unsupportedMin` (default 4) voices answered**, and **none matched the skill's output**, the positive is demoted.
+- **No gap is recorded.** Nothing was corroborated, so the four answers never become training data for a new skill.
+- **The worst failure is a refusal.** That wording goes back to the agents, so the rule can never produce a wrong answer.
+- The ledger counts these demotions as `unsupported` in `binder.audit_wording`.
+
+**The test** (in `test/binder.test.js`):
+- With only 2 voices answering, the positive is kept.
+- With 4 unsupporting voices, it is demoted, with no corroborated answer.
+- A supported positive in the same audit is kept.
+
+**Audit v3 (real models): the jacket row is demoted, but not by the new rule.**
+- This time the first agent said **67.5**, not 65.
+- The fourth voice (the program, 0.675) matched it through the fraction/percent rule: `program corroborated first`.
+- **So the 4th voice and fraction matching resolved the case. The new rule did not have to fire.**
+- The first agent's answer changed between runs (67.5, then 65, then 67.5). The new rule covers the run where nothing agrees.
+- The one other row left undecided ($18 pizza) had no first answer at all, so it was correctly left alone.
+
+**Result:** after three audits, all 3 poisoned positives in the discount skill have been demoted. This includes the Phase 12 case that, at the time, no agent could correct.
+
+Evidence: [audit v1](evidence-phase20-audit-v1.json), [audit v2](evidence-phase20-audit-v2.json), [audit v3](evidence-phase20-audit-v3.json).
 
 ## The tests
 157 tests pass. `test/program-voice.test.js` covers:
@@ -105,4 +126,4 @@ Two older judge tests set `programVoice: false`, because they check exact voice 
 - **Correlated failure.** Programs from different models can share a misreading (3 of 40 on the standard set).
 - **Slow.** About 13–20 s per answer, because it needs 2 or 3 model calls plus sandbox runs. That is acceptable for an audit, and too slow to check every reply.
 - **The domain is numbers.** The voice answers only questions with one numeric answer.
-- **A lone correct voice cannot win.** On a four-way split, a right program answer counts no more than three wrong agent answers (audit v2).
+- **A lone correct voice still cannot win.** On a four-way split the positive is now demoted (Phase 20b), but no answer is taught: a right program answer counts no more than three wrong agent answers.

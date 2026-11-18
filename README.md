@@ -54,7 +54,7 @@ Every row is a real run on a laptop GPU (RTX 3070, 8 GB) with real local models,
 | **Measured judge voices** | Across 40 tasks with known answers: **Gemini via Firebase AI Logic 40/40**, forge_keeper 38/40, tycho 24/40, lumen 22/40. Gemini is asked first. | [Phase 17](docs/phases/PHASE-17.md), [Phase 18](docs/phases/PHASE-18.md) |
 | **Measured first agent** | forge_keeper 95% on both the study and a held-out set, vs the default agent (tycho) 50% and 70%, about twice as fast | [Phase 18](docs/phases/PHASE-18.md) |
 | **Second-voice check** | With the weaker agent first, **8 of 12** first answers were right and **12 of 12** replies were: 4 corrected 2 of 3, 0 wrong and unflagged | [Phase 19](docs/phases/PHASE-19.md) |
-| **Program-verified judge voice** (branch) | Two programs from different local models must agree: **69%** of 13 hard tasks with **0 wrong**, 75% of the standard 40 (3 wrong, a shared mistake by two models) | [Phase 20](docs/phases/PHASE-20.md) |
+| **Program-verified judge voice** (branch) | Two programs from different local models must agree: **69%** of 13 hard tasks with **0 wrong**, 75% of the standard 40 (3 wrong, a shared mistake by two models); all 3 poisoned discount positives now demoted | [Phase 20](docs/phases/PHASE-20.md) |
 | **Firebase AI Logic as GPU overflow** | A real 160-call mission sent 3 calls through Firebase AI Logic while the GPU was busy, each ledgered `IN_CLOUD`; ledger re-verified at 721 entries | [Phase 5](docs/phases/PHASE-5.md) |
 
 ---
@@ -588,7 +588,7 @@ The agency was built in 19 measured phases. Each write-up records what was built
 
 ## Evidence, not claims
 
-- **Every measured result links its raw run.** The phase write-ups cite 47 JSON evidence files in [docs/phases](docs/phases/) (`evidence-*.json`): tasks, answers, model calls, timings and outcomes, including failed runs.
+- **Every measured result links its raw run.** The phase write-ups cite 48 JSON evidence files in [docs/phases](docs/phases/) (`evidence-*.json`): tasks, answers, model calls, timings and outcomes, including failed runs.
 - **The ledger verifies.** Every mission, plan, tool call, skill admission, judge verdict, mesh exchange and Firebase call is an Ed25519-signed entry in a SHA-256 hash chain with Merkle inclusion proofs. `node bin/agency.js ledger verify` recomputes it; any edit breaks it.
 - **Skill origins are ledger facts.** The skill family tree is drawn only from signed entries; each edge is one entry (seq + hash).
 - **Missions carry receipts.** A receipt can be verified offline with the zero-dependency `bin/verify-receipt.js`, or in the browser.
