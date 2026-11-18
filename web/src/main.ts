@@ -461,7 +461,7 @@ function askCard(r: any): string {
   return `<div class="askcard ${rt.skill ? "ok" : ""}">
     <div class="askmeta"><span class="askcalls"><b>${mt.calls ?? "?"}</b> model call${mt.calls === 1 ? "" : "s"}</span><span class="mono">${sec} s</span>${mt.overflow ? `<span>${mt.overflow} via Firebase AI Logic</span>` : ""}</div>
     <p>${by}</p>
-    ${r.pick ? `<p class="dim">First agent: <span class="mono">${esc(r.pick.agentId)}</span> (${esc(r.pick.reason)})</p>` : ""}
+    ${r.pick && !rt.skill ? `<p class="dim">First agent: <span class="mono">${esc(r.pick.agentId)}</span> (${esc(r.pick.reason)})</p>` : ""}
     ${rt.declined ? `<p class="dim">Skill declined: ${esc(rt.declined)}</p>` : ""}
     <div class="md">${md(String(r.final || ""))}</div>
     ${shadow}${rt.gap ? `<p class="dim">Recorded as a capability gap of <span class="mono">skill_${esc(rt.gap.skill)}</span> (new wording: ${esc((rt.gap.markers || []).join(", "))}).</p>` : ""}

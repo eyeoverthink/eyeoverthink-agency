@@ -1,0 +1,46 @@
+{
+  "at": "2026-11-18T03:31:56.433Z",
+  "home": "fresh copy of demo-base (Phase 14 home + the two real Phase 17/18 voice studies), dashboard Ask box (auto: measured first agent), Firebase AI Logic worker serving in the dashboard tab, real local models",
+  "asks": [
+    {
+      "task": "$80 lunch, 10% off, 15% service charge, 2 friends",
+      "calls": 4,
+      "seconds": 15.6,
+      "answeredBy": "agents (forge_keeper first); skill declined unverified wording; shadow: chain 41.4 = agents 41.4, agree",
+      "answer": 41.4,
+      "correct": true
+    },
+    {
+      "task": "$140 brunch, 20% off, 12% service charge, 4 friends",
+      "calls": 1,
+      "seconds": 4.55,
+      "answeredBy": "verified chain calculate_final_price_with_tax > calculate_even_split",
+      "answer": 31.36,
+      "correct": true
+    },
+    {
+      "task": "$60 breakfast, 5% off, 10% service charge, 3 friends",
+      "calls": 0,
+      "seconds": 0.13,
+      "answeredBy": "composed skill, learned binder",
+      "answer": 20.9,
+      "correct": true
+    },
+    {
+      "task": "two printers, 6 h and 12 h, together",
+      "calls": 4,
+      "seconds": 13.9,
+      "answeredBy": "forge_keeper; second-voice check: Gemini via Firebase AI Logic independently got 4",
+      "answer": 4,
+      "correct": true
+    },
+    {
+      "task": "$96 dinner, 25% off, 10% service charge, 4 friends (after the first-agent display fix)",
+      "calls": 0,
+      "seconds": 0.13,
+      "answeredBy": "composed skill, learned binder",
+      "answer": 19.8,
+      "correct": true
+    }
+  ]
+}

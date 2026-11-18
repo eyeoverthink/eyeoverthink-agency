@@ -1,13 +1,13 @@
 # #BuildHybridAI 2026 submission checklist
 
-Deadline: **Nov 30, 2026, 2:00 PM PT**. Status as of Nov 17, 2026 (after the demo rehearsal), each line checked against the repo or a real run.
+Deadline: **Nov 30, 2026, 2:00 PM PT**. Status as of Nov 17, 2026 (code frozen after Phase 19; script re-rehearsed), each line checked against the repo or a real run.
 
 | Requirement | Status | Evidence |
 |---|---|---|
 | Firebase AI Logic called at runtime | **Done** | Real project `eyeoverthink-agency`: direct calls plus 3 GPU-overflow calls from a real mission, each signed into the ledger as `edge.inference` ([Phase 5](phases/PHASE-5.md)). `node bin/agency.js edge proof` lists them. |
 | Apache-2.0 license | **Done** | `LICENSE` (Apache 2.0); `"license": "Apache-2.0"` in both `package.json` files; GitHub detects `apache-2.0`. |
 | Public repository | **To do (you)** | The repo is still **private**. Make it public with the command below, once the video is recorded. |
-| YouTube video, 3 minutes or less | **To do (you): script rehearsed** | [DEMO_SCRIPT.md](DEMO_SCRIPT.md) was rehearsed end to end on real models on Nov 17 ([evidence](phases/evidence-demo-rehearsal.json)): skill learning live (5–8 calls → 1 → **0 calls, 0.13 s**), and a live Firebase AI Logic call (`IN_CLOUD`, 1.5 s). The rehearsal also found and fixed a wording-gate bug. |
+| YouTube video, 3 minutes or less | **To do (you): script rehearsed** | [DEMO_SCRIPT.md](DEMO_SCRIPT.md) was re-rehearsed through the dashboard on real models after the freeze ([evidence](phases/evidence-demo-rehearsal-2.json)): skill learning live (4 calls → 1 → **0 calls, 0.13 s**) and a number checked live by Gemini via Firebase AI Logic. Record from a fresh copy of `demo-base`, with the Firebase worker serving. |
 | Devpost text | **Drafted** (updated with Phases 9–14) | [DEVPOST.md](DEVPOST.md). Paste it into Devpost and add the video URL. |
 
 ## Before making the repo public
@@ -23,7 +23,7 @@ gh repo edit eyeoverthink/eyeoverthink-agency --visibility public --accept-visib
 ```
 
 ## Recording day
-Reset the demo home and start the server (the script's first checklist item), then:
+Copy `demo-base` to `demo-home`, start the server, and start serving on Hybrid Edge (the script's checklist), then:
 ```bash
 node bin/agency.js preflight --home F:/Claude-Work/eyeoverthink-agency/demo-home --ollama http://127.0.0.1:11435
 ```

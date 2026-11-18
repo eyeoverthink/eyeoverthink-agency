@@ -24,6 +24,12 @@ Most AI products rent intelligence per call and keep nothing. This agency turns 
 
 Measured live on my laptop (real local models): a new kind of bill-splitting task cost **5–8 model calls and about 25 s** the first time, **1 call and 4 s** the second, and **0 calls and 0.13 s** the third. All answers were exact. In the test runs, no task was routed to the wrong skill.
 
+## It measures who to believe, and checks every number
+- **Skills travel safely.** Verified skills move between agencies as signed plasmids. The receiver re-checks every signature and test case and keeps the skill on probation until its own agents agree with it twice. Over the signed mesh, an agency pulls the skills it lacks from trusted peers by name, and **the peer never sees the task**.
+- **A measured judge.** When a skill and an agent disagree, more voices are asked and two of three decide. A study of 40 tasks with known answers measured every voice: **Gemini (Firebase AI Logic) 100%**, forge_keeper 95%, the old default agent 50–70%. So Gemini is asked first, and the most accurate local agent answers first. That choice was confirmed on a held-out set before it was used.
+- **Every number checked.** An answer that no skill checked gets one more independent voice. With the weaker agent answering first, 8 of 12 first answers were right and **all 12 replies were**: 4 were corrected 2 of 3, with the dissent stated, and none went out wrong unflagged.
+- **Where every skill came from.** A family tree drawn only from signed ledger entries.
+
 ## How Firebase AI Logic is used
 The dashboard is also an **edge inference node**. `web/src/hybrid.ts` calls, at runtime:
 - `initializeApp` and `initializeAppCheck`;
@@ -39,6 +45,8 @@ The dashboard is also an **edge inference node**. `web/src/hybrid.ts` calls, at 
 - Private work overflows only to a browser whose Gemini Nano is actually available, pinned to `ONLY_ON_DEVICE`. Otherwise it stays on the local GPU.
 - If the edge fails, each call falls straight back to the GPU.
 
+**Gemini is the agency's most accurate judge.** While a dashboard tab serves Firebase AI Logic, the agency asks Gemini first whenever its own answers need checking. In the measurements it was right 40 of 40 times, at a median of 1.3 s per call. A guard in front of every judge call means a task holding private values (emails, keys, owner terms) never reaches it.
+
 **Proof, not claims.** Every Firebase call is signed into the agency's Ed25519 hash-chained ledger as an `edge.inference` entry: the inference path, latency, project and a SHA-256 of the output (never the prompt or text). On my machine, a real mission sent 3 of its 160 model calls through Firebase AI Logic while the GPU was busy, each ledgered as `IN_CLOUD`.
 
 **Setup that tells you what's wrong.** `agency edge doctor` checks the Firebase config offline, masks secrets, refuses an env file git could commit, and catches a dashboard build older than its config. First-call errors are translated into their fix.
@@ -48,7 +56,7 @@ The dashboard is also an **edge inference node**. `web/src/hybrid.ts` calls, at 
 - **Models:** Ollama on an 8 GB RTX 3070 for local agents.
 - **Dashboard:** Vite + TypeScript with the `firebase` SDK.
 - **Protocols:** an MCP server and client so other tools can use the agency, and signed peer-to-peer messaging between agencies.
-- **Tests:** 132 automated tests plus deterministic benchmark and evolution suites, and every phase measured again on real models.
+- **Tests:** 152 automated tests plus deterministic benchmark and evolution suites, and every phase measured again on real models.
 
 ## Challenges
 - **Small local models drift from protocol.** Fixes: a JSON repair turn, a forced final answer, and a "narration guard" that rejects answers claiming tool use that never happened.
@@ -66,9 +74,10 @@ The dashboard is also an **edge inference node**. `web/src/hybrid.ts` calls, at 
 - Agents move between agencies as signed DNA plasmids.
 - Firebase AI Logic serves real agency work as overflow capacity, with a signed record of every call.
 - A library of verified skills grows from the agency's own work, its refusals and its combinations, and answers repeat tasks with zero model calls.
+- Skills travel between agencies over a signed mesh, and are re-verified and adopted only after local agreement.
+- Its judge is measured, not assumed, and every number it gives is checked by an independent voice.
 
 ## What's next
-- Carrying verified skills between agencies in signed plasmids, so one agency's lessons become another's.
 - A program-verified judge for tasks the agents can't solve reliably themselves.
 - Multi-turn on-device sessions.
 - A visual workflow canvas.
