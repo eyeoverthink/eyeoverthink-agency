@@ -217,3 +217,24 @@ test('the verdict decides the reply: when a second agent sides with the skill ag
     assert.equal(r2.final, 'It costs 999.00', 'a corroborated dissent is not overridden');
   } finally { await A.cleanup(); await B.cleanup(); }
 });
+
+test('family tree: every link is a signed ledger entry (import from a peer, adoption after trials)', async () => {
+  const A = await sender(), B = await receiver();
+  try {
+    const { plasmid } = A.agency.crystallizer.exportSkill('compound_discount', A.agency.keyring.get('agency'));
+    await B.agency.crystallizer.importSkill(plasmid);
+    for (const t of LOCAL.slice(0, 2)) await B.agency.runtime.run('tycho', t);
+    const l = B.agency.crystallizer.lineage();
+    const skill = l.nodes.find((n) => n.id === 'compound_discount');
+    assert.equal(skill.kind, 'import'); assert.equal(skill.status, 'active');
+    assert.deepEqual(skill.events.map((e) => e.what), ['imported', 'adopted after local trials']);
+    const edge = l.edges.find((e) => e.to === 'compound_discount');
+    assert.equal(edge.kind, 'imported');
+    assert.ok(edge.from.startsWith('peer:'));
+    const entry = B.agency.ledger.list({ limit: 50 }).find((e) => e.seq === edge.seq);
+    assert.equal(entry.hash, edge.hash, 'the link is the ledger entry itself');
+    // The sender's tree shows the skill admitted, then shared.
+    const la = A.agency.crystallizer.lineage();
+    assert.deepEqual(la.nodes.find((n) => n.id === 'compound_discount').events.map((e) => e.what), ['admitted', 'exported']);
+  } finally { await A.cleanup(); await B.cleanup(); }
+});

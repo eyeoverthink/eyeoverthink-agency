@@ -454,6 +454,12 @@ export class Crystallizer {
       rows.push({ input, candidate: c, reference: r });
     }
     if (rows.some((x) => x.candidate.error)) return fail(`candidate crashed: ${rows.find((x) => x.candidate.error).candidate.error}`, { rows });
+    // Determinism (from Chandra's skill forge): a skill must give the same output for the same input every time. Code
+    // that reads the clock or randomness would pass one comparison by luck and drift in use.
+    for (const x of rows) {
+      const again = await this.#run(cand.code, x.input, library);
+      if (again.error || !sameOutput(again.out, x.candidate.out)) return fail(`not deterministic: input ${JSON.stringify(x.input).slice(0, 80)} gave two different outputs`, { rows });
+    }
     let disagree = rows.filter((x) => x.reference.error || !sameOutput(x.candidate.out, x.reference.out));
     let tiebreak = null;
     if (disagree.length) {
@@ -722,6 +728,58 @@ export class Crystallizer {
    * A refutation carries the corroborated answer: a solved example of a capability the agency does not own yet.
    * Only the agent's last number that does not already appear in the task counts as its answer.
    */
+  /**
+   * Voice study (Phase 17; the referee pattern from Chandra's gemini-referee + memory-gold agreement()). Every voice
+   * answers the same tasks with known truth: per-voice accuracy, how often two voices are WRONG TOGETHER (the failure a
+   * 2-of-3 vote cannot fix), and Cohen's kappa on right/wrong between each pair. items: [{ task, truth }].
+   */
+  async voiceStudy(items, { voices = null } = {}) {
+    const ids = voices || ['tycho', ...this.#voices()];
+    const rows = [];
+    for (const it of items.slice(0, 40)) {
+      const inTask = new Set((String(it.task).match(NUM) || []).map(Number));
+      const answers = {};
+      for (const id of ids) {
+        const fin = await this.agentAnswer?.(it.task, id).catch(() => null);
+        const tok = (String(fin ?? '').replace(/,(?=\d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
+        answers[id] = tok === undefined ? null : Number(tok);
+      }
+      rows.push({ task: it.task, truth: it.truth, answers, right: Object.fromEntries(ids.map((id) => [id, answers[id] != null && nearAnswer(Number(it.truth), answers[id])])) });
+    }
+    const n = rows.length;
+    const accuracy = Object.fromEntries(ids.map((id) => [id, n ? +(rows.filter((r) => r.right[id]).length / n).toFixed(3) : null]));
+    const pairs = [];
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+      const a = ids[i], b = ids[j];
+      const both = rows.filter((r) => !r.right[a] && !r.right[b]).length;
+      const same = rows.filter((r) => !r.right[a] && !r.right[b] && r.answers[a] != null && r.answers[b] != null && nearAnswer(r.answers[a], r.answers[b])).length;
+      const x = rows.map((r) => r.right[a]), y = rows.map((r) => r.right[b]);
+      const po = n ? x.filter((v, k) => v === y[k]).length / n : 0, pa = n ? x.filter(Boolean).length / n : 0, pb = n ? y.filter(Boolean).length / n : 0;
+      const pe = pa * pb + (1 - pa) * (1 - pb);
+      pairs.push({ a, b, wrongTogether: both, sameWrongAnswer: same, kappa: n && pe < 1 ? +((po - pe) / (1 - pe)).toFixed(3) : null });
+    }
+    // What the 2-of-3 rule would have decided with each candidate tie-breaker, given a correct skill result (the truth).
+    const tieBreak = Object.fromEntries(ids.filter((id) => id !== 'tycho').map((id) => [id, rows.filter((r) => !r.right.tycho && r.right[id]).length]));
+    const study = { at: nowIso(), items: n, voices: ids, accuracy, pairs, rescuedFirstAgent: tieBreak, rows };
+    this.store.kvSet('judge:study', study);
+    this.ledger.append('judge.study', { items: n, voices: ids, accuracy, pairs: pairs.map(({ a, b, wrongTogether, sameWrongAnswer, kappa }) => ({ a, b, wrongTogether, sameWrongAnswer, kappa })) }, 'crystallizer');
+    return study;
+  }
+
+  /** Judge a computed result against an agent's final answer (2 of 3, with the configured voices). */
+  judge(task, out, final) { return this.#judge(task, out, final, this.agentAnswer); }
+
+  /** Who is asked after the first agent, in order. 'gemini' only when a Firebase AI Logic edge worker can answer. */
+  #voices() {
+    const cfg = this.cfg?.skills || {};
+    let local = [cfg.secondOpinion || 'lumen', cfg.thirdOpinion || 'forge_keeper'];
+    // Measured order (Phase 17): once a voice study exists, the more accurate local voice is asked first. Measured on 20
+    // tasks with known answers: forge_keeper 95%, lumen 65%; the fixed order asked lumen first. Ties keep the configured order.
+    const acc = this.store.kvGet('judge:study', null)?.accuracy;
+    if (acc && cfg.voiceOrder !== 'fixed') local = [...local].sort((x, y) => (acc[y] ?? -1) - (acc[x] ?? -1));
+    return cfg.cloudJudge !== false && this.cloudVoice?.available?.() ? ['gemini', ...local] : local;
+  }
+
   async #judge(task, out, firstFinal, answer) {
     const inTask = new Set((String(task).match(NUM) || []).map(Number));
     const last = (final) => (String(final ?? '').replace(/,(?=\d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
@@ -734,18 +792,36 @@ export class Crystallizer {
     const row = { skillOut: out, agentAnswer: first === undefined ? null : Number(first), second: null, third: null, agree: null };
     if (first === undefined) return row;
     if (near(first, out)) return { ...row, agree: true };
-    const secondFinal = answer ? await answer(task, this.cfg?.skills?.secondOpinion || 'lumen').catch(() => null) : null;
-    const second = last(secondFinal);
+    // Voices in order of independence (Phase 17): Gemini through Firebase AI Logic first when an edge worker is online
+    // (a different model family; measured: 20/20 on the voice study, vs 50-95% for the local agents, whose errors were NOT
+    // correlated there: kappa about 0), then the local agents in order of measured accuracy. A voice that gives
+    // no answer (no worker, a failed call, no number) is skipped, never replaced by a silent local fallback.
+    const voices = this.#voices();
+    // Evaluation mode (skills.judgeAllVoices): every voice answers every split, so each voice's accuracy and how often
+    // two voices are wrong TOGETHER can be measured. The decision below still uses the voices in order.
+    const heard = new Map();
+    const hear = async (id) => { if (!heard.has(id)) heard.set(id, last(answer ? await answer(task, id).catch(() => null) : null)); return heard.get(id); };
+    if (this.cfg?.skills?.judgeAllVoices) { for (const id of voices) await hear(id); row.voices = Object.fromEntries([...heard].map(([k, v]) => [k, v === undefined ? null : Number(v)])); }
+    const ask = async () => {
+      while (voices.length) {
+        const id = voices.shift();
+        const tok = await hear(id);
+        if (tok !== undefined) return { id, tok };
+      }
+      return { id: null, tok: undefined };
+    };
+    const { id: secondBy, tok: second } = await ask();
     row.second = second === undefined ? null : Number(second);
+    row.secondBy = secondBy;
     if (second === undefined) return row;
     if (near(second, out)) return { ...row, agree: true, by: 'second opinion sided with the skill' };
     if (near(second, Number(first)) || near(first, Number(second))) return { ...row, agree: false, corroborated: Number(first), by: 'second opinion corroborated the first' };
     // Three different answers so far (skill, first, second). Measured in Phase 13: in most such splits ONE agent was
     // right (189 vs 196.4; 130.8 vs 191), so a third agent on a different model breaks the tie, 2 of 3 as with the
     // Red Queen keys. Any two that agree decide; three-way disagreement still teaches nothing.
-    const thirdFinal = answer ? await answer(task, this.cfg?.skills?.thirdOpinion || 'forge_keeper').catch(() => null) : null;
-    const third = last(thirdFinal);
+    const { id: thirdBy, tok: third } = await ask();
     row.third = third === undefined ? null : Number(third);
+    row.thirdBy = thirdBy;
     if (third === undefined) return row;
     if (near(third, out)) return { ...row, agree: true, by: 'third opinion sided with the skill' };
     if (near(third, Number(first)) || near(first, Number(third))) return { ...row, agree: false, corroborated: Number(first), by: 'third opinion corroborated the first' };
@@ -762,7 +838,7 @@ export class Crystallizer {
     if (shadow?.candidates) {
       // Ambiguous structure: the candidate whose result the agent loop's answer matches is judged; none or several, nothing.
       const inTask = new Set((String(task).match(NUM) || []).map(Number));
-      const tok = (String(final ?? '').replace(/,(?=d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
+      const tok = (String(final ?? '').replace(/,(?=\d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
       const pick = tok === undefined ? [] : shadow.candidates.filter((c) => nearAnswer(c.out, Number(tok)) || nearAnswer(Number(tok), c.out));
       this.ledger.append('skill.chain_pick', { candidates: shadow.candidates.map((c) => c.signature), agentAnswer: tok ?? null, picked: pick.length === 1 ? pick[0].signature : null }, 'crystallizer');
       if (pick.length !== 1) return null;
@@ -1243,7 +1319,8 @@ Agents' working, kept for reference:
 
 ${final}`;
     }
-    const who = v.second != null && nearAnswer(v.skillOut, v.second) ? `a second agent (${v.second})` : v.third != null ? `a third agent (${v.third})` : null;
+    const name = (id, fallback) => (id === 'gemini' ? 'Gemini via Firebase AI Logic' : fallback);
+    const who = v.second != null && nearAnswer(v.skillOut, v.second) ? `${name(v.secondBy, 'a second agent')} (${v.second})` : v.third != null && nearAnswer(v.skillOut, v.third) ? `${name(v.thirdBy, 'a third agent')} (${v.third})` : null;
     if (!who) return null;
     this.ledger.append('skill.correct', { skill: v.skill || null, chain: v.chain || null, agentId, missionId, first: v.agentAnswer, corrected: n, by: who }, 'crystallizer');
     return `**Answer: ${n}**
@@ -1267,6 +1344,39 @@ ${final}`;
     const ok = this.store.run("UPDATE skills SET status = 'retired', updated = ? WHERE name = ? AND status = 'active'", nowIso(), name).changes > 0;
     if (ok) { this.tools.tools?.delete(`skill_${name}`); this.ledger.append('skill.retire', { name, reason }, 'operator'); }
     return ok;
+  }
+
+  /**
+   * Skill family tree (Phase 17): where every skill came from, built ONLY from signed ledger entries. Nodes are skills
+   * (and peer agencies); each edge is one ledger entry (seq + hash), so every link can be checked against the chain.
+   *   learned  : a skill's refusals, corroborated, became a new skill (skill.gap_learned)
+   *   composed : verified chains of owned skills became a composed skill (skill.compose)
+   *   imported : a peer's signed plasmid (skill.import); adopted after local trials (skill.adopt)
+   *   shared   : this agency exported a skill (skill.export, mesh.skill_out)
+   */
+  lineage() {
+    const entries = this.store.all("SELECT seq, ts, kind, data, hash FROM ledger WHERE kind IN ('skill.admit','skill.gap_learned','skill.compose','skill.import','skill.adopt','skill.export','skill.retire','skill.import_reject','mesh.skill_out') ORDER BY seq")
+      .map((r) => ({ ...r, data: JSON.parse(r.data) }));
+    const skills = this.list();
+    const ref = (e) => ({ seq: e.seq, hash: e.hash, ts: e.ts });
+    const nodes = new Map(skills.map((s) => [s.name, { id: s.name, kind: String(s.source).split(':')[0], status: s.status, uses: s.uses, description: s.description,
+      binder: Boolean(this.binder(s.name)), examples: this.examples(s.name).filter((e) => e.label === 'pos').length, trials: s.verification?.trials || null, born: null, events: [] }]));
+    const edges = [];
+    const peer = (signer) => { const id = `peer:${String(signer).slice(0, 12)}`; if (!nodes.has(id)) nodes.set(id, { id, kind: 'peer', signer, status: 'peer', events: [] }); return id; };
+    const note = (name, e, what) => { const n = nodes.get(name); if (n) { n.events.push({ what, ...ref(e) }); if (!n.born && ['admitted', 'composed', 'learned from refusals', 'imported'].includes(what)) n.born = ref(e); } };
+    for (const e of entries) {
+      const d = e.data;
+      if (e.kind === 'skill.admit') note(d.name, e, 'admitted');
+      else if (e.kind === 'skill.gap_learned') { note(d.skill, e, 'learned from refusals'); if (nodes.has(d.parent)) edges.push({ from: d.parent, to: d.skill, kind: 'learned', label: `${d.gaps} corroborated refusals`, ...ref(e) }); }
+      else if (e.kind === 'skill.compose') { note(d.name, e, 'composed'); for (const step of new Set(String(d.signature).split(' > ').map((x) => x.split('(')[0]))) if (nodes.has(step)) edges.push({ from: step, to: d.name, kind: 'composed', label: `${d.chains} verified chains`, ...ref(e) }); }
+      else if (e.kind === 'skill.import') { const p = peer(d.signer); for (const n of d.skills || []) { note(n, e, 'imported'); if (nodes.has(n)) edges.push({ from: p, to: n, kind: 'imported', label: 'signed plasmid', ...ref(e) }); } }
+      else if (e.kind === 'skill.adopt') note(d.name, e, d.via ? `adopted with ${d.via}` : 'adopted after local trials');
+      else if (e.kind === 'skill.export') note(d.name, e, 'exported');
+      else if (e.kind === 'mesh.skill_out') { const id = `peer:${String(d.peer).slice(0, 12)}`; if (!nodes.has(id)) nodes.set(id, { id, kind: 'peer', peerId: d.peer, status: 'peer', events: [] }); edges.push({ from: d.name, to: id, kind: 'shared', label: d.how === 'offer' ? 'offered' : 'requested by peer', ...ref(e) }); }
+      else if (e.kind === 'skill.retire') note(d.name, e, 'retired');
+      else if (e.kind === 'skill.import_reject' && d.name) note(d.name, e, 'rejected after local trials');
+    }
+    return { nodes: [...nodes.values()], edges };
   }
 
   // ---- Skills over the mesh (Phase 16) ----------------------------------------------------------------------------
@@ -1357,6 +1467,8 @@ ${final}`;
       for (const r of vr) {
         const run = await this.#run(s.code, r.input, lib.filter((x) => x.name !== s.name));
         if (run.error || !sameOutput(run.out, r.out)) return fail(`skill ${s.name}: does not reproduce its verification row ${JSON.stringify(r.input).slice(0, 80)}`);
+        const again = await this.#run(s.code, r.input, lib.filter((x) => x.name !== s.name));
+        if (again.error || !sameOutput(again.out, run.out)) return fail(`skill ${s.name}: not deterministic on ${JSON.stringify(r.input).slice(0, 80)}`);
       }
       const ex = (examples[s.name] || []).filter((e) => e && typeof e.task === 'string' && e.input);
       const bad = ex.find((e) => groundingProblem(e.input, s.params, e.task));

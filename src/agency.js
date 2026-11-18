@@ -11,7 +11,7 @@ import { Memory } from './memory/memory.js';
 import { Approvals } from './guard/approvals.js';
 import { ToolRegistry } from './tools/registry.js';
 import { registerBuiltinTools } from './tools/builtin.js';
-import { Membrane } from './guard/membrane.js';
+import { Membrane, detect } from './guard/membrane.js';
 import { AgentRegistry } from './agents/registry.js';
 import { AgentRuntime } from './agents/runtime.js';
 import { Forge } from './agents/forge.js';
@@ -80,7 +80,9 @@ export class Agency {
     // The wording audit re-checks old positives against the agent loop's own answer (skill-first off).
     // Phase 16: a task no owned skill could take looks for one among trusted peers (the task text never leaves).
     this.crystallizer.seeker = (task, final, opts) => this.seekSkills(task, final, opts);
-    this.crystallizer.agentAnswer = async (task, agentId = this.cfg.skills?.auditAgent || 'tycho') => (await this.runtime.run(agentId, task, { skillFirst: false })).final;
+    this.crystallizer.agentAnswer = async (task, agentId = this.cfg.skills?.auditAgent || 'tycho') => (agentId === 'gemini' ? this.geminiAnswer(task) : (await this.runtime.run(agentId, task, { skillFirst: false })).final);
+    // Phase 17: Gemini through Firebase AI Logic as an independent judge voice, only while a dashboard tab serves as an edge worker.
+    this.crystallizer.cloudVoice = { available: () => this.cfg.skills?.cloudJudge !== false && this.edge.available };
     this.crystalQueue = Promise.resolve();
     this.bus.on('mission.status', (e) => {
       const c = this.cfg.crystallize || {};
@@ -229,6 +231,35 @@ export class Agency {
       if (imp.imported) return { peer: c.peer.name, name: c.entry.name, imported: imp, trial: verdict };
     }
     return null;
+  }
+
+  /**
+   * One independent answer from Gemini through Firebase AI Logic (the browser edge worker), for the judge. Only judged
+   * work reaches it, and judging never happens for private or sealed tasks. The reply counts only if it really came
+   * from the edge: the router's local fallback would silently be a different (local) voice, so it is discarded.
+   */
+  async geminiAnswer(task) {
+    // Guard before the cloud (Phase 17, from the Chandra analysis): judged work is never private, but its text may still
+    // hold a value the membrane would withhold (a key, an email, an owner term). Then Gemini is not asked at all.
+    const found = detect(task, { terms: this.membrane.terms() });
+    if (found.length) {
+      this.ledger.append('judge.cloud_refused', { reason: 'sensitive values in the task', types: [...new Set(found.map((x) => x.type))] }, 'agency');
+      return null;
+    }
+    const day = new Date().toISOString().slice(0, 10), key = `judge:cloud:${day}`, used = this.store.kvGet(key, 0);
+    if (used >= (this.cfg.skills?.cloudJudgeDailyMax ?? 200)) return null;
+    this.store.kvSet(key, used + 1);
+    const res = await this.router.chat({
+      model: 'edge:prefer_in_cloud', role: 'reason', privacy: 'normal', origin: 'judge', temperature: 0.1, maxTokens: 600,
+      messages: [
+        { role: 'system', content: 'You are an independent checker. Solve the task yourself, step by step and briefly. Do not round intermediate values. End with one line: FINAL: <number>' },
+        { role: 'user', content: String(task).slice(0, 3000) },
+      ],
+    });
+    if (!String(res.provider || '').startsWith('edge/')) return null;
+    const fin = String(res.text).match(/FINAL:\s*\$?\s*(-?[\d,]*\.?\d+)/i);
+    this.bus.publish('skill.judge_voice', { voice: 'gemini', inferenceSource: res.inferenceSource || null });
+    return fin ? `FINAL ${fin[1]}` : res.text;
   }
 
   async status() {

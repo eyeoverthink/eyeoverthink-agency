@@ -467,6 +467,49 @@ function askCard(r: any): string {
   </div>`;
 }
 
+/**
+ * Skill family tree: built only from signed ledger entries. Colour = how the skill was born; ring = evidence (uses);
+ * hollow = on probation; a link is one ledger entry (hover for its seq and hash). Layout: generations left to right.
+ */
+function familyTree(l: any): string {
+  if (!l?.nodes?.length) return '<p class="dim">No skills yet.</p>';
+  const COLOR: Record<string, string> = { text: "var(--gold)", mission: "var(--gold)", operator: "var(--gold)", gap: "var(--coral)", chain: "var(--violet)", import: "var(--cloud)", peer: "var(--sage)" };
+  const BORN: Record<string, string> = { text: "from a solved task", mission: "from a mission", operator: "from a solved task", gap: "from refusals", chain: "composed", import: "from a peer", peer: "peer agency" };
+  const depth: Record<string, number> = {};
+  const incoming = (id: string) => l.edges.filter((e: any) => e.to === id && e.kind !== "shared");
+  const d = (id: string, seen = new Set<string>()): number => {
+    if (depth[id] != null) return depth[id];
+    if (seen.has(id)) return 0;
+    seen.add(id);
+    const ins = incoming(id);
+    return (depth[id] = ins.length ? 1 + Math.max(...ins.map((e: any) => d(e.from, seen))) : 0);
+  };
+  l.nodes.forEach((n: any) => d(n.id));
+  const maxD = Math.max(0, ...Object.values(depth));
+  for (const n of l.nodes) if (n.kind === "peer" && l.edges.some((e: any) => e.to === n.id && e.kind === "shared")) depth[n.id] = maxD + 1;
+  const cols: Record<number, any[]> = {};
+  for (const n of l.nodes) (cols[depth[n.id]] ||= []).push(n);
+  const nCols = Math.max(...Object.keys(cols).map(Number)) + 1, rows = Math.max(...Object.values(cols).map((c) => c.length));
+  const W = 900, H = Math.max(180, rows * 64 + 40), colW = W / nCols;
+  const pos: Record<string, { x: number; y: number }> = {};
+  for (const [c, list] of Object.entries(cols)) list.forEach((n, i) => { pos[n.id] = { x: colW * (Number(c) + 0.5), y: (H / (list.length + 1)) * (i + 1) }; });
+  const label = (n: any) => (n.kind === "peer" ? n.name || n.id : n.id).replace(/_/g, " ").slice(0, 34);
+  const edges = l.edges.map((e: any) => {
+    const a = pos[e.from], b = pos[e.to];
+    if (!a || !b) return "";
+    const mx = (a.x + b.x) / 2;
+    return `<path d="M${a.x},${a.y} C${mx},${a.y} ${mx},${b.y} ${b.x},${b.y}" fill="none" stroke="${COLOR[e.kind === "learned" ? "gap" : e.kind === "composed" ? "chain" : e.kind === "imported" ? "import" : "peer"]}" stroke-opacity=".55" stroke-width="2"${e.kind === "shared" ? ' stroke-dasharray="5 4"' : ""}><title>${esc(e.kind)}: ${esc(e.label)} · ledger #${e.seq} ${esc(String(e.hash).slice(0, 16))}…</title></path>`;
+  }).join("");
+  const nodes = l.nodes.map((n: any) => {
+    const p = pos[n.id], col = COLOR[n.kind] || "var(--muted)", r = n.kind === "peer" ? 9 : 7 + Math.min(7, Math.log2(1 + (n.uses || 0)));
+    const hollow = n.status === "probation", dead = n.status === "rejected" || n.status === "retired";
+    return `<g><circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${hollow || dead ? "none" : col}" stroke="${col}" stroke-width="${n.kind === "peer" ? 2 : 1.5 + Math.min(4, (n.examples || 0) / 3)}"${dead ? ' stroke-dasharray="2 3"' : ""}><title>${esc(label(n))} · ${esc(BORN[n.kind] || n.kind)} · ${esc(n.status)}${n.uses != null ? ` · ${n.uses} uses` : ""}${n.born ? ` · born at ledger #${n.born.seq} ${esc(String(n.born.hash).slice(0, 16))}…` : ""}${(n.events || []).length ? "\n" + n.events.map((e: any) => `#${e.seq} ${esc(e.what)}`).join("\n") : ""}</title></circle>
+      <text x="${p.x}" y="${p.y + r + 13}" text-anchor="middle" font-size="11" fill="currentColor">${esc(label(n))}</text></g>`;
+  }).join("");
+  const legend = [["text", "from a solved task"], ["gap", "from refusals"], ["chain", "composed"], ["import", "from a peer"], ["peer", "peer agency"]].map(([k, t]) => `<span><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${COLOR[k]};margin-right:5px"></i>${t}</span>`).join(" ");
+  return `<svg class="tree" viewBox="0 0 ${W} ${H}" role="img" aria-label="Skill family tree" style="width:100%;height:auto">${edges}${nodes}</svg><div class="row dim" style="gap:14px;flex-wrap:wrap">${legend}<span>hollow = on probation · dashed = shared · hover any link for its ledger entry</span></div>`;
+}
+
 async function loadSkills() {
   const box = $("#skillsp");
   if (!box) return;
@@ -480,6 +523,9 @@ async function loadSkills() {
     <p class="dim">Type a task. If a verified skill answers it, you see the code's answer, the model calls it cost (often zero) and the time. Otherwise the agents answer, and the skill library learns from the result.</p>
     <div class="row"><input id="asktext" placeholder="e.g. A $120 pizza order is 25% off, then 8% sales tax is added, and the total is split evenly among 3 friends. How much does each friend pay?" /><button id="askgo">Ask</button></div>
     <div id="askout"></div>
+    <h3>Skill family tree</h3>
+    <p class="dim">Where every skill came from, drawn only from the signed ledger. Each link is one ledger entry.</p>
+    <div id="lineage"><p class="dim">Loading…</p></div>
     <h3>Skill-first routing</h3>
     <p class="dim">Before an agent spends model turns, the agency checks whether a skill it owns already answers the task. A free word-and-number prefilter discards unrelated tasks. A plausible match costs one short local <b>bind</b> call, and every bound value must appear literally in the task. No value may be invented, and a conversion (12% → 0.12) is allowed only when the skill's verified contract declares it. Then verified code produces the exact answer. Any doubt falls back to the normal agent loop.</p>
     ${skillCurve(st.curve || [])}
@@ -499,6 +545,10 @@ async function loadSkills() {
     ${(() => { const imp = d.skills.filter((k: any) => String(k.source).startsWith("import:")); return imp.length ? `<table class="evotbl"><tr><th>skill</th><th>status</th><th>from</th><th>local trials</th><th>reproduced</th></tr>${imp.map((k: any) => `<tr><td class="mono">skill_${esc(k.name)}</td><td>${esc(k.status)}</td><td class="mono">${esc(String(k.verification?.imported?.signer || "").slice(0, 12))}…</td><td>${(() => { const t = k.verification?.trials; const via = (d.adoptions || []).find((x: any) => x.name === k.name)?.via; return via ? `adopted with <span class="mono">skill_${esc(via)}</span>, whose verified answers ran it` : t ? `${t.agree} agree · ${t.refuted} refuted · ${t.inconclusive} unclear` : "–"; })()}</td><td>${k.verification?.inputs ?? "–"} rows</td></tr>`).join("")}</table>` : '<p class="dim">No imported skills yet.</p>'; })()}
     <div class="row"><select id="plexp">${d.skills.filter((k: any) => k.status === "active").map((k: any) => `<option>${esc(k.name)}</option>`).join("")}</select><button class="ghost" id="plexpgo">Export as plasmid</button><input type="file" id="plimp" accept=".json" /><button class="ghost" id="plimpgo">Import plasmid</button></div>
     <div id="plout"></div>
+    <h3>Judge voices: who to believe when they disagree</h3>
+    <p class="dim">When a skill and the first agent disagree, more voices are asked and two of three decide. While a dashboard tab serves Firebase AI Logic, <b>Gemini is asked first</b>: a different model family, and the most accurate voice measured below. The local voices follow in order of measured accuracy. A task holding a value the privacy membrane would withhold never reaches it. ${d.judgeCalls ? `<b>${d.judgeCalls}</b> Gemini judge call(s) are signed in the ledger.` : ""} The voice study scores every voice on tasks with known answers.</p>
+    ${d.voiceStudy ? `<table class="evotbl"><tr><th>voice</th><th>accuracy (${d.voiceStudy.items} tasks)</th><th>first-agent errors it would fix</th></tr>${d.voiceStudy.voices.map((v: string) => `<tr><td class="mono">${v === "gemini" ? "Gemini (Firebase AI Logic)" : esc(v)}${v === "tycho" ? " (first agent)" : ""}</td><td><b>${Math.round(d.voiceStudy.accuracy[v] * 100)}%</b></td><td>${v === "tycho" ? "–" : d.voiceStudy.rescuedFirstAgent[v]}</td></tr>`).join("")}</table>
+      <table class="evotbl"><tr><th>pair</th><th>wrong together</th><th>with the same wrong answer</th><th>kappa (right/wrong)</th></tr>${d.voiceStudy.pairs.map((p: any) => `<tr><td class="mono">${esc(p.a)} + ${esc(p.b)}</td><td>${p.wrongTogether}</td><td>${p.sameWrongAnswer}</td><td>${p.kappa ?? "–"}</td></tr>`).join("")}</table>` : '<p class="dim">No voice study yet (POST /api/skills/voice-study with tasks and their answers).</p>'}
     <h3>Skills from peers</h3>
     <p class="dim">When no skill it owns can take a task, the agency looks through its <b>trusted</b> peers' catalogs (contracts only) and matches them <b>here</b>, so the task text never leaves. It pulls the best match by name, imports it on probation, and judges it on that very task. When the judge sides with a skill against the first agent (2 of 3), the reply is the verified answer, with the dissent stated.</p>
     ${(d.peers || []).length ? `<div class="row">${d.peers.map((p: any) => `<button class="ghost small" data-peercat="${esc(p.id)}">${esc(p.name)} · ${esc(p.trust)}</button>`).join("")}</div><div id="peercat"></div>` : '<p class="dim">No peers yet. Pair with another agency (Mesh: add its URL) and mark it trusted to share skills.</p>'}
@@ -506,6 +556,7 @@ async function loadSkills() {
     ${(d.corrections || []).length ? `<table class="evotbl"><tr><th>corrected by 2 of 3</th><th>first agent</th><th>reply</th><th>by</th></tr>${d.corrections.map((x: any) => `<tr><td class="mono">${esc(x.chain || "skill_" + x.skill)}</td><td>${esc(x.first)}</td><td><b>${esc(x.corrected)}</b></td><td>${esc(x.by)}</td></tr>`).join("")}</table>` : ""}
     <div class="row"><input id="crtext" placeholder="Describe a solved task to crystallize, e.g. 'convert a recipe between servings: scale each ingredient quantity by new/old servings'" /><button id="crgo" class="ghost">Crystallize</button></div>
     <div id="crout"></div>`;
+  void api<any>("/api/skills/lineage").then((l) => { const el = $("#lineage"); if (el) el.innerHTML = familyTree(l); }).catch(() => {});
   $("#askgo")!.addEventListener("click", async (e) => {
     const btn = e.currentTarget as HTMLButtonElement;
     const task = val("#asktext");

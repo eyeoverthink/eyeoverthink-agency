@@ -1,6 +1,6 @@
 # Phase 16: Skills over the mesh
 
-Previous: [Phase 15](PHASE-15.md) · [Index](README.md)
+Previous: [Phase 15](PHASE-15.md) · Next: [Phase 17](PHASE-17.md) · [Index](README.md)
 
 ## The problem
 Phase 15 made skills portable, but someone still had to export a file and import it. The agency should get what it lacks by itself: when it meets a task no skill it owns can take, ask the agencies it trusts, without telling them what the task was.

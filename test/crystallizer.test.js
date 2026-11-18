@@ -164,3 +164,20 @@ test('inputs two of three implementations reject are out of domain, not evidence
     assert.equal(r.verification.outOfDomain, 2);
   } finally { await A.cleanup(); }
 });
+
+test('determinism: a skill whose output changes between runs on the same input is never admitted (from Chandra skill forge)', async () => {
+  const { makeAgency, systemOf } = await import('./helpers.js');
+  const RAND = { name: 'noisy_total', description: 'Total of a price plus tax.', params: { type: 'object', properties: { price: { type: 'number' } }, required: ['price'] },
+    code: 'function main(i) { return i.price * 1.08 + (Math.random() < 2 ? Math.random() * 1e-3 : 0); }' };
+  const A = await makeAgency((req) => {
+    const sys = systemOf(req);
+    if (/turn a solved task into ONE reusable/.test(sys)) return RAND;
+    if (/independently implement/.test(sys)) return { code: RAND.code, inputs: [{ price: 10 }, { price: 20 }, { price: 30 }] };
+    return { final: 'ok' };
+  });
+  try {
+    const r = await A.agency.crystallizer.crystallize({ kind: 'text', ref: 'test', text: 'A $10 item plus 8% tax: 10.8.' });
+    assert.equal(r.admitted, false);
+    assert.match(r.reason, /not deterministic/);
+  } finally { await A.cleanup(); }
+});

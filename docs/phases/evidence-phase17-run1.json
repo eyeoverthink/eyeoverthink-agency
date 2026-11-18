@@ -1,0 +1,273 @@
+{
+  "at": "2026-11-18T01:45:10.206Z",
+  "tasks": [
+    {
+      "id": "sp-jog",
+      "truth": 7.2,
+      "answeredBy": "agents",
+      "calls": 19,
+      "s": 126.3,
+      "replied": 7.2,
+      "correct": true,
+      "corrected": true,
+      "judge": {
+        "skillOut": 7.2,
+        "first": 1.8,
+        "agree": true,
+        "by": "second opinion sided with the skill",
+        "second": 7.2,
+        "secondBy": "gemini",
+        "third": null,
+        "voices": {
+          "forge_keeper": 7.2,
+          "gemini": 7.2,
+          "lumen": 7.2
+        }
+      }
+    },
+    {
+      "id": "sp-ferry",
+      "truth": 24,
+      "answeredBy": "agents",
+      "calls": 4,
+      "s": 16.2,
+      "replied": 24,
+      "correct": true,
+      "corrected": false,
+      "judge": {
+        "skillOut": 24,
+        "first": 24,
+        "agree": true,
+        "second": null,
+        "third": null,
+        "voices": null
+      }
+    },
+    {
+      "id": "sp-climb",
+      "truth": 12,
+      "answeredBy": "agents",
+      "calls": 21,
+      "s": 58.1,
+      "replied": 12,
+      "correct": true,
+      "corrected": true,
+      "judge": {
+        "skillOut": 12,
+        "first": 16,
+        "agree": true,
+        "by": "second opinion sided with the skill",
+        "second": 12,
+        "secondBy": "gemini",
+        "third": null,
+        "voices": {
+          "forge_keeper": 12,
+          "gemini": 12,
+          "lumen": 3
+        }
+      }
+    },
+    {
+      "id": "sp-drone",
+      "truth": 43.2,
+      "answeredBy": "calculate_average_speed",
+      "calls": 0,
+      "s": 0.1,
+      "replied": 43.2,
+      "correct": true,
+      "corrected": false,
+      "judge": null
+    },
+    {
+      "id": "sp-swim",
+      "truth": 2.4,
+      "answeredBy": "calculate_average_speed",
+      "calls": 0,
+      "s": 0.1,
+      "replied": 2.4,
+      "correct": true,
+      "corrected": false,
+      "judge": null
+    },
+    {
+      "id": "sp-train",
+      "truth": 72,
+      "answeredBy": "calculate_average_speed",
+      "calls": 0,
+      "s": 0.1,
+      "replied": 72,
+      "correct": true,
+      "corrected": false,
+      "judge": null
+    },
+    {
+      "id": "ts-fee",
+      "truth": 33,
+      "answeredBy": "agents",
+      "calls": 17,
+      "s": 60.1,
+      "replied": 33,
+      "correct": true,
+      "corrected": false,
+      "judge": {
+        "skillOut": 27,
+        "first": 33,
+        "agree": false,
+        "by": "second opinion corroborated the first",
+        "second": 33,
+        "secondBy": "gemini",
+        "third": null,
+        "voices": {
+          "forge_keeper": 33,
+          "gemini": 33,
+          "lumen": 44
+        }
+      },
+      "harnessReplied": 160,
+      "note": "harness took the last number in the reply, the task's $160; the judge reads the reply excluding task numbers: 33"
+    },
+    {
+      "id": "ts-deliv",
+      "truth": 28.98,
+      "answeredBy": "agents",
+      "calls": 8,
+      "s": 26.1,
+      "replied": 28.98,
+      "correct": true,
+      "corrected": false,
+      "judge": {
+        "skillOut": 28.98,
+        "first": 28.98,
+        "agree": true,
+        "second": null,
+        "third": null,
+        "voices": null
+      }
+    },
+    {
+      "id": "sp-skate",
+      "truth": 15,
+      "answeredBy": "calculate_average_speed",
+      "calls": 0,
+      "s": 0.1,
+      "replied": 15,
+      "correct": true,
+      "corrected": false,
+      "judge": null
+    },
+    {
+      "id": "sp-sail",
+      "truth": 7.5,
+      "answeredBy": "calculate_average_speed",
+      "calls": 0,
+      "s": 0.1,
+      "replied": 7.5,
+      "correct": true,
+      "corrected": false,
+      "judge": null
+    }
+  ],
+  "splits": [
+    {
+      "seq": 1885,
+      "agentAnswer": 33,
+      "agentId": "tycho",
+      "agree": false,
+      "by": "second opinion corroborated the first",
+      "corroborated": 33,
+      "missionId": null,
+      "reason": "unverified wording (\"service after % #2\", \"fee after % #2\", \"added after % #2\"): the agent loop answers, and its answer is compared with the skill's",
+      "second": 33,
+      "secondBy": "gemini",
+      "skill": "final_price_then_even_split_0adb",
+      "skillOut": 27,
+      "third": null,
+      "voices": {
+        "forge_keeper": 33,
+        "gemini": 33,
+        "lumen": 44
+      }
+    },
+    {
+      "seq": 1870,
+      "agentAnswer": 16,
+      "agentId": "tycho",
+      "agree": true,
+      "by": "second opinion sided with the skill",
+      "missionId": null,
+      "reason": "unverified wording (\"descends after number #1\"): the agent loop answers, and its answer is compared with the skill's",
+      "second": 12,
+      "secondBy": "gemini",
+      "skill": "calculate_average_speed",
+      "skillOut": 12,
+      "third": null,
+      "voices": {
+        "forge_keeper": 12,
+        "gemini": 12,
+        "lumen": 3
+      }
+    },
+    {
+      "seq": 1858,
+      "agentAnswer": 1.8,
+      "agentId": "tycho",
+      "agree": true,
+      "by": "second opinion sided with the skill",
+      "missionId": null,
+      "reason": "unverified wording (\"strolls after number #1\", \"her\"): the agent loop answers, and its answer is compared with the skill's",
+      "second": 7.2,
+      "secondBy": "gemini",
+      "skill": "calculate_average_speed",
+      "skillOut": 7.2,
+      "third": null,
+      "voices": {
+        "forge_keeper": 7.2,
+        "gemini": 7.2,
+        "lumen": 7.2
+      }
+    }
+  ],
+  "judgeCalls": [
+    {
+      "seq": 1882,
+      "inferenceSource": "IN_CLOUD",
+      "latencyMs": 1430
+    },
+    {
+      "seq": 1865,
+      "inferenceSource": "IN_CLOUD",
+      "latencyMs": 1223
+    },
+    {
+      "seq": 1852,
+      "inferenceSource": "IN_CLOUD",
+      "latencyMs": 1631
+    }
+  ],
+  "corrections": [
+    {
+      "agentId": "tycho",
+      "by": "Gemini via Firebase AI Logic (12)",
+      "chain": null,
+      "corrected": 12,
+      "first": 16,
+      "missionId": null,
+      "skill": "calculate_average_speed"
+    },
+    {
+      "agentId": "tycho",
+      "by": "Gemini via Firebase AI Logic (7.2)",
+      "chain": null,
+      "corrected": 7.2,
+      "first": 1.8,
+      "missionId": null,
+      "skill": "calculate_average_speed"
+    }
+  ],
+  "refused": [],
+  "summary": {
+    "tasks": 10,
+    "correct": 10,
+    "zeroCall": 5
+  }
+}

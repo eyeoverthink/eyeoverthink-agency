@@ -78,6 +78,9 @@ export class ModelRouter {
     // Firebase AI Logic edge worker, this call goes to the edge instead of waiting in the GPU queue. Seeded calls
     // (benchmarks, evolution) and explicit model requests stay local, so paired comparisons keep one model.
     if (this.#overflowToEdge({ role, model, privacy, seed })) push(this.edge, privacy === 'private' ? 'edge:only_on_device' : 'edge:prefer_on_device', { overflow: true });
+    // An explicitly requested edge model comes first, before plugin providers: measured in Phase 17, a plugin model was
+    // ordered ahead of 'edge:prefer_in_cloud', so a call meant for Gemini (an independent judge voice) ran locally.
+    if (model && String(model).startsWith('edge:') && this.edge?.has(model)) push(this.edge, privacy === 'private' ? 'edge:only_on_device' : model);
     // Plugin providers that send data off the machine (remote: true) are never candidates for private work.
     for (const p of this.extra) for (const m of wanted) if (p.has(m) && (allowCloud || p.remote !== true)) push(p, m);
     for (const m of wanted) {

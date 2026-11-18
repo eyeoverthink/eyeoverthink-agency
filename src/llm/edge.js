@@ -71,8 +71,8 @@ export class EdgeHub {
     return { job: { id: job.id, mode: job.mode, messages: job.messages, json: job.json, temperature: job.temperature, maxTokens: job.maxTokens } };
   }
 
-  submit({ messages, mode = 'prefer_on_device', json = false, temperature = 0.4, maxTokens = 1024, missionId = null }) {
-    const job = { id: newId('ej'), messages, mode, json, temperature, maxTokens, missionId, status: 'queued', created: Date.now() };
+  submit({ messages, mode = 'prefer_on_device', json = false, temperature = 0.4, maxTokens = 1024, missionId = null, origin = 'agency-job' }) {
+    const job = { id: newId('ej'), messages, mode, json, temperature, maxTokens, missionId, origin, status: 'queued', created: Date.now() };
     job.promise = new Promise((resolve, reject) => { job.resolve = resolve; job.reject = reject; });
     this.jobs.set(job.id, job);
     const waiter = this.waiters.shift();
@@ -107,7 +107,7 @@ export class EdgeHub {
     if (this.stats[source] !== undefined) this.stats[source]++;
     const out = String(text ?? '');
     const latencyMs = Date.now() - job.created;
-    this.attest({ origin: 'agency-job', job: jobId, missionId: job.missionId, mode: job.mode, inferenceSource: source, latencyMs, chars: out.length, sha256: sha256(out), worker: w });
+    this.attest({ origin: job.origin || 'agency-job', job: jobId, missionId: job.missionId, mode: job.mode, inferenceSource: source, latencyMs, chars: out.length, sha256: sha256(out), worker: w });
     job.resolve({ text: out, inferenceSource: source, latencyMs });
     this.jobs.delete(jobId);
     this.bus?.publish('edge.job', { id: jobId, status: 'done', inferenceSource: source });
@@ -135,7 +135,7 @@ export class EdgeHub {
   attest({ origin, job = null, missionId = null, mode, inferenceSource, latencyMs, chars, sha256: hash, worker = null, project = null, cloudModel = null }) {
     const source = normSource(inferenceSource);
     const entry = {
-      origin: origin === 'playground' ? 'playground' : 'agency-job', job, ...(missionId ? { missionId: String(missionId).slice(0, 40) } : {}), mode: String(mode || '').slice(0, 24), inferenceSource: source,
+      origin: ['playground', 'judge'].includes(origin) ? origin : 'agency-job', job, ...(missionId ? { missionId: String(missionId).slice(0, 40) } : {}), mode: String(mode || '').slice(0, 24), inferenceSource: source,
       latencyMs: Math.max(0, Math.round(Number(latencyMs) || 0)), chars: Math.max(0, Number(chars) | 0),
       sha256: /^[0-9a-f]{64}$/.test(String(hash)) ? hash : null,
       project: worker?.project ?? (project == null ? null : String(project).slice(0, 40)),
@@ -158,9 +158,9 @@ export class EdgeProvider {
   async listModels() { return this.hub.available ? ['edge:prefer_on_device', 'edge:only_on_device', 'edge:prefer_in_cloud'] : []; }
   has(model) { return this.hub.available && String(model).startsWith('edge:'); }
 
-  async chat({ model, messages, json, temperature, maxTokens, missionId }) {
+  async chat({ model, messages, json, temperature, maxTokens, missionId, origin }) {
     const mode = String(model).split(':')[1] || 'prefer_on_device';
-    const job = this.hub.submit({ messages, mode, json, temperature, maxTokens, missionId });
+    const job = this.hub.submit({ messages, mode, json, temperature, maxTokens, missionId, origin });
     const r = await job.promise;
     return {
       text: r.text, model, provider: `edge/${r.inferenceSource}`, latencyMs: r.latencyMs, inferenceSource: r.inferenceSource,
