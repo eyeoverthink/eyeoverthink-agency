@@ -1,6 +1,6 @@
 # Phase 18: The measured first agent
 
-Previous: [Phase 17](PHASE-17.md) · [Index](README.md)
+Previous: [Phase 17](PHASE-17.md) · Next: [Phase 19](PHASE-19.md) · [Index](README.md)
 
 ## The problem
 The Phase 17 voice study found that the agent answering tasks first, tycho, was the **weakest** voice measured (50%). forge_keeper scored 95% on the same 20 tasks. The obvious move is to let forge_keeper answer first.

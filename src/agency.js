@@ -80,7 +80,7 @@ export class Agency {
     // The wording audit re-checks old positives against the agent loop's own answer (skill-first off).
     // Phase 16: a task no owned skill could take looks for one among trusted peers (the task text never leaves).
     this.crystallizer.seeker = (task, final, opts) => this.seekSkills(task, final, opts);
-    this.crystallizer.agentAnswer = async (task, agentId = this.cfg.skills?.auditAgent || 'tycho') => (agentId === 'gemini' ? this.geminiAnswer(task) : (await this.runtime.run(agentId, task, { skillFirst: false })).final);
+    this.crystallizer.agentAnswer = async (task, agentId = this.cfg.skills?.auditAgent || 'tycho') => (agentId === 'gemini' ? this.geminiAnswer(task) : (await this.runtime.run(agentId, task, { skillFirst: false, check: false })).final);
     // Phase 17: Gemini through Firebase AI Logic as an independent judge voice, only while a dashboard tab serves as an edge worker.
     this.crystallizer.cloudVoice = { available: () => this.cfg.skills?.cloudJudge !== false && this.edge.available };
     this.crystalQueue = Promise.resolve();

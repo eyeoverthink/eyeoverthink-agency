@@ -81,7 +81,7 @@ test('agent runtime: tool call -> sealed result -> final; JSON repair; narration
   try {
     const t = g.agency.agents.get('tycho');
     const r = await g.agency.runtime.run({ ...t, traits: { ...t.traits, reflection: 0 } }, 'What is 6*7?');
-    assert.equal(r.final, 'Six times seven is 42.');
+    assert.equal(r.final, 'Six times seven is 42.\n\n*Checked: agent lumen independently got 42.*', 'an in-domain answer nothing else checked gets a second voice (Phase 19)');
     assert.ok(r.steps.some((s) => s.thought === 'narration guard triggered'));
   } finally { await g.cleanup(); }
 });

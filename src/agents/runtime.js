@@ -257,6 +257,14 @@ export class AgentRuntime {
         const corrected = this.crystallizer.correctAnswer(verdict ? { ...verdict, skill: verdict.skill || shadow.skill, chain: verdict.chain || shadow.signature || null } : null, final, { agentId: agent.id, missionId: opts.missionId });
         if (corrected) { final = corrected; confidence = Math.max(confidence, 0.9); }
       }
+      // Nothing checked this answer (no skill, so no shadow or trial): one more voice does (Phase 19). Only in the
+      // measured domain, never for private work, seeded runs, judge voices (check: false) or missions (their critic).
+      const checkable = !shadow && opts.check !== false && !opts.missionId && !Number.isInteger(opts.seed) && (opts.privacy || 'normal') === 'normal'
+        && (String(task).match(/\d+(?:\.\d+)?/g) || []).length >= 2 && this.crystallizer?.checkAnswer;
+      if (checkable) {
+        const c = await this.crystallizer.checkAnswer(task, final, { agentId: agent.id, missionId: opts.missionId }).catch(() => null);
+        if (c?.final) { final = c.final; if (c.outcome === 'corrected' || c.outcome === 'confirmed') confidence = Math.max(confidence, 0.9); if (c.outcome === 'split' || c.outcome === 'disputed') confidence = Math.min(confidence, 0.4); }
+      }
       // No owned skill could take this task: look among trusted peers in the background (never delays the answer).
       if (seekable && this.crystallizer.seeker && (opts.privacy || 'normal') === 'normal') {
         const cz = this.crystallizer;

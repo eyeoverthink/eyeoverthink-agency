@@ -132,7 +132,7 @@ test('measured voice order: after a study, the more accurate local voice is aske
     cz.cloudVoice = { available: () => false };
     const asked = [];
     cz.agentAnswer = async (t, id) => { asked.push(id); return 'FINAL 51.84'; };
-    A.agency.store.kvSet('judge:study', { accuracy: { tycho: 0.5, gemini: 1, lumen: 0.65, forge_keeper: 0.95 } });
+    A.agency.store.kvSet('judge:study', { items: 20, accuracy: { tycho: 0.5, gemini: 1, lumen: 0.65, forge_keeper: 0.95 } });
     await cz.judge('A $180 dinner is 20% off, then 8% sales tax is added, split among 3 friends.', 51.84, 'FINAL 49.28');
     assert.deepEqual(asked, ['forge_keeper'], 'forge_keeper (95%) before lumen (65%)');
     A.agency.crystallizer.cfg.skills = { ...(A.agency.crystallizer.cfg.skills || {}), voiceOrder: 'fixed' };
@@ -170,5 +170,41 @@ test('a voice never seconds itself: the agent that answered first is not asked a
     A.agency.store.kvSet('judge:study', { accuracy: { lumen: 0.65, forge_keeper: 0.95 } });
     await cz.judge('A $180 dinner is 20% off, then 8% sales tax is added, split among 3 friends.', 51.84, 'FINAL 49.28', 'forge_keeper');
     assert.deepEqual(asked, ['lumen'], 'forge_keeper answered first, so lumen is the second opinion');
+  } finally { await A.cleanup(); }
+});
+
+test('second-voice check: confirmed, corrected 2 of 3, or reported unverified; voices never re-check; only in the measured domain', async () => {
+  const PRINT = 'Printer A prints a batch in 6 hours and printer B in 12 hours. Together, how many hours do they need?';
+  const A = await makeAgency(() => ({ thought: 'quick', final: 'They need 24 hours.', confidence: 0.6 }));
+  try {
+    const cz = A.agency.crystallizer;
+    cz.cloudVoice = { available: () => true };
+    let book = { gemini: 'FINAL 4', tycho: 'FINAL 4', lumen: 'FINAL 3', forge_keeper: 'FINAL 24' };
+    const asked = [];
+    cz.agentAnswer = async (t, id) => { asked.push(id); return book[id]; };
+    A.agency.store.kvSet('judge:study', { items: 20, voices: ['tycho', 'gemini', 'lumen', 'forge_keeper'], accuracy: { tycho: 0.5, gemini: 1, lumen: 0.65, forge_keeper: 0.95 } });
+    A.agency.store.kvSet('judge:heldout', { items: 20, voices: ['tycho', 'gemini', 'forge_keeper', 'lumen'], accuracy: { tycho: 0.7, gemini: 1, forge_keeper: 0.95, lumen: 0.45 } });
+    // Over both studies (the real numbers): tycho 60%, lumen 55%, so tycho is the local check voice.
+    // forge_keeper answered 24 (the real Phase 18 miss): Gemini says 4, the next local voice says 4 -> corrected.
+    const r = await A.agency.runtime.run('forge_keeper', PRINT);
+    assert.match(r.final, /^\*\*Answer: 4\*\*\n\nChecked 2 of 3: Gemini via Firebase AI Logic \(4\) and agent tycho \(4\) agreed; the first answer \(24\) was outvoted\./);
+    assert.deepEqual(asked, ['gemini', 'tycho'], 'never forge_keeper itself; tycho (measured above lumen) is the local voice');
+    assert.equal(A.agency.ledger.list({ limit: 1, kind: 'answer.check' })[0].data.outcome, 'corrected');
+    // Everyone agrees with the first answer: one extra voice, and the reply says it was checked.
+    book = { gemini: 'FINAL 24', tycho: 'FINAL 24', lumen: 'FINAL 24' }; asked.length = 0;
+    const r2 = await A.agency.runtime.run('forge_keeper', PRINT);
+    assert.match(r2.final, /They need 24 hours\.\n\n\*Checked: Gemini via Firebase AI Logic independently got 24\.\*/);
+    assert.deepEqual(asked, ['gemini']);
+    // Three different answers: not sent as if certain.
+    book = { gemini: 'FINAL 4', tycho: 'FINAL 9' }; asked.length = 0;
+    const r3 = await A.agency.runtime.run('forge_keeper', PRINT);
+    assert.match(r3.final, /\*\*Unverified:\*\* independent checks disagree \(Gemini via Firebase AI Logic: 4, agent tycho: 9\)/);
+    assert.ok(r3.confidence <= 0.4);
+    // Outside the measured domain, and for judge voices themselves (check: false): no check.
+    asked.length = 0;
+    await A.agency.runtime.run('forge_keeper', 'Write one sentence about rain.');
+    await A.agency.runtime.run('forge_keeper', PRINT, { check: false });
+    await A.agency.runtime.run('forge_keeper', PRINT, { privacy: 'private' });
+    assert.deepEqual(asked, []);
   } finally { await A.cleanup(); }
 });

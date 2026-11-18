@@ -769,17 +769,89 @@ export class Crystallizer {
     return study;
   }
 
+  /**
+   * Second-voice check (Phase 19). An in-domain answer that nothing else checked (no skill, so no shadow or trial) gets
+   * one independent voice: Gemini when an edge worker is online and the guard allows, else the most accurate local agent
+   * other than the one that answered. Agreement: checked. Disagreement: a third voice decides, 2 of 3; the reply is
+   * corrected with the dissent stated. A three-way split is reported as unverified rather than sent as if certain.
+   * Measured in Phase 18: forge_keeper answered "24 hours" for two printers (4), and nothing caught it.
+   */
+  async checkAnswer(task, final, { agentId = null, missionId = null } = {}) {
+    if (this.cfg?.skills?.checkAnswers === false || !this.agentAnswer || !final) return null;
+    const inTask = new Set((String(task).match(NUM) || []).map(Number));
+    const last = (f) => (String(f ?? '').replace(/,(?=\d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
+    const first = last(final);
+    if (first === undefined) return null;
+    const f = Number(first);
+    const same = (a, b) => nearAnswer(a, b) || nearAnswer(b, a);
+    const voices = this.#voices().filter((v) => v !== agentId);
+    const next = async () => {
+      while (voices.length) {
+        const id = voices.shift();
+        const tok = last(await this.agentAnswer(task, id).catch(() => null));
+        if (tok !== undefined) return { id, v: Number(tok) };
+      }
+      return null;
+    };
+    const name = (id) => (id === 'gemini' ? 'Gemini via Firebase AI Logic' : `agent ${id}`);
+    const row = { agentId, missionId, first: f, second: null, third: null, outcome: null };
+    const done = (outcome, text = null) => {
+      row.outcome = outcome;
+      this.ledger.append('answer.check', row, 'crystallizer');
+      this.bus?.publish('answer.check', { outcome, agentId });
+      return { ...row, final: text };
+    };
+    const second = await next();
+    if (!second) return done('unchecked');
+    row.second = second.v; row.secondBy = second.id;
+    if (same(f, second.v)) return done('confirmed', `${final}
+
+*Checked: ${name(second.id)} independently got ${second.v}.*`);
+    const third = await next();
+    if (third) { row.third = third.v; row.thirdBy = third.id; }
+    if (third && same(f, third.v)) return done('confirmed', `${final}
+
+*Checked 2 of 3: ${name(third.id)} got ${third.v} too (${name(second.id)} said ${second.v}).*`);
+    if (third && same(second.v, third.v)) {
+      const decimals = (n) => (String(n).split('.')[1] || '').length;
+      const n = decimals(second.v) >= decimals(third.v) ? second.v : third.v;
+      return done('corrected', `**Answer: ${n}**
+
+Checked 2 of 3: ${name(second.id)} (${second.v}) and ${name(third.id)} (${third.v}) agreed; the first answer (${f}) was outvoted.
+
+---
+First answer, kept for reference:
+
+${final}`);
+    }
+    return done(third ? 'split' : 'disputed', `${final}
+
+**Unverified:** independent checks disagree (${name(second.id)}: ${second.v}${third ? `, ${name(third.id)}: ${third.v}` : ''}). Treat this number with caution.`);
+  }
+
   /** Judge a computed result against an agent's final answer (2 of 3, with the configured voices). */
   judge(task, out, final, firstId = null) { return this.#judge(task, out, final, this.agentAnswer, firstId); }
 
   /** Who is asked after the first agent, in order. 'gemini' only when a Firebase AI Logic edge worker can answer. */
+  /** Accuracy per voice over every study (the voice study and the held-out study, weighted by their sizes). */
+  measuredAccuracy() {
+    const studies = ['judge:study', 'judge:heldout'].map((k) => this.store.kvGet(k, null)).filter((s) => s?.accuracy && s.items);
+    if (!studies.length) return null;
+    const out = {};
+    for (const id of new Set(studies.flatMap((s) => Object.keys(s.accuracy)))) {
+      const has = studies.filter((s) => s.accuracy[id] != null);
+      out[id] = has.reduce((t, s) => t + s.accuracy[id] * s.items, 0) / has.reduce((t, s) => t + s.items, 0);
+    }
+    return out;
+  }
+
   #voices() {
     const cfg = this.cfg?.skills || {};
     let local = [cfg.secondOpinion || 'lumen', cfg.thirdOpinion || 'forge_keeper'];
-    // Measured order (Phase 17): once a voice study exists, the more accurate local voice is asked first. Measured on 20
-    // tasks with known answers: forge_keeper 95%, lumen 65%; the fixed order asked lumen first. Ties keep the configured order.
-    const acc = this.store.kvGet('judge:study', null)?.accuracy;
-    if (acc && cfg.voiceOrder !== 'fixed') local = [...local].sort((x, y) => (acc[y] ?? -1) - (acc[x] ?? -1));
+    // Measured order (Phase 17), over every measured local agent (Phase 19): measured on 40 tasks, forge_keeper 95%,
+    // tycho 60%, lumen 55%. With forge_keeper answering first (Phase 18), a fixed pair left only lumen as a local voice.
+    const acc = cfg.voiceOrder !== 'fixed' ? this.measuredAccuracy() : null;
+    if (acc) local = [...new Set([...local, ...Object.keys(acc).filter((v) => v !== 'gemini')])].sort((x, y) => (acc[y] ?? -1) - (acc[x] ?? -1)).slice(0, 3);
     return cfg.cloudJudge !== false && this.cloudVoice?.available?.() ? ['gemini', ...local] : local;
   }
 

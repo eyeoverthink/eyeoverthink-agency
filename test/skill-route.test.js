@@ -83,7 +83,7 @@ test('a binder that rescales or invents values is rejected and the agent loop an
   try {
     const r = await A.agency.runtime.run('tycho', TASK);
     assert.equal(r.skill, undefined);
-    assert.equal(r.final, AGENT_FINAL.final);
+    assert.ok(r.final.startsWith(AGENT_FINAL.final), r.final); // plus the Phase 19 second-voice note
     const [miss] = A.agency.ledger.list({ limit: 1, kind: 'skill.route_miss' });
     assert.match(miss.data.reason, /binding rejected: discounts\[0\] = 0\.12 does not appear/);
     assert.equal(A.agency.crystallizer.list('active')[0].failures, 0, 'a bad binding is not held against the skill');
