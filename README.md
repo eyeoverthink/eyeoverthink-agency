@@ -6,6 +6,8 @@
 [![Tests](https://img.shields.io/badge/tests-152%20passing-brightgreen.svg)](#testing-benchmarks-self-test)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.13-339933.svg)](#quick-start)
 
+**▶ Demo video (2:52, recorded live on real local models): https://www.youtube.com/watch?v=dXUTdhnmbvA**
+
 > **Local agents do the work. Gemini, through Firebase AI Logic, keeps it honest. Everything the agency learns is verified, owned and signed.**
 > Agents on your own GPU answer tasks. When their answers need checking, Gemini via Firebase AI Logic is the first judge voice, and an extra number check catches what no skill could. Every answer that holds up becomes **verified code the agency owns**: the next task of that kind costs **zero model calls**. Skills grow from the agency's own work, its refusals and its combinations, travel between agencies as signed plasmids without the task text ever leaving, and every step is Ed25519-signed into a hash-chained ledger anyone can verify.
 

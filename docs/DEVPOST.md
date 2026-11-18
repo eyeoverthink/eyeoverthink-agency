@@ -1,5 +1,8 @@
 # Devpost submission text — EyeOverThink Agency
 
+## Video
+https://www.youtube.com/watch?v=dXUTdhnmbvA (2:52, recorded live on real local models; narration in my own voice).
+
 ## Tagline
 A sovereign AI agency on your own machine: local GPU agents, Firebase AI Logic as extra capacity when the GPU is busy, every result verified before it counts, and every act signed so you can audit it.
 
