@@ -1,6 +1,6 @@
 # Phase 19: Second-voice check
 
-Previous: [Phase 18](PHASE-18.md) · [Index](README.md)
+Previous: [Phase 18](PHASE-18.md) · Next: [Phase 20](PHASE-20.md) · [Index](README.md)
 
 ## The problem
 The judge only runs when there is a second computation to compare against: an owned skill's shadow or trial. In Phase 18, forge_keeper answered "24 hours" for two printers working together (the answer is 4). No skill matched the task, so nothing checked it, and the wrong number went out.
