@@ -127,3 +127,93 @@ test('an honestly wrong skill passes import (it reproduces itself) but is reject
 
 function awaitSha(s) { return createHash('sha256').update(s).digest('hex'); }
 import { createHash, generateKeyPairSync } from 'node:crypto';
+
+// ---- Phase 16: skills over the mesh ---------------------------------------------------------------------------------
+async function listen(agency) {
+  const { createServer } = await import('../src/server/server.js');
+  const server = createServer(agency);
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  return { server, url: `http://127.0.0.1:${server.address().port}` };
+}
+
+test('over the mesh: a task no skill could take makes the agency pull a matching skill from a trusted peer, judged on that very task; the task never leaves', async () => {
+  const A = await sender(), B = await receiver();
+  const sa = await listen(A.agency), sb = await listen(B.agency);
+  try {
+    const peerA = await B.agency.mesh.addPeer(sa.url, 'A');
+    const peerB = await A.agency.mesh.addPeer(sb.url, 'B');
+    // Known (not trusted): the catalog is visible (contracts only), but a skill is not handed over.
+    const cat = await B.agency.mesh.catalog(peerA.id);
+    assert.deepEqual(cat.map((s) => s.name), ['compound_discount']);
+    assert.equal(cat[0].code, undefined, 'catalogs carry no code');
+    B.agency.mesh.setTrust(peerA.id, 'trusted');
+    await assert.rejects(B.agency.mesh.requestSkill(peerA.id, 'compound_discount'), /requires a trusted peer/);
+    A.agency.mesh.setTrust(peerB.id, 'trusted');
+
+    // B owns nothing: the agents answer, then B looks among trusted peers in the background.
+    const secret = LOCAL[0];
+    const r1 = await B.agency.runtime.run('tycho', secret);
+    assert.equal(r1.skill, undefined);
+    await B.agency.crystallizer.seekQueue;
+    const seek = B.agency.ledger.list({ limit: 1, kind: 'skill.seek' })[0].data;
+    assert.equal(seek.imported, true);
+    assert.equal(seek.trial.agree, true, 'judged on the task that triggered the search');
+    assert.equal(B.agency.crystallizer.list().find((s) => s.name === 'compound_discount').status, 'probation');
+    // The second matching task is the second trial: adopted, then the third is answered by the skill.
+    await B.agency.runtime.run('tycho', LOCAL[1]);
+    assert.equal(B.agency.crystallizer.list().find((s) => s.name === 'compound_discount').status, 'active');
+    assert.equal((await B.agency.runtime.run('tycho', LOCAL[2])).skill, 'compound_discount');
+    // Privacy: no message A received carries B's task text; only the skill name went out.
+    const seen = JSON.stringify(A.agency.mesh.inbox(200));
+    assert.ok(!seen.includes('jacket costs $150'), 'the task never left B');
+    assert.ok(seen.includes('"name":"compound_discount"'));
+    // Never pulled twice.
+    await B.agency.runtime.run('tycho', 'A lamp costs $40. It is 10% off, then a further 5% off. What does it cost?');
+    await B.agency.crystallizer.seekQueue;
+    assert.equal(B.agency.ledger.list({ limit: 10, kind: 'skill.seek' }).length, 1);
+    assert.ok(A.agency.ledger.verify().ok && B.agency.ledger.verify().ok);
+  } finally { sa.server.close(); sb.server.close(); await A.cleanup(); await B.cleanup(); }
+});
+
+test('over the mesh: an offered skill lands on probation, and only from a trusted peer', async () => {
+  const A = await sender(), B = await receiver();
+  const sa = await listen(A.agency), sb = await listen(B.agency);
+  try {
+    const peerB = await A.agency.mesh.addPeer(sb.url, 'B');
+    const peerA = await B.agency.mesh.addPeer(sa.url, 'A');
+    await assert.rejects(A.agency.mesh.offerSkill(peerB.id, 'compound_discount'), /requires a trusted peer/);
+    B.agency.mesh.setTrust(peerA.id, 'trusted');
+    const r = await A.agency.mesh.offerSkill(peerB.id, 'compound_discount');
+    assert.equal(r.imported, true, r.reason);
+    assert.equal(B.agency.crystallizer.list('probation').length, 1);
+    assert.equal(B.agency.ledger.list({ limit: 1, kind: 'mesh.skill_in' })[0].data.how, 'offer');
+  } finally { sa.server.close(); sb.server.close(); await A.cleanup(); await B.cleanup(); }
+});
+
+test('the verdict decides the reply: when a second agent sides with the skill against the first, the user gets the 2-of-3 answer', async () => {
+  const A = await sender();
+  const B = await makeAgency((req) => {
+    const sys = systemOf(req);
+    if (/reviewing your own draft/.test(sys)) return { issues: [], final: 'It costs 999.00', confidence: 0.8 };
+    return { thought: 'rushed', final: 'It costs 999.00', confidence: 0.8 }; // the first agent is wrong
+  }, { skills: { first: true, learnBinders: false, importTrust: 2 } });
+  B.agency.crystallizer.agentAnswer = async (t) => `It costs ${truth(t).toFixed(2)}`; // the second agent is right
+  try {
+    const { plasmid } = A.agency.crystallizer.exportSkill('compound_discount', A.agency.keyring.get('agency'));
+    assert.equal((await B.agency.crystallizer.importSkill(plasmid)).imported, true);
+    const r = await B.agency.runtime.run('tycho', LOCAL[0]);
+    assert.match(r.final, /^\*\*Answer: 114\*\*/);
+    assert.match(r.final, /Verified 2 of 3: skill_compound_discount computed 114, and a second agent \(114\) agreed\. The first agent's answer \(999\) was outvoted\./);
+    assert.equal(B.agency.ledger.list({ limit: 1, kind: 'skill.correct' })[0].data.corrected, 114);
+    // Agreement only at the agent's rounding: the exact verified value is the reply.
+    const cz = B.agency.crystallizer;
+    const prec = cz.correctAnswer({ agree: true, agentAnswer: 24, skillOut: 23.85, skill: 'compound_discount' }, 'about 24');
+    assert.match(prec, /^\*\*Answer: 23\.85\*\*/);
+    assert.match(prec, /the agents' answer \(24\) is this value rounded/);
+    assert.equal(cz.correctAnswer({ agree: true, agentAnswer: 23.85, skillOut: 23.849999999999998, skill: 'compound_discount' }, 'x'), null, 'already exact');
+    // Agreement with the first agent changes nothing.
+    B.agency.crystallizer.agentAnswer = async () => 'It costs 999.00';
+    const r2 = await B.agency.runtime.run('tycho', LOCAL[1]);
+    assert.equal(r2.final, 'It costs 999.00', 'a corroborated dissent is not overridden');
+  } finally { await A.cleanup(); await B.cleanup(); }
+});

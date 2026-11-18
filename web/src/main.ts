@@ -499,6 +499,11 @@ async function loadSkills() {
     ${(() => { const imp = d.skills.filter((k: any) => String(k.source).startsWith("import:")); return imp.length ? `<table class="evotbl"><tr><th>skill</th><th>status</th><th>from</th><th>local trials</th><th>reproduced</th></tr>${imp.map((k: any) => `<tr><td class="mono">skill_${esc(k.name)}</td><td>${esc(k.status)}</td><td class="mono">${esc(String(k.verification?.imported?.signer || "").slice(0, 12))}…</td><td>${(() => { const t = k.verification?.trials; const via = (d.adoptions || []).find((x: any) => x.name === k.name)?.via; return via ? `adopted with <span class="mono">skill_${esc(via)}</span>, whose verified answers ran it` : t ? `${t.agree} agree · ${t.refuted} refuted · ${t.inconclusive} unclear` : "–"; })()}</td><td>${k.verification?.inputs ?? "–"} rows</td></tr>`).join("")}</table>` : '<p class="dim">No imported skills yet.</p>'; })()}
     <div class="row"><select id="plexp">${d.skills.filter((k: any) => k.status === "active").map((k: any) => `<option>${esc(k.name)}</option>`).join("")}</select><button class="ghost" id="plexpgo">Export as plasmid</button><input type="file" id="plimp" accept=".json" /><button class="ghost" id="plimpgo">Import plasmid</button></div>
     <div id="plout"></div>
+    <h3>Skills from peers</h3>
+    <p class="dim">When no skill it owns can take a task, the agency looks through its <b>trusted</b> peers' catalogs (contracts only) and matches them <b>here</b>, so the task text never leaves. It pulls the best match by name, imports it on probation, and judges it on that very task. When the judge sides with a skill against the first agent (2 of 3), the reply is the verified answer, with the dissent stated.</p>
+    ${(d.peers || []).length ? `<div class="row">${d.peers.map((p: any) => `<button class="ghost small" data-peercat="${esc(p.id)}">${esc(p.name)} · ${esc(p.trust)}</button>`).join("")}</div><div id="peercat"></div>` : '<p class="dim">No peers yet. Pair with another agency (Mesh: add its URL) and mark it trusted to share skills.</p>'}
+    ${(d.seeks || []).length ? `<table class="evotbl"><tr><th>pulled</th><th>result</th><th>first trial</th></tr>${d.seeks.map((x: any) => `<tr><td class="mono">skill_${esc(x.name)}</td><td>${x.imported ? "imported on probation" : esc(x.reason || "refused")}</td><td>${x.trial ? (x.trial.agree === true ? "agreed" : x.trial.agree === false ? "refuted" : "unclear") + " → " + esc(x.trial.status) : "–"}</td></tr>`).join("")}</table>` : ""}
+    ${(d.corrections || []).length ? `<table class="evotbl"><tr><th>corrected by 2 of 3</th><th>first agent</th><th>reply</th><th>by</th></tr>${d.corrections.map((x: any) => `<tr><td class="mono">${esc(x.chain || "skill_" + x.skill)}</td><td>${esc(x.first)}</td><td><b>${esc(x.corrected)}</b></td><td>${esc(x.by)}</td></tr>`).join("")}</table>` : ""}
     <div class="row"><input id="crtext" placeholder="Describe a solved task to crystallize, e.g. 'convert a recipe between servings: scale each ingredient quantity by new/old servings'" /><button id="crgo" class="ghost">Crystallize</button></div>
     <div id="crout"></div>`;
   $("#askgo")!.addEventListener("click", async (e) => {
@@ -513,6 +518,18 @@ async function loadSkills() {
     $("#askout")!.innerHTML = askCard(r);
     setTimeout(() => void loadSkills().then(() => { const o = $("#askout"); if (o) o.innerHTML = askCard(r); const t = $("#asktext") as HTMLInputElement | null; if (t) t.value = task; }), 300);
   });
+  document.querySelectorAll<HTMLButtonElement>("[data-peercat]").forEach((b) => b.addEventListener("click", async () => {
+    const id = b.dataset.peercat!;
+    const r = await guard(() => api<any>(`/api/mesh/peers/${encodeURIComponent(id)}/skills`));
+    if (!r) return;
+    $("#peercat")!.innerHTML = r.skills.length ? `<table class="evotbl"><tr><th>peer skill</th><th>what it computes</th><th>evidence</th><th></th></tr>${r.skills.map((s: any) => `<tr><td class="mono">skill_${esc(s.name)}</td><td>${esc(s.description)}</td><td>${s.rows} rows · ${s.uses} uses · ${esc(s.origin)}</td><td><button class="ghost small" data-pull="${esc(s.name)}">Pull</button></td></tr>`).join("")}</table>` : '<p class="dim">This peer owns no skills.</p>';
+    document.querySelectorAll<HTMLButtonElement>("[data-pull]").forEach((p) => p.addEventListener("click", async () => {
+      busy(p, true, "Verifying…");
+      const x = await guard(() => api<any>(`/api/mesh/peers/${encodeURIComponent(id)}/skills/request`, { body: { name: p.dataset.pull } }));
+      busy(p, false);
+      if (x) { $("#plout")!.innerHTML = x.imported ? `<p class="ok"><b>Imported:</b> ${esc(x.reason)}</p>` : `<p class="err"><b>Not imported:</b> ${esc(x.reason)}</p>`; if (x.imported) setTimeout(() => void loadSkills(), 400); }
+    }));
+  }));
   $("#plexpgo")?.addEventListener("click", async () => {
     const name = val("#plexp");
     const r = await guard(() => api<any>(`/api/skills/${encodeURIComponent(name)}/plasmid`));

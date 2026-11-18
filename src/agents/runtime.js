@@ -93,7 +93,7 @@ export class AgentRuntime {
     // Skill-first: if an owned, verified skill answers this task, answer with its code instead of model turns.
     // Seeded runs (evolution, benchmarks) measure the genome, so they never route; a retry after a critic rejection
     // (skillFirst: false) gets the full agent loop.
-    let shadow = null;
+    let shadow = null, seekable = false;
     if (this.crystallizer && this.cfg.skills?.first !== false && opts.skillFirst !== false && !Number.isInteger(opts.seed)) {
       const routed = await this.crystallizer.route(task, { signal: opts.signal, privacy: opts.privacy || 'normal', agentId: agent.id, missionId: opts.missionId, reflection: traits.reflection });
       if (routed.skill) {
@@ -105,6 +105,7 @@ export class AgentRuntime {
         return { status: 'done', final, confidence: 0.95, steps, model: `skill:${routed.skill.name}`, usage: routed.usage, toolCalls: 1, agentId: agent.id, skill: routed.skill.name, binder: routed.binderId || null };
       }
       shadow = routed.shadow || null;
+      seekable = !shadow && /^no (skills|candidate skill)$/.test(routed.miss || '');
     }
 
     const ctx =await this.memory.contextPack(task, { agentId: agent.id, k: traits.memoryDepth });
@@ -251,7 +252,16 @@ export class AgentRuntime {
       span?.end('ok', { steps: steps.length, model, confidence });
       // A binding the learned gate declined is checked against this answer: agreement verifies its wording, and
       // disagreement teaches a refusal. Learning is best-effort and never fails the run.
-      if (shadow) await this.crystallizer.shadowVerdict(shadow, task, final, { agentId: agent.id, missionId: opts.missionId }).catch(() => null);
+      if (shadow) {
+        const verdict = await this.crystallizer.shadowVerdict(shadow, task, final, { agentId: agent.id, missionId: opts.missionId }).catch(() => null);
+        const corrected = this.crystallizer.correctAnswer(verdict ? { ...verdict, skill: verdict.skill || shadow.skill, chain: verdict.chain || shadow.signature || null } : null, final, { agentId: agent.id, missionId: opts.missionId });
+        if (corrected) { final = corrected; confidence = Math.max(confidence, 0.9); }
+      }
+      // No owned skill could take this task: look among trusted peers in the background (never delays the answer).
+      if (seekable && this.crystallizer.seeker && (opts.privacy || 'normal') === 'normal') {
+        const cz = this.crystallizer;
+        cz.seekQueue = (cz.seekQueue || Promise.resolve()).then(() => cz.seeker(task, final, { agentId: agent.id, missionId: opts.missionId })).catch(() => null);
+      }
       return { status: 'done', final, confidence, steps, model, usage, toolCalls: steps.filter((s) => s.tool).length, agentId: agent.id };
     } catch (e) {
       span?.end('error', { error: errorMessage(e) });

@@ -283,6 +283,20 @@ export function extendChain(skill, input, unused, skills) {
 export const chainInput = (steps, slots) => Object.fromEntries(slots.map((x) => [x.param, steps[x.step].input[x.key]]));
 
 /** Models sometimes double-escape code inside JSON (a literal backslash-n for a newline); such a program is unescaped. */
+/**
+ * The routing prefilter, no model: content words a skill's name, description and parameters share with the task, and
+ * whether the task states enough numbers for its required numeric parameters. Also used on peers' catalogs (Phase 16),
+ * so a remote skill is matched locally and the task text never leaves the agency.
+ */
+export function relevance(s, text, minOverlap = 1) {
+  const taskWords = new Set(words(String(text)));
+  const nums = String(text).match(NUM) || [];
+  const vocab = new Set([...words(String(s.name).replace(/_/g, ' ')), ...words(s.description), ...Object.entries(s.params?.properties || {}).flatMap(([k, p]) => words(`${k.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ')} ${p?.description || ''}`))]);
+  const shared = [...vocab].filter((w) => taskWords.has(w));
+  const needNums = (s.params?.required || []).filter((k) => ['number', 'integer', 'array'].includes(s.params?.properties?.[k]?.type)).length;
+  return { score: shared.length, shared, related: shared.length >= minOverlap, ok: shared.length >= minOverlap && nums.length >= needNums };
+}
+
 export function normalizeCode(code) {
   const c = String(code || '');
   return !c.includes('\n') && /\\n/.test(c) ? c.replace(/\\r\\n|\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"') : c;
@@ -520,12 +534,7 @@ export class Crystallizer {
     const text = String(task);
     const taskWords = new Set(words(text));
     const nums = text.match(NUM) || [];
-    const scored = active.map((s) => {
-      const vocab = new Set([...words(s.name.replace(/_/g, ' ')), ...words(s.description), ...Object.entries(s.params?.properties || {}).flatMap(([k, p]) => words(`${k.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ')} ${p?.description || ''}`))]);
-      const shared = [...vocab].filter((w) => taskWords.has(w));
-      const needNums = (s.params?.required || []).filter((k) => ['number', 'integer', 'array'].includes(s.params?.properties?.[k]?.type)).length;
-      return { s, score: shared.length, shared, related: shared.length >= (cfg.minOverlap ?? 1), ok: shared.length >= (cfg.minOverlap ?? 1) && nums.length >= needNums };
-    }).sort((a, b) => b.score - a.score);
+    const scored = active.map((s) => ({ s, ...relevance(s, text, cfg.minOverlap ?? 1) })).sort((a, b) => b.score - a.score);
     const candidates = scored.filter((c) => c.ok).slice(0, 3);
     // Composition (Phase 14): skills related to the task by wording may chain, each step's output feeding the next.
     // A step fed by an earlier step needs fewer numbers from the task, so the number-count filter does not apply.
@@ -1211,6 +1220,42 @@ export class Crystallizer {
   }
 
   /** The final answer a routed task returns: the exact result plus its provenance. */
+  /**
+   * The verdict decides the answer, not only what is learned. When the judge sided with the skill AGAINST the first agent
+   * (a second or third agent agreed with the skill's result: 2 of 3), the reply becomes that verified result, with the
+   * dissent stated. Measured in Phase 16: twice in one run the first agent was wrong, the judge knew it, and the wrong
+   * answer was still returned. Returns the corrected text, or null when nothing changes.
+   */
+  correctAnswer(v, final, { agentId = null, missionId = null } = {}) {
+    if (!v?.agree || v.agentAnswer == null || typeof v.skillOut !== 'number') return null;
+    const n = Number(v.skillOut.toPrecision(12));
+    const what = v.chain ? `the verified chain ${v.chain}` : `skill_${v.skill}`;
+    if (nearAnswer(v.skillOut, v.agentAnswer)) {
+      // Agreement only at the agent's rounding ("24" for 23.85): verified, and the exact value is the better reply.
+      if (Math.abs(v.skillOut - v.agentAnswer) <= Math.max(0.01, Math.abs(v.agentAnswer) * 0.002)) return null;
+      this.ledger.append('skill.correct', { skill: v.skill || null, chain: v.chain || null, agentId, missionId, first: v.agentAnswer, corrected: n, by: 'precision' }, 'crystallizer');
+      return `**Answer: ${n}**
+
+Exact result from ${what}; the agents' answer (${v.agentAnswer}) is this value rounded.
+
+---
+Agents' working, kept for reference:
+
+${final}`;
+    }
+    const who = v.second != null && nearAnswer(v.skillOut, v.second) ? `a second agent (${v.second})` : v.third != null ? `a third agent (${v.third})` : null;
+    if (!who) return null;
+    this.ledger.append('skill.correct', { skill: v.skill || null, chain: v.chain || null, agentId, missionId, first: v.agentAnswer, corrected: n, by: who }, 'crystallizer');
+    return `**Answer: ${n}**
+
+Verified 2 of 3: ${what} computed ${n}, and ${who} agreed. The first agent's answer (${v.agentAnswer}) was outvoted.
+
+---
+First agent's working, kept for reference:
+
+${final}`;
+  }
+
   static answerText(skill, input, out, privacy = 'normal') {
     const shown = typeof out === 'number' ? String(Number(out.toPrecision(12))) : typeof out === 'string' ? out : `\n\n\`\`\`json\n${JSON.stringify(out, null, 2)}\n\`\`\``;
     const inp = privacy === 'normal' ? ` on input \`${JSON.stringify(input)}\`` : '';
@@ -1222,6 +1267,20 @@ export class Crystallizer {
     const ok = this.store.run("UPDATE skills SET status = 'retired', updated = ? WHERE name = ? AND status = 'active'", nowIso(), name).changes > 0;
     if (ok) { this.tools.tools?.delete(`skill_${name}`); this.ledger.append('skill.retire', { name, reason }, 'operator'); }
     return ok;
+  }
+
+  // ---- Skills over the mesh (Phase 16) ----------------------------------------------------------------------------
+
+  /** What this agency owns, for peers: contracts and evidence counts, never code or examples. */
+  catalog() {
+    return this.list('active').map((s) => ({ name: s.name, description: s.description, params: s.params, code_sha256: s.code_sha256, method: s.verification?.method || null,
+      rows: (s.verification?.rows || []).length, uses: s.uses, origin: String(s.source).split(':')[0] }));
+  }
+
+  /** A skill just imported for this task: the task that made the agency look for it is its first probation trial. */
+  async trialNow(task, final, opts = {}) {
+    const t = await this.#probationTrial(String(task));
+    return t ? this.#trialVerdict(t, task, final, opts) : null;
   }
 
   // ---- Skill plasmids: verified skills travel between agencies (Phase 15) -------------------------------------------
@@ -1355,6 +1414,7 @@ export class Crystallizer {
     v.trials ??= { agree: 0, refuted: 0, inconclusive: 0 };
     v.trials[j.agree === true ? 'agree' : j.agree === false ? 'refuted' : 'inconclusive']++;
     this.ledger.append('skill.trial', { skill: s.name, agentId, missionId, ...j }, 'crystallizer');
+    j.skill = s.name;
     this.bus?.publish('skill.trial', { skill: s.name, agree: j.agree });
     if (j.agree) this.#example(s.name, task, shadow.input, 'pos');
     let status = 'probation';

@@ -1,0 +1,296 @@
+{
+  "at": "2026-11-18T01:20:56.995Z",
+  "tasks": [
+    {
+      "id": "ts1",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 5,
+      "s": 15,
+      "correct": true,
+      "pulled": {
+        "name": "final_price_with_tax_then_even_spl_dc52",
+        "imported": true,
+        "reason": "3 skill(s) on probation until 2 local verdicts agree"
+      },
+      "trials": [
+        {
+          "skill": "final_price_with_tax_then_even_spl_dc52",
+          "agree": true,
+          "out": 51.84,
+          "agent": 51.84,
+          "second": null
+        }
+      ],
+      "statuses": {
+        "calculate_final_price_with_tax": "probation",
+        "calculate_even_split": "probation",
+        "final_price_with_tax_then_even_spl_dc52": "probation"
+      }
+    },
+    {
+      "id": "sp1",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 5,
+      "s": 18.7,
+      "correct": false,
+      "pulled": {
+        "name": "calculate_average_speed",
+        "imported": true,
+        "reason": "1 skill(s) on probation until 2 local verdicts agree"
+      },
+      "trials": [],
+      "statuses": {
+        "calculate_final_price_with_tax": "probation",
+        "calculate_even_split": "probation",
+        "final_price_with_tax_then_even_spl_dc52": "probation",
+        "calculate_average_speed": "probation"
+      }
+    },
+    {
+      "id": "ts2",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 11,
+      "s": 32.4,
+      "correct": true,
+      "pulled": null,
+      "trials": [
+        {
+          "skill": "final_price_with_tax_then_even_spl_dc52",
+          "agree": true,
+          "out": 47.7,
+          "agent": 47.85,
+          "second": 47.7
+        }
+      ],
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active",
+        "calculate_average_speed": "probation"
+      }
+    },
+    {
+      "id": "sp2",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 9,
+      "s": 26.8,
+      "correct": true,
+      "pulled": null,
+      "trials": [
+        {
+          "skill": "calculate_average_speed",
+          "agree": true,
+          "out": 48,
+          "agent": 48,
+          "second": null
+        }
+      ],
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active",
+        "calculate_average_speed": "probation"
+      }
+    },
+    {
+      "id": "c-more",
+      "control": true,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 10,
+      "s": 22.7,
+      "correct": null,
+      "pulled": null,
+      "trials": [],
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active",
+        "calculate_average_speed": "probation"
+      }
+    },
+    {
+      "id": "ts3",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 8,
+      "s": 20.1,
+      "correct": true,
+      "pulled": null,
+      "trials": [],
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active",
+        "calculate_average_speed": "probation"
+      }
+    },
+    {
+      "id": "sp3",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 19,
+      "s": 63.6,
+      "correct": true,
+      "pulled": null,
+      "trials": [
+        {
+          "skill": "calculate_average_speed",
+          "agree": true,
+          "out": 14.4,
+          "agent": 24,
+          "second": 2
+        }
+      ],
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active",
+        "calculate_average_speed": "active"
+      }
+    },
+    {
+      "id": "ts4",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 12,
+      "s": 28.5,
+      "correct": true,
+      "pulled": null,
+      "trials": [],
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active",
+        "calculate_average_speed": "active"
+      }
+    },
+    {
+      "id": "sp4",
+      "control": false,
+      "answeredBy": "calculate_average_speed",
+      "zeroCall": true,
+      "calls": 0,
+      "s": 0.1,
+      "correct": true,
+      "pulled": null,
+      "trials": [],
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active",
+        "calculate_average_speed": "active"
+      }
+    }
+  ],
+  "catalog": [
+    {
+      "name": "calculate_final_price",
+      "origin": "text",
+      "rows": 6,
+      "uses": 85,
+      "hasCode": false
+    },
+    {
+      "name": "calculate_average_speed",
+      "origin": "text",
+      "rows": 6,
+      "uses": 48,
+      "hasCode": false
+    },
+    {
+      "name": "calculate_final_price_with_tax",
+      "origin": "gap",
+      "rows": 6,
+      "uses": 8,
+      "hasCode": false
+    },
+    {
+      "name": "calculate_even_split",
+      "origin": "text",
+      "rows": 6,
+      "uses": 2,
+      "hasCode": false
+    },
+    {
+      "name": "final_price_with_tax_then_even_spl_dc52",
+      "origin": "chain",
+      "rows": 2,
+      "uses": 3,
+      "hasCode": false
+    },
+    {
+      "name": "final_price_then_even_split_0adb",
+      "origin": "chain",
+      "rows": 2,
+      "uses": 1,
+      "hasCode": false
+    }
+  ],
+  "final": [
+    {
+      "name": "calculate_final_price_with_tax",
+      "status": "active",
+      "trials": {
+        "agree": 0,
+        "refuted": 0,
+        "inconclusive": 0
+      }
+    },
+    {
+      "name": "calculate_even_split",
+      "status": "active",
+      "trials": {
+        "agree": 0,
+        "refuted": 0,
+        "inconclusive": 0
+      }
+    },
+    {
+      "name": "final_price_with_tax_then_even_spl_dc52",
+      "status": "active",
+      "trials": {
+        "agree": 2,
+        "refuted": 0,
+        "inconclusive": 0
+      }
+    },
+    {
+      "name": "calculate_average_speed",
+      "status": "active",
+      "trials": {
+        "agree": 2,
+        "refuted": 0,
+        "inconclusive": 0
+      }
+    }
+  ],
+  "binders": [
+    "calculate_final_price_with_tax",
+    "final_price_with_tax_then_even_spl_dc52",
+    "calculate_average_speed"
+  ],
+  "privacy": {
+    "senderMessages": 3,
+    "types": [
+      "skill.request",
+      "skill.catalog"
+    ],
+    "taskTextsSeenBySender": []
+  },
+  "ledgers": {
+    "sender": true,
+    "receiver": true
+  }
+}

@@ -23,7 +23,7 @@ import { Dreamer } from './dream/dreamer.js';
 import { Bench } from './telemetry/bench.js';
 import { Evolution } from './evolve/evolution.js';
 import { Examiner } from './evolve/examiner.js';
-import { Crystallizer } from './evolve/crystallizer.js';
+import { Crystallizer, relevance } from './evolve/crystallizer.js';
 import { Mesh } from './protocols/mesh.js';
 import { McpClient } from './protocols/mcp.js';
 import { Continuity } from './continuity/continuity.js';
@@ -78,6 +78,8 @@ export class Agency {
     this.crystallizer = new Crystallizer({ store: this.store, router: this.router, tools: this.tools, missions: this.missions, ledger: this.ledger, bus: this.bus, cfg: this.cfg });
     this.runtime.crystallizer = this.crystallizer; // skill-first: agents use what the agency owns before renting a model
     // The wording audit re-checks old positives against the agent loop's own answer (skill-first off).
+    // Phase 16: a task no owned skill could take looks for one among trusted peers (the task text never leaves).
+    this.crystallizer.seeker = (task, final, opts) => this.seekSkills(task, final, opts);
     this.crystallizer.agentAnswer = async (task, agentId = this.cfg.skills?.auditAgent || 'tycho') => (await this.runtime.run(agentId, task, { skillFirst: false })).final;
     this.crystalQueue = Promise.resolve();
     this.bus.on('mission.status', (e) => {
@@ -89,7 +91,7 @@ export class Agency {
         try { await this.crystallizer.crystallize(this.crystallizer.missionSource(e.missionId)); } catch (err) { this.bus.publish('skill.reject', { name: null, reason: errorMessage(err) }); }
       });
     });
-    this.mesh = new Mesh({ cfg: this.cfg, store: this.store, keyring: this.keyring, ledger: this.ledger, bus: this.bus, memory: this.memory, runtime: this.runtime, agents: this.agents });
+    this.mesh = new Mesh({ cfg: this.cfg, store: this.store, keyring: this.keyring, ledger: this.ledger, bus: this.bus, memory: this.memory, runtime: this.runtime, agents: this.agents, crystallizer: this.crystallizer });
     this.continuity = new Continuity(this);
     this.mcpClients = [];
     this.timers = [];
@@ -194,6 +196,39 @@ export class Agency {
     const miss = result.skill ? null : after('skill.route_miss', before.miss);
     const shadow = after('skill.shadow', before.shadow);
     return { ...result, meter, route: { skill: result.skill || null, zeroCall: Boolean(result.binder), declined: miss?.reason || null, shadow, gap: after('skill.gap', before.gap) } };
+  }
+
+  /**
+   * Skills over the mesh (Phase 16). After the agents answered a task no owned skill could take, look through trusted
+   * peers' catalogs (contracts only, matched HERE with the routing prefilter: the task never leaves this agency), pull
+   * the best match not already known, import it on probation, and judge it on this very task: the agents' answer is
+   * already here. A skill once rejected (or on probation) is never pulled again.
+   */
+  async seekSkills(task, final, { agentId = null, missionId = null } = {}) {
+    if (this.cfg.skills?.seek === false || !final) return null;
+    const peers = this.mesh.peers().filter((p) => p.trust === 'trusted');
+    if (!peers.length) return null;
+    const local = this.crystallizer.list();
+    const known = new Set([...local.map((s) => s.name), ...local.map((s) => s.code_sha256)]);
+    const cands = [];
+    for (const peer of peers) {
+      let cat = [];
+      try { cat = await this.mesh.catalog(peer.id); } catch { continue; }
+      for (const e of cat) {
+        if (!e?.name || known.has(e.name) || known.has(e.code_sha256)) continue;
+        const r = relevance(e, task, this.cfg.skills?.minOverlap ?? 1);
+        if (r.ok) cands.push({ peer, entry: e, score: r.score });
+      }
+    }
+    cands.sort((x, y) => y.score - x.score || (y.entry.uses || 0) - (x.entry.uses || 0));
+    for (const c of cands.slice(0, this.cfg.skills?.seekMax ?? 2)) {
+      const imp = await this.mesh.requestSkill(c.peer.id, c.entry.name).catch((e) => ({ imported: false, reason: errorMessage(e) }));
+      const verdict = imp.imported ? await this.crystallizer.trialNow(task, final, { agentId, missionId }) : null;
+      this.ledger.append('skill.seek', { peer: c.peer.id, name: c.entry.name, score: c.score, imported: imp.imported, reason: truncate(imp.reason || '', 200), trial: verdict ? { agree: verdict.agree, status: verdict.status } : null }, 'agency');
+      this.bus.publish('skill.seek', { peer: c.peer.name, name: c.entry.name, imported: imp.imported });
+      if (imp.imported) return { peer: c.peer.name, name: c.entry.name, imported: imp, trial: verdict };
+    }
+    return null;
   }
 
   async status() {

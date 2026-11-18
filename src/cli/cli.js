@@ -34,6 +34,7 @@ Global flags: --home <dir> (data directory)  --ollama <url> (Ollama server)
   agents adopt <file>              Import an organism plasmid
   skills export <name> [file]      Export a verified skill (+ the skills it calls) as a signed plasmid
   skills import <file> [--signer]  Import a skill plasmid: re-verified here, then on probation until local verdicts agree
+  mesh [add <url> [name] | trust <peer> [trusted|known|blocked] | skills <peer> | pull <peer> <skill> | push <peer> <skill>]
 
   memory search "<query>"          Hybrid recall
   memory add "<text>" [--kind fact|semantic|episodic]
@@ -299,6 +300,17 @@ ${r.code}` : `not admitted: ${r.reason}`);
           for (const e of rows) out(`#${e.seq} ${e.ts} ${e.data.inferenceSource.padEnd(9)} ${String(e.data.origin).padEnd(10)} ${e.data.mode.padEnd(16)} ${e.data.latencyMs}ms project=${e.data.project ?? '-'} sha256=${String(e.data.sha256 ?? '-').slice(0, 12)}`);
           out(`${rows.length} Firebase AI Logic call(s) in the signed ledger`);
         } else throw new Error('usage: agency edge doctor | agency edge proof [N]');
+        break;
+      }
+      case 'mesh': {
+        const sub = pos[1];
+        const peerOf = (x) => agency.mesh.peers().find((p) => p.id === x || p.name === x) || (() => { throw new Error(`no peer ${x}`); })();
+        if (sub === 'add') { const p = await agency.mesh.addPeer(pos[2], pos[3]); out(`peer ${p.id} ${p.name} (${p.trust})`); }
+        else if (sub === 'trust') { agency.mesh.setTrust(peerOf(pos[2]).id, pos[3] || 'trusted'); out(`${pos[2]} -> ${pos[3] || 'trusted'}`); }
+        else if (sub === 'skills') for (const s of await agency.mesh.catalog(peerOf(pos[2]).id, { fresh: true })) out(`skill_${s.name.padEnd(36)} ${String(s.origin).padEnd(7)} rows=${s.rows} uses=${s.uses}  ${s.description}`);
+        else if (sub === 'pull') { const r = await agency.mesh.requestSkill(peerOf(pos[2]).id, pos[3]); out(r.imported ? `IMPORTED: ${r.reason}` : `not imported: ${r.reason}`); }
+        else if (sub === 'push') out(JSON.stringify(await agency.mesh.offerSkill(peerOf(pos[2]).id, pos[3])));
+        else for (const p of agency.mesh.peers()) out(`${p.id} ${String(p.name).padEnd(20)} ${p.trust.padEnd(8)} ${p.url}`);
         break;
       }
       case 'approvals': for (const p of agency.approvals.list('pending')) out(`${p.id} ${p.tool} by ${p.agent_id || '-'}: ${JSON.stringify(p.args).slice(0, 200)}`); break;

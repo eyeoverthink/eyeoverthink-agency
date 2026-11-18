@@ -102,7 +102,7 @@ export function createServer(agency) {
   add('POST', '/api/exams', ({ body }) => a.evolution.start(need(Array.isArray(body.agents) && body.agents.length ? body.agents : null, 'agents[] required'), { kind: 'exam', count: body.count || 6, repeats: body.repeats || 3 }));
   add('GET', '/api/agents/:id/exams', ({ params }) => a.examiner.list(params.id).map(({ program, ...r }) => ({ ...r, hasProgram: Boolean(program) })));
   // Crystallized skills: verified, owned code distilled from solved tasks.
-  add('GET', '/api/skills', () => ({ stats: a.crystallizer.stats(), skills: a.crystallizer.list().map((s) => ({ ...s, code: undefined, codeLines: s.code.split(String.fromCharCode(10)).length })), binders: a.crystallizer.binders().map((b) => ({ ...b, verification: { ...b.verification, rows: undefined } })), gaps: a.crystallizer.gaps(), chains: a.crystallizer.chains().slice(-30), adoptions: a.ledger.list({ limit: 50, kind: 'skill.adopt' }).map((e) => e.data) }));
+  add('GET', '/api/skills', () => ({ stats: a.crystallizer.stats(), skills: a.crystallizer.list().map((s) => ({ ...s, code: undefined, codeLines: s.code.split(String.fromCharCode(10)).length })), binders: a.crystallizer.binders().map((b) => ({ ...b, verification: { ...b.verification, rows: undefined } })), gaps: a.crystallizer.gaps(), chains: a.crystallizer.chains().slice(-30), adoptions: a.ledger.list({ limit: 50, kind: 'skill.adopt' }).map((e) => e.data), seeks: a.ledger.list({ limit: 12, kind: 'skill.seek' }).map((e) => ({ ts: e.ts, ...e.data })), corrections: a.ledger.list({ limit: 12, kind: 'skill.correct' }).map((e) => ({ ts: e.ts, ...e.data })), peers: a.mesh.peers().map((p) => ({ id: p.id, name: p.name, trust: p.trust })) }));
   add('GET', '/api/skills/:name/plasmid', ({ params }) => a.crystallizer.exportSkill(params.name, a.keyring.get('agency')));
   add('POST', '/api/skills/import', async ({ body }) => a.crystallizer.importSkill(need(body.plasmid, 'plasmid required'), { trustSigner: body.trustSigner || null }));
   add('POST', '/api/skills/compose', async ({ body }) => a.crystallizer.composeChain(need(body.signature, 'signature required')));
@@ -188,6 +188,9 @@ export function createServer(agency) {
   // ---------- mesh ----------
   add('GET', '/api/mesh/peers', () => a.mesh.peers());
   add('POST', '/api/mesh/peers', async ({ body }) => a.mesh.addPeer(need(body.url, 'url required'), body.name));
+  add('GET', '/api/mesh/peers/:id/skills', async ({ params }) => ({ skills: await a.mesh.catalog(params.id, { fresh: true }) }));
+  add('POST', '/api/mesh/peers/:id/skills/request', async ({ params, body }) => a.mesh.requestSkill(params.id, need(body.name, 'name required')));
+  add('POST', '/api/mesh/peers/:id/skills/offer', async ({ params, body }) => a.mesh.offerSkill(params.id, need(body.name, 'name required')));
   add('POST', '/api/mesh/peers/:id/trust', ({ params, body }) => { a.mesh.setTrust(params.id, body.trust); return { ok: true }; });
   add('GET', '/api/mesh/inbox', () => a.mesh.inbox());
 
