@@ -90,7 +90,7 @@ export function createServer(agency) {
   add('POST', '/api/agents', ({ body }) => a.agents.upsert({ ...body, source: 'custom' }));
   add('POST', '/api/agents/:id/enabled', ({ params, body }) => a.agents.setEnabled(params.id, Boolean(body.enabled)));
   add('DELETE', '/api/agents/:id', ({ params }) => ({ removed: a.agents.remove(params.id) }));
-  add('POST', '/api/agents/:id/ask', async ({ params, body }) => a.runtime.run(params.id, need(body.task, 'task required'), { privacy: body.privacy }));
+  add('POST', '/api/agents/:id/ask', async ({ params, body }) => a.ask(params.id, need(body.task, 'task required'), { privacy: body.privacy }));
   // Evolution runs for minutes on a local GPU, so it is a background job; progress arrives as evolution.* events.
   const evoOpts = (body) => ({ population: body.population || 4, repeats: body.repeats || 2, generations: body.generations || 1, confirm: body.confirm !== false,
     patience: body.patience ?? 2, adaptive: body.adaptive !== false, holdout: body.holdout !== false, holdoutRepeats: body.holdoutRepeats || 3, alpha: body.alpha ?? 0.1, maxConfirmRounds: body.maxConfirmRounds || 3 });

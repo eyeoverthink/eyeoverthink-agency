@@ -182,6 +182,20 @@ export class Agency {
     return m;
   }
 
+  /**
+   * Ask one agent, and report what the answer cost: model calls (counted per async context), time, and how the skill
+   * library handled it (answered by a skill, declined with a reason, or judged afterwards by the shadow verdict).
+   */
+  async ask(agentId, task, opts = {}) {
+    const last = (kind) => this.ledger.list({ limit: 1, kind })[0]?.seq ?? 0;
+    const before = { miss: last('skill.route_miss'), shadow: last('skill.shadow'), gap: last('skill.gap') };
+    const { result, meter } = await this.router.metered(() => this.runtime.run(agentId, task, opts));
+    const after = (kind, seq) => this.ledger.list({ limit: 5, kind }).filter((e) => e.seq > seq).map((e) => e.data)[0] || null;
+    const miss = result.skill ? null : after('skill.route_miss', before.miss);
+    const shadow = after('skill.shadow', before.shadow);
+    return { ...result, meter, route: { skill: result.skill || null, zeroCall: Boolean(result.binder), declined: miss?.reason || null, shadow, gap: after('skill.gap', before.gap) } };
+  }
+
   async status() {
     const counts = Object.fromEntries(['agents', 'missions', 'memories', 'ledger', 'workflows', 'dreams', 'peers'].map((t) => [t, this.store.get(`SELECT COUNT(*) AS n FROM ${t}`).n]));
     return {

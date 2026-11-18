@@ -2,6 +2,7 @@
 // automatic fallback, a GPU concurrency gate, confidence-triage escalation, and embeddings.
 import { OllamaProvider, OpenAICompatProvider, GeminiProvider } from './providers.js';
 import { EdgeProvider } from './edge.js';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { Semaphore, hashEmbed, errorMessage } from '../core/util.js';
 
 /** Closed -> (failures >= threshold) -> open -> (cooldown) -> half-open -> success closes / failure re-opens. */
@@ -42,6 +43,7 @@ export class ModelRouter {
     this.breakers = new Map();
     this.gpu = new Semaphore(cfg.limits.localConcurrency);
     this.usage = { calls: 0, promptTokens: 0, completionTokens: 0, byModel: {} };
+    this.meters = new AsyncLocalStorage();
     this.extra = []; // test or plugin providers
   }
 
@@ -147,6 +149,8 @@ export class ModelRouter {
         }
         this.breaker(c.key).success();
         this.#account(res);
+        const meter = this.meters.getStore();
+        if (meter) { meter.calls++; meter.tokens += (res.usage?.prompt || 0) + (res.usage?.completion || 0); if (c.overflow) meter.overflow++; if (this.isRemote(c)) meter.remote++; }
         // Live boundary telemetry (ephemeral): where did this call run, and did it leave the machine?
         this.bus?.publish('router.call', { provider: c.provider.name, model: c.model, role: req.role || 'reason', remote: this.isRemote(c), sealed: Boolean(crossing), overflow: Boolean(c.overflow), inferenceSource: res.inferenceSource || null, missionId: req.missionId || null, ms: res.latencyMs || 0 }, { ephemeral: true });
         if (c.overflow) {
@@ -206,6 +210,14 @@ export class ModelRouter {
       }
     }
     return { model: 'hash-384', vectors: list.map((t) => hashEmbed(t, 384)) };
+  }
+
+  /** Run fn and count every model call made on its behalf (async context, so concurrent work elsewhere is not counted). */
+  async metered(fn) {
+    const meter = { calls: 0, tokens: 0, overflow: 0, remote: 0 };
+    const t0 = Date.now();
+    const result = await this.meters.run(meter, fn);
+    return { result, meter: { ...meter, ms: Date.now() - t0 } };
   }
 
   #account(res) {

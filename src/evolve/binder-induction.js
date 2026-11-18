@@ -98,7 +98,10 @@ export function learnBlocks(pos, neg) {
   // "off" follows a percentage in most discount tasks). After "$90 jacket" comes an item noun that differs in every
   // task (an open vocabulary), so a refused jacket task never teaches the binder to refuse jackets.
   const ctxOf = (task, kind) => numberTokens(task).filter((t) => t.kind === kind).flatMap((t) => t.ctx);
-  const need = Math.max(2, Math.ceil(pos.length / 2));
+  // With few examples, "half" is a coincidence: measured on the demo rehearsal, 2 of a composed skill's 3 positives said
+  // "$… dinner", so "$" looked role-marked and a fresh "$250 birthday dinner" task was refused as unverified wording.
+  // A role word must repeat in at least 3 positives (all of them when there are only 2), and in half of a large set.
+  const need = Math.max(2, Math.min(pos.length, 3), Math.ceil(pos.length / 2));
   const kinds = KINDS.filter((k) => {
     const n = new Map();
     for (const e of pos) for (const w of new Set(ctxOf(e.task, k))) n.set(w, (n.get(w) || 0) + 1);

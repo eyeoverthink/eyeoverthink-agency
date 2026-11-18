@@ -106,3 +106,15 @@ test('verified wording is positional: "off" after the 2nd % is new for a skill t
   assert.deepEqual(novelWording(pos, 'A $120 pizza order is 25% off, then 8% sales tax is added, and the total is split evenly among 3 friends. How much does each friend pay?'), [], 'same wording in the same places: verified');
   assert.deepEqual(novelWording(pos, `Mission goal: ${pos[0].task}\nYour task: Price\n${pos[0].task}`), [], 'occurrences counted in the fullest line, so restated mission goals stay verified');
 });
+
+test('an item noun repeated by coincidence is not role wording (real demo-rehearsal miss: "dinner" in 2 of 3 positives)', async () => {
+  const { novelWording, learnBlocks } = await import('../src/evolve/binder-induction.js');
+  const pos = [
+    { task: 'A $200 dinner is 20% off, then 8% sales tax is added, and the total is split evenly among 4 friends. How much does each friend pay?' },
+    { task: 'A $150 concert package is 10% off, then 6% sales tax is added, and the total is split evenly among 3 friends. How much does each friend pay?' },
+    { task: 'A $100 dinner is 10% off, then an 18% tip is added, and the total is split evenly among 3 friends. How much does each friend pay?' },
+  ];
+  assert.ok(!learnBlocks(pos, []).contextBlock.kinds.includes('currency'), '"$" is followed by item nouns, an open vocabulary');
+  assert.deepEqual(novelWording(pos, 'A $250 birthday dinner is 20% off, then 9% sales tax is added, and the total is split evenly among 5 friends. How much does each friend pay?'), []);
+  assert.ok(novelWording(pos, 'A $240 cabin rental is 25% off, then another 10% off, and the cost is split evenly among 4 friends. How much does each friend pay?').includes('off after % #2'), 'role words still gate');
+});

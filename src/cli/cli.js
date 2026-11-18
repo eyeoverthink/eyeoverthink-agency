@@ -212,9 +212,9 @@ ${r.code}` : `not admitted: ${r.reason}`);
       case 'ask': {
         const [, agentId, ...rest] = pos;
         streamEvents(agency, (e) => e.type === 'tool.result' || e.type === 'router.fallback' || e.type === 'approval.request');
-        const r = await agency.runtime.run(agentId, rest.join(' '), { privacy: flags.private ? 'private' : 'normal' });
+        const r = await agency.ask(agentId, rest.join(' '), { privacy: flags.private ? 'private' : 'normal' });
         out(r.final);
-        out(`\n(${r.model}, confidence ${r.confidence}, ${r.toolCalls} tool calls)`);
+        out(`\n(${r.model}, confidence ${r.confidence}, ${r.toolCalls} tool calls, ${r.meter.calls} model calls, ${(r.meter.ms / 1000).toFixed(2)} s${r.route.declined ? `; skill declined: ${r.route.declined}` : ''})`);
         break;
       }
       case 'agents': {

@@ -450,6 +450,23 @@ function skillCurve(curve: any[]): string {
   </svg>`;
 }
 
+/** One ask, shown as what it cost: who answered (owned code or the agents), model calls, time, and what the library learned. */
+function askCard(r: any): string {
+  const mt = r.meter || {}, rt = r.route || {}, sec = ((mt.ms || 0) / 1000).toFixed(mt.ms < 10000 ? 2 : 1);
+  const by = rt.skill
+    ? `<b>Answered by owned code</b> <span class="mono">${esc(String(rt.skill).includes(" > ") ? rt.skill.split(" > ").map((x: string) => "skill_" + x).join(" → ") : "skill_" + rt.skill)}</span>${rt.zeroCall ? " · learned binder" : ""}`
+    : "<b>Answered by the agents</b> (no owned skill was trusted for this task)";
+  const sh = rt.shadow;
+  const shadow = sh ? `<p class="dim">Shadow check: the skill ${sh.chain ? "chain " : ""}computed <b>${esc(sh.skillOut ?? "–")}</b>, the agents answered <b>${esc(sh.agentAnswer ?? "–")}</b>${sh.second != null ? `, a second agent ${esc(sh.second)}` : ""}${sh.third != null ? `, a third ${esc(sh.third)}` : ""}. ${sh.agree === true ? "They agree, so this wording is now verified for the skill." : sh.agree === false ? "Refuted, so this wording is learned as a refusal." : "Not conclusive, so nothing was learned."}</p>` : "";
+  return `<div class="askcard ${rt.skill ? "ok" : ""}">
+    <div class="askmeta"><span class="askcalls"><b>${mt.calls ?? "?"}</b> model call${mt.calls === 1 ? "" : "s"}</span><span class="mono">${sec} s</span>${mt.overflow ? `<span>${mt.overflow} via Firebase AI Logic</span>` : ""}</div>
+    <p>${by}</p>
+    ${rt.declined ? `<p class="dim">Skill declined: ${esc(rt.declined)}</p>` : ""}
+    <div class="md">${md(String(r.final || ""))}</div>
+    ${shadow}${rt.gap ? `<p class="dim">Recorded as a capability gap of <span class="mono">skill_${esc(rt.gap.skill)}</span> (new wording: ${esc((rt.gap.markers || []).join(", "))}).</p>` : ""}
+  </div>`;
+}
+
 async function loadSkills() {
   const box = $("#skillsp");
   if (!box) return;
@@ -459,6 +476,10 @@ async function loadSkills() {
   box.innerHTML = `<h2>Crystallized skills: what the agency has learned</h2>
     <p class="dim">Most AI products rent intelligence per call and keep nothing. Here, a well-scored mission is distilled into a pure function, verified against an <b>independent</b> implementation written by a different model from the description alone (2 of 3 on disagreement), signed into the ledger, and registered as a tool that answers <b>with no model call</b>. Skills can call earlier skills, so capability compounds and survives a model swap.</p>
     <section class="stats"><div class="stat"><b>${st.active}</b><span>active skills</span></div><div class="stat"><b>${st.uses}</b><span>uses (code, not a model)</span></div><div class="stat"><b>${st.routed ?? 0}</b><span>tasks answered skill-first</span></div><div class="stat"><b>${st.zeroCall ?? 0}</b><span>of them with zero model calls</span></div><div class="stat"><b>${st.binders ?? 0}</b><span>learned binders</span></div><div class="stat"><b>${st.routeMisses ?? 0}</b><span>bind attempts declined</span></div><div class="stat"><b>${st.routeRejected ?? 0}</b><span>skill answers the critic rejected</span></div><div class="stat"><b>${st.failures}</b><span>failures in use</span></div></section>
+    <h3>Ask the agency</h3>
+    <p class="dim">Type a task. If a verified skill answers it, you see the code's answer, the model calls it cost (often zero) and the time. Otherwise the agents answer, and the skill library learns from the result.</p>
+    <div class="row"><input id="asktext" placeholder="e.g. A $120 pizza order is 25% off, then 8% sales tax is added, and the total is split evenly among 3 friends. How much does each friend pay?" /><button id="askgo">Ask</button></div>
+    <div id="askout"></div>
     <h3>Skill-first routing</h3>
     <p class="dim">Before an agent spends model turns, the agency checks whether a skill it owns already answers the task. A free word-and-number prefilter discards unrelated tasks. A plausible match costs one short local <b>bind</b> call, and every bound value must appear literally in the task. No value may be invented, and a conversion (12% → 0.12) is allowed only when the skill's verified contract declares it. Then verified code produces the exact answer. Any doubt falls back to the normal agent loop.</p>
     ${skillCurve(st.curve || [])}
@@ -475,6 +496,18 @@ async function loadSkills() {
     ${d.skills.length ? `<table class="evotbl"><tr><th>skill</th><th>what it computes</th><th>verified on</th><th>uses</th><th>learned from</th></tr>${d.skills.map((k: any) => `<tr><td class="mono">skill_${esc(k.name)}${k.status !== "active" ? ` <span class="dim">(${esc(k.status)})</span>` : ""}</td><td>${esc(k.description)}</td><td>${k.verification?.inputs ?? "–"} inputs${k.verification?.tiebreak ? " (2-of-3)" : ""}</td><td>${k.uses}</td><td class="mono">${esc(k.source)}</td></tr>`).join("")}</table>` : '<p class="dim">No skills yet. They appear automatically after well-scored missions, or crystallize one below.</p>'}
     <div class="row"><input id="crtext" placeholder="Describe a solved task to crystallize, e.g. 'convert a recipe between servings: scale each ingredient quantity by new/old servings'" /><button id="crgo" class="ghost">Crystallize</button></div>
     <div id="crout"></div>`;
+  $("#askgo")!.addEventListener("click", async (e) => {
+    const btn = e.currentTarget as HTMLButtonElement;
+    const task = val("#asktext");
+    if (!task) return;
+    busy(btn, true, "Answering…");
+    $("#askout")!.innerHTML = '<p class="dim">Checking owned skills first…</p>';
+    const r = await guard(() => api<any>("/api/agents/tycho/ask", { body: { task } }));
+    busy(btn, false);
+    if (!r) { $("#askout")!.innerHTML = ""; return; }
+    $("#askout")!.innerHTML = askCard(r);
+    setTimeout(() => void loadSkills().then(() => { const o = $("#askout"); if (o) o.innerHTML = askCard(r); const t = $("#asktext") as HTMLInputElement | null; if (t) t.value = task; }), 300);
+  });
   $("#crgo")!.addEventListener("click", async (e) => {
     const btn = e.currentTarget as HTMLButtonElement;
     busy(btn, true, "Extracting and verifying…");

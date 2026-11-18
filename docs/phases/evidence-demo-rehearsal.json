@@ -1,0 +1,348 @@
+{
+  "at": "2026-11-18T00:14:15.407Z",
+  "home": "copy of the Phase 14 run-6 home (demo-home), served by agency serve, asked from the dashboard Ask box (POST /api/agents/tycho/ask), real local models on Ollama + Firebase AI Logic",
+  "asks": [
+    {
+      "task": "A $250 birthday dinner is 20% off, then 9% sales tax is added, and the total is split evenly among 5 friends. How much does each friend pay?",
+      "truth": 43.6,
+      "before_fix": true,
+      "answeredBy": "agents",
+      "modelCalls": 5,
+      "seconds": 31,
+      "final": "Each friend pays $43 (agents floored 43.6)",
+      "correct": false,
+      "why": "verified-wording gate treated \"$\" as role-marked because 2 of 3 positives said \"dinner\"; \"birthday after $ #1\" looked unverified. Fixed in learnBlocks (role word must repeat in >= 3 positives, or all when only 2).",
+      "ledger": [
+        1846,
+        1849
+      ]
+    },
+    {
+      "task": "A $320 anniversary dinner is 15% off, then 7% sales tax is added, and the total is split evenly among 4 friends. How much does each friend pay?",
+      "truth": 72.76,
+      "answeredBy": "skill_final_price_with_tax_then_even_spl_dc52 (learned binder)",
+      "modelCalls": 0,
+      "seconds": 0.14,
+      "final": 72.76,
+      "correct": true,
+      "ledger": [
+        1851
+      ]
+    },
+    {
+      "task": "A $80 lunch is 10% off, then a 15% service charge is added, and the total is split evenly among 2 friends. How much does each friend pay?",
+      "truth": 41.4,
+      "answeredBy": "agents (unverified wording: service/charge after % #2); shadow chain 41.4 = agents 41.4, agree",
+      "modelCalls": 5,
+      "seconds": 25.6,
+      "final": 41.4,
+      "correct": true,
+      "ledger": [
+        1852,
+        1854
+      ]
+    },
+    {
+      "task": "A $140 brunch is 20% off, then a 12% service charge is added, and the total is split evenly among 4 friends. How much does each friend pay?",
+      "truth": 31.36,
+      "answeredBy": "trusted chain calculate_final_price_with_tax > calculate_even_split",
+      "modelCalls": 1,
+      "seconds": 4.46,
+      "final": 31.36,
+      "correct": true,
+      "ledger": [
+        1855,
+        1856
+      ]
+    },
+    {
+      "task": "A $60 breakfast is 5% off, then a 10% service charge is added, and the total is split evenly among 3 friends. How much does each friend pay?",
+      "truth": 20.9,
+      "answeredBy": "skill_final_price_with_tax_then_even_spl_dc52 (learned binder)",
+      "modelCalls": 0,
+      "seconds": 0.13,
+      "final": 20.9,
+      "correct": true,
+      "ledger": [
+        1857
+      ]
+    },
+    {
+      "firebase": "direct call from Hybrid Edge, prefer_on_device",
+      "inferenceSource": "IN_CLOUD",
+      "latencyMs": 1495,
+      "ledger": [
+        1858
+      ]
+    }
+  ],
+  "ledger": [
+    {
+      "seq": 1846,
+      "ts": "2026-11-18T00:08:23.985Z",
+      "kind": "skill.route_miss",
+      "data": {
+        "agentId": "tycho",
+        "bindModel": "llama3.2:latest",
+        "candidates": [
+          "final_price_with_tax_then_even_spl_dc52",
+          "calculate_final_price_with_tax",
+          "final_price_then_even_split_0adb",
+          "calculate_even_split"
+        ],
+        "missionId": null,
+        "reason": "ambiguous composition (single binding extended by one step): 2 structures fit; the agent loop answers, and its answer picks one"
+      },
+      "hash": "16c8979b32c02ba622a2454eebaa49a7f025bf95db8a0b0b6340f4b1fae3c40a"
+    },
+    {
+      "seq": 1847,
+      "ts": "2026-11-18T00:08:36.709Z",
+      "kind": "tool.call",
+      "data": {
+        "agentId": "tycho",
+        "evidence": "25eada2f99c664a791990dd889749d92b4f2e16a2d898393efbde240c4440eb2",
+        "ok": true,
+        "tool": "calc"
+      },
+      "hash": "4fa8c514c5958bcaa7ba3ff6585ff12d705d2ae93ba0ff7c26eea004339de5ff"
+    },
+    {
+      "seq": 1848,
+      "ts": "2026-11-18T00:08:37.723Z",
+      "kind": "tool.call",
+      "data": {
+        "agentId": "tycho",
+        "evidence": "6b7cf78eeb710f7b4108520d2f1a12104cfdc0b70f390af6a0b9df5400d23af6",
+        "ok": true,
+        "tool": "calc"
+      },
+      "hash": "c7f28026121fe53dc9fd804c1dff471c66e59d4163bf0b41807908d60350d306"
+    },
+    {
+      "seq": 1849,
+      "ts": "2026-11-18T00:08:51.661Z",
+      "kind": "skill.chain_pick",
+      "data": {
+        "agentAnswer": "43",
+        "candidates": [
+          "final_price_then_even_split_0adb(discount1,discount2,number_of_people,original_price) > calculate_even_split(number_of_people,total_bill=@1)",
+          "final_price_then_even_split_0adb(discount1,discount2,number_of_people,original_price) > calculate_even_split(number_of_people=@1,total_bill)"
+        ],
+        "picked": null
+      },
+      "hash": "cb3965debd28f5d043c014a301defe0c365c38f925080b33db3a6df34e4e0bd0"
+    },
+    {
+      "seq": 1850,
+      "ts": "2026-11-18T00:11:28.641Z",
+      "kind": "agency.boot",
+      "data": {
+        "agents": 10,
+        "node": "v24.11.1",
+        "pid": 32032
+      },
+      "hash": "2b07ceae70075343f3b0642f112252299f0c48bc533142c7d6b16f98b4df7dfd"
+    },
+    {
+      "seq": 1851,
+      "ts": "2026-11-18T00:11:37.797Z",
+      "kind": "skill.route",
+      "data": {
+        "agentId": "tycho",
+        "baselineMin": 2,
+        "bindModel": "learned-binder",
+        "bindTokens": 0,
+        "binderId": "sb_01m7ntvq17yex9bwwghmhx",
+        "binderMissed": false,
+        "codeSha256": "2f59303b5b98578c34000508bd18d82d6bd71f7a3f1303093e3b891c594eb854",
+        "input": {
+          "discount": 0.15,
+          "number_of_people": 4,
+          "original_price": 320,
+          "tax_rate": 0.07
+        },
+        "inputSha256": "7b9e1fd221284c42a81293acefaeffd30700632b1eb6ff77b85d92b7a3bdca83",
+        "missionId": null,
+        "skill": "final_price_with_tax_then_even_spl_dc52",
+        "spent": 0
+      },
+      "hash": "83e76fc78506c657bc043b4bd87f5d0547a1593572b3bf2a98abc14e8f3d6589"
+    },
+    {
+      "seq": 1852,
+      "ts": "2026-11-18T00:11:51.026Z",
+      "kind": "skill.route_miss",
+      "data": {
+        "agentId": "tycho",
+        "bindModel": "llama3.2:latest",
+        "candidates": [
+          "final_price_with_tax_then_even_spl_dc52",
+          "final_price_then_even_split_0adb",
+          "calculate_final_price_with_tax",
+          "calculate_even_split"
+        ],
+        "missionId": null,
+        "reason": "unverified wording for composition calculate_final_price_with_tax(discount,original_price,tax_rate) > calculate_even_split(number_of_people,total_bill=@1) (\"service after % #2\", \"charge after % #2\"): the agent loop answers, and its answer is compared with the chain's"
+      },
+      "hash": "04263641d75e92e868180516c714b2d99f0f9e00ab2d7f23b94538a6f8301747"
+    },
+    {
+      "seq": 1853,
+      "ts": "2026-11-18T00:12:04.031Z",
+      "kind": "tool.call",
+      "data": {
+        "agentId": "tycho",
+        "evidence": "d44e4d0bc9b1031bb63beb266626a654d03d66fd70be0847df3327017eea78e4",
+        "ok": true,
+        "tool": "calc"
+      },
+      "hash": "86c835a8c54416d4c20c545bdba9c9cbc64411f40da8ad71e1be72caa44306e4"
+    },
+    {
+      "seq": 1854,
+      "ts": "2026-11-18T00:12:12.427Z",
+      "kind": "skill.shadow",
+      "data": {
+        "agentAnswer": 41.4,
+        "agentId": "tycho",
+        "agree": true,
+        "chain": "calculate_final_price_with_tax(discount,original_price,tax_rate) > calculate_even_split(number_of_people,total_bill=@1)",
+        "missionId": null,
+        "reason": "unverified wording",
+        "second": null,
+        "skillOut": 41.4,
+        "third": null
+      },
+      "hash": "c2ac013de1f916a0322d80c0ca98fba35fa8026fe50a4484c39fe80f7f681442"
+    },
+    {
+      "seq": 1855,
+      "ts": "2026-11-18T00:12:26.579Z",
+      "kind": "skill.chain_route",
+      "data": {
+        "agentId": "tycho",
+        "missionId": null,
+        "outs": [
+          125.44000000000001,
+          31.360000000000003
+        ],
+        "signature": "calculate_final_price_with_tax(discount,original_price,tax_rate) > calculate_even_split(number_of_people,total_bill=@1)"
+      },
+      "hash": "ec7ed237b5ded89b46828f32e1d826c91ec71d21ef4127a3a3dd469f8da77765"
+    },
+    {
+      "seq": 1856,
+      "ts": "2026-11-18T00:12:26.581Z",
+      "kind": "skill.route",
+      "data": {
+        "agentId": "tycho",
+        "baselineMin": 2,
+        "bindModel": "llama3.2:latest",
+        "bindTokens": 761,
+        "binderId": null,
+        "binderMissed": false,
+        "codeSha256": "375ffe2c8369e06a30b50339d23ff91004392d8ae8551fe10f68839ecdba6d87",
+        "input": {
+          "step1": {
+            "calculate_final_price_with_tax": {
+              "discount": 0.2,
+              "original_price": 140,
+              "tax_rate": 0.12
+            }
+          },
+          "step2": {
+            "calculate_even_split": {
+              "number_of_people": 4,
+              "total_bill": {
+                "ref": 1
+              }
+            }
+          }
+        },
+        "inputSha256": "897ee44e664d83f1d742e62138407c5c85228d0bcbbbdcab61dfcf31d55e3d1e",
+        "missionId": null,
+        "skill": "calculate_final_price_with_tax > calculate_even_split",
+        "spent": 1
+      },
+      "hash": "e721c7fcfbd093db0ce30239071fda97cda950f7fa0641f719b49b5db0dfffc3"
+    },
+    {
+      "seq": 1857,
+      "ts": "2026-11-18T00:12:34.256Z",
+      "kind": "skill.route",
+      "data": {
+        "agentId": "tycho",
+        "baselineMin": 2,
+        "bindModel": "learned-binder",
+        "bindTokens": 0,
+        "binderId": "sb_01m7ntvq17yex9bwwghmhx",
+        "binderMissed": false,
+        "codeSha256": "2f59303b5b98578c34000508bd18d82d6bd71f7a3f1303093e3b891c594eb854",
+        "input": {
+          "discount": 0.05,
+          "number_of_people": 3,
+          "original_price": 60,
+          "tax_rate": 0.1
+        },
+        "inputSha256": "dfb5f661902a5355ffe4d2376988ae5e2ceaa3d4b90db05b25a3b656c16e2ac4",
+        "missionId": null,
+        "skill": "final_price_with_tax_then_even_spl_dc52",
+        "spent": 0
+      },
+      "hash": "b5c2b1102cd9da69efa575313c8c5ea035ca01dc47f9caeb7cb4bd221f9fcc1e"
+    },
+    {
+      "seq": 1858,
+      "ts": "2026-11-18T00:13:06.474Z",
+      "kind": "edge.inference",
+      "data": {
+        "chars": 140,
+        "cloudModel": "gemini-3.5-flash-lite",
+        "inferenceSource": "IN_CLOUD",
+        "job": null,
+        "latencyMs": 1495,
+        "mode": "prefer_on_device",
+        "origin": "playground",
+        "project": "eyeoverthink-agency",
+        "sha256": "26d207171d3a986360b28dbb61501ed682a249130b42be2122d61c3110523a38",
+        "worker": null
+      },
+      "hash": "4630b31d8a8cffbdd923a29db6bb4402d7a68f7ece3f421274ab7277a5909d0c"
+    }
+  ],
+  "dressRehearsal": {
+    "note": "fresh copy of phase4-home, after the learnBlocks fix; same three tasks via POST /api/agents/tycho/ask",
+    "warmup": {
+      "task": "What is 2 + 2?",
+      "modelCalls": 3,
+      "seconds": 13.62
+    },
+    "asks": [
+      {
+        "task": "$80 lunch, 15% service charge, 2 friends",
+        "modelCalls": 8,
+        "seconds": 25.29,
+        "answeredBy": "agents; shadow chain 41.4 = agents 41.4 (agree)",
+        "final": 41.4,
+        "correct": true
+      },
+      {
+        "task": "$140 brunch, 12% service charge, 4 friends",
+        "modelCalls": 1,
+        "seconds": 4.1,
+        "answeredBy": "trusted chain calculate_final_price_with_tax > calculate_even_split",
+        "final": 31.36,
+        "correct": true
+      },
+      {
+        "task": "$60 breakfast, 10% service charge, 3 friends",
+        "modelCalls": 0,
+        "seconds": 0.13,
+        "answeredBy": "skill_final_price_with_tax_then_even_spl_dc52 (learned binder)",
+        "final": 20.9,
+        "correct": true
+      }
+    ]
+  }
+}

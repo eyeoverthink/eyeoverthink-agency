@@ -91,6 +91,13 @@ Each run starts from the pre-Phase-14 live home, which has no skill for splittin
 - **Commutative chains** ("split, then tax" vs "tax, then split") are separate shapes, each verified on its own; merging them would require proving equivalence.
 - **Composite tasks with unseen wording** fall back to the agent loop until verified (by design).
 
+## Follow-up: found while rehearsing the demo video
+- **The miss:** a fresh "$250 **birthday dinner** … 9% sales tax … 5 friends" task went to the agents (5 calls, 31 s), who rounded it to the wrong answer ($43). The composed tax-split skill had 3 positives, and 2 of them said "$… dinner", so "$" counted as role-marked: "birthday after $ #1" looked like unverified wording.
+- **The fix (`learnBlocks`):** a role word must repeat in at least 3 positives, or all of them when there are only 2, and in half of a large set. Item nouns are an open vocabulary, and two dinners are a coincidence. Regression test added (132 tests).
+- **After the fix, on a fresh copy of the run-6 home:** a new tax-split task took **0 calls, 0.14 s** (72.76, correct). The new wording "service charge" went from 5–8 calls (agents, then the shadow check agreed) to 1 call (verified chain) to **0 calls, 0.13 s**. [Evidence](evidence-demo-rehearsal.json); the dashboard's new **Ask the agency** box shows each answer's model calls and time.
+
+![Ask the agency](../screenshots/ask-the-agency.jpg)
+
 ## What this enables next
 - **Composed skills as building blocks** of longer chains: a library that compounds combinatorially.
 - **A program-verified judge** for tasks the agents can't solve (the fraction case).

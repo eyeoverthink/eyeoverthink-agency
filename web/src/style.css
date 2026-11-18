@@ -295,3 +295,10 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 
 /* Phase 10: skill-first curve */
 svg.curve { width: 100%; max-width: 560px; height: auto; display: block; margin: 6px 0 12px; }
+
+/* Ask the agency: one answer, shown as what it cost. */
+.askcard { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 10px 0; background: var(--bg-soft); }
+.askcard.ok { border-color: var(--sage); }
+.askmeta { display: flex; flex-wrap: wrap; gap: 14px; align-items: baseline; margin-bottom: 6px; }
+.askcalls b { font-family: var(--serif); font-size: 1.9em; color: var(--gold); }
+.askcard.ok .askcalls b { color: var(--sage); }

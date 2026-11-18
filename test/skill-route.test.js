@@ -121,3 +121,23 @@ test('in a mission, a skill answer the critic rejects is ledgered and the retry 
     assert.equal(A.agency.crystallizer.stats().routeRejected, 1);
   } finally { await A.cleanup(); }
 });
+
+test('ask reports what an answer cost: model calls counted per request, not across concurrent work', async () => {
+  const A = await withSkill();
+  try {
+    // Concurrent work outside the ask must not be billed to it.
+    const [r, other] = await Promise.all([
+      A.agency.ask('tycho', TASK),
+      A.agency.router.chat({ role: 'reason', messages: [{ role: 'user', content: 'unrelated' }] }),
+    ]);
+    assert.ok(other.text);
+    assert.equal(r.route.skill, 'compound_discount');
+    assert.equal(r.meter.calls, 1, 'only the bind call belongs to this answer');
+    assert.equal(A.calls.length, 2, 'the provider saw both calls');
+    assert.ok(r.meter.ms >= 0 && r.meter.tokens === 20);
+    // An unrelated task goes to the agent loop, and its calls are counted.
+    const q = await A.agency.ask('tycho', 'Write a haiku about rain.');
+    assert.equal(q.route.skill, null);
+    assert.ok(q.meter.calls >= 1);
+  } finally { await A.cleanup(); }
+});
