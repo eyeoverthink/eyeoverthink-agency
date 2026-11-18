@@ -187,17 +187,42 @@ export class Agency {
   }
 
   /**
+   * Measured first agent (Phase 18). The voice study scores local agents on tasks with known answers; for tasks of the
+   * kind it measured (stated numbers), the most accurate LOCAL agent answers first, but only if that choice also held on
+   * a held-out study (skills.answererConfirm) and by a clear margin. Gemini never answers first: it stays a judge, so
+   * cloud use remains the exception. Returns { agentId, reason }.
+   */
+  pickAnswerer(task, fallback = 'tycho') {
+    const cfg = this.cfg.skills || {};
+    if (cfg.measuredAnswerer === false) return { agentId: fallback, reason: 'measured choice off' };
+    const nums = (String(task).match(/\d+(?:\.\d+)?/g) || []).length;
+    const study = this.store.kvGet('judge:study', null), held = this.store.kvGet('judge:heldout', null);
+    if (nums < 2) return { agentId: fallback, reason: 'outside the measured domain (fewer than 2 stated numbers)' };
+    if (!study || study.items < 10) return { agentId: fallback, reason: 'no voice study yet' };
+    const local = study.voices.filter((v) => v !== 'gemini' && this.agents.get(v));
+    const best = local.sort((a, b) => study.accuracy[b] - study.accuracy[a])[0];
+    if (!best || best === fallback) return { agentId: fallback, reason: 'the default agent is already the most accurate' };
+    const margin = study.accuracy[best] - (study.accuracy[fallback] ?? 0);
+    if (margin < (cfg.answererMargin ?? 0.15)) return { agentId: fallback, reason: `margin ${margin.toFixed(2)} below ${cfg.answererMargin ?? 0.15}` };
+    // Selected on one set, confirmed on another: the pick must also win on a held-out study (Phase 3's lesson).
+    if (!held || !(held.accuracy?.[best] > (held.accuracy?.[fallback] ?? 1))) return { agentId: fallback, reason: `${best} not yet confirmed on a held-out study` };
+    return { agentId: best, reason: `measured: ${best} ${Math.round(study.accuracy[best] * 100)}% (held-out ${Math.round(held.accuracy[best] * 100)}%) vs ${fallback} ${Math.round((study.accuracy[fallback] ?? 0) * 100)}% (held-out ${Math.round((held.accuracy[fallback] ?? 0) * 100)}%)` };
+  }
+
+  /**
    * Ask one agent, and report what the answer cost: model calls (counted per async context), time, and how the skill
    * library handled it (answered by a skill, declined with a reason, or judged afterwards by the shadow verdict).
    */
   async ask(agentId, task, opts = {}) {
+    let pick = null;
+    if (agentId === 'auto') { pick = this.pickAnswerer(task, this.cfg.skills?.defaultAgent || 'tycho'); agentId = pick.agentId; this.ledger.append('agent.pick', { agentId, reason: pick.reason }, 'agency'); }
     const last = (kind) => this.ledger.list({ limit: 1, kind })[0]?.seq ?? 0;
     const before = { miss: last('skill.route_miss'), shadow: last('skill.shadow'), gap: last('skill.gap') };
     const { result, meter } = await this.router.metered(() => this.runtime.run(agentId, task, opts));
     const after = (kind, seq) => this.ledger.list({ limit: 5, kind }).filter((e) => e.seq > seq).map((e) => e.data)[0] || null;
     const miss = result.skill ? null : after('skill.route_miss', before.miss);
     const shadow = after('skill.shadow', before.shadow);
-    return { ...result, meter, route: { skill: result.skill || null, zeroCall: Boolean(result.binder), declined: miss?.reason || null, shadow, gap: after('skill.gap', before.gap) } };
+    return { ...result, pick, meter, route: { skill: result.skill || null, zeroCall: Boolean(result.binder), declined: miss?.reason || null, shadow, gap: after('skill.gap', before.gap) } };
   }
 
   /**

@@ -141,3 +141,34 @@ test('measured voice order: after a study, the more accurate local voice is aske
     assert.deepEqual(asked, ['lumen']);
   } finally { await A.cleanup(); }
 });
+
+test('measured first agent: chosen only inside the measured domain, by a margin, and after a held-out study confirms it', async () => {
+  const A = await makeAgency(local);
+  try {
+    const ag = A.agency;
+    const T = 'A cyclist rides out at 8 mph and back at 24 mph. What is the average speed?';
+    assert.match(ag.pickAnswerer(T).reason, /no voice study/);
+    ag.store.kvSet('judge:study', { items: 20, voices: ['tycho', 'gemini', 'lumen', 'forge_keeper'], accuracy: { tycho: 0.5, gemini: 1, lumen: 0.65, forge_keeper: 0.95 } });
+    assert.match(ag.pickAnswerer(T).reason, /not yet confirmed on a held-out study/, 'selected on one set is not enough');
+    ag.store.kvSet('judge:heldout', { items: 20, accuracy: { tycho: 0.55, forge_keeper: 0.9 } });
+    const p = ag.pickAnswerer(T);
+    assert.equal(p.agentId, 'forge_keeper', 'gemini is never the first answerer');
+    assert.match(p.reason, /held-out 90%/);
+    assert.equal(ag.pickAnswerer('Write a haiku about rain.').agentId, 'tycho', 'outside the measured domain');
+    ag.store.kvSet('judge:heldout', { items: 20, accuracy: { tycho: 0.9, forge_keeper: 0.85 } });
+    assert.equal(ag.pickAnswerer(T).agentId, 'tycho', 'the held-out study did not confirm it');
+  } finally { await A.cleanup(); }
+});
+
+test('a voice never seconds itself: the agent that answered first is not asked again by the judge', async () => {
+  const A = await makeAgency(local);
+  try {
+    const cz = A.agency.crystallizer;
+    cz.cloudVoice = { available: () => false };
+    const asked = [];
+    cz.agentAnswer = async (t, id) => { asked.push(id); return 'FINAL 51.84'; };
+    A.agency.store.kvSet('judge:study', { accuracy: { lumen: 0.65, forge_keeper: 0.95 } });
+    await cz.judge('A $180 dinner is 20% off, then 8% sales tax is added, split among 3 friends.', 51.84, 'FINAL 49.28', 'forge_keeper');
+    assert.deepEqual(asked, ['lumen'], 'forge_keeper answered first, so lumen is the second opinion');
+  } finally { await A.cleanup(); }
+});

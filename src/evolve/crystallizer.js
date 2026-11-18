@@ -733,18 +733,20 @@ export class Crystallizer {
    * answers the same tasks with known truth: per-voice accuracy, how often two voices are WRONG TOGETHER (the failure a
    * 2-of-3 vote cannot fix), and Cohen's kappa on right/wrong between each pair. items: [{ task, truth }].
    */
-  async voiceStudy(items, { voices = null } = {}) {
+  async voiceStudy(items, { voices = null, store = null } = {}) {
     const ids = voices || ['tycho', ...this.#voices()];
     const rows = [];
     for (const it of items.slice(0, 40)) {
       const inTask = new Set((String(it.task).match(NUM) || []).map(Number));
-      const answers = {};
+      const answers = {}, ms = {};
       for (const id of ids) {
+        const t0 = Date.now();
         const fin = await this.agentAnswer?.(it.task, id).catch(() => null);
+        ms[id] = Date.now() - t0;
         const tok = (String(fin ?? '').replace(/,(?=\d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
         answers[id] = tok === undefined ? null : Number(tok);
       }
-      rows.push({ task: it.task, truth: it.truth, answers, right: Object.fromEntries(ids.map((id) => [id, answers[id] != null && nearAnswer(Number(it.truth), answers[id])])) });
+      rows.push({ task: it.task, truth: it.truth, answers, ms, right: Object.fromEntries(ids.map((id) => [id, answers[id] != null && nearAnswer(Number(it.truth), answers[id])])) });
     }
     const n = rows.length;
     const accuracy = Object.fromEntries(ids.map((id) => [id, n ? +(rows.filter((r) => r.right[id]).length / n).toFixed(3) : null]));
@@ -760,14 +762,15 @@ export class Crystallizer {
     }
     // What the 2-of-3 rule would have decided with each candidate tie-breaker, given a correct skill result (the truth).
     const tieBreak = Object.fromEntries(ids.filter((id) => id !== 'tycho').map((id) => [id, rows.filter((r) => !r.right.tycho && r.right[id]).length]));
-    const study = { at: nowIso(), items: n, voices: ids, accuracy, pairs, rescuedFirstAgent: tieBreak, rows };
-    this.store.kvSet('judge:study', study);
-    this.ledger.append('judge.study', { items: n, voices: ids, accuracy, pairs: pairs.map(({ a, b, wrongTogether, sameWrongAnswer, kappa }) => ({ a, b, wrongTogether, sameWrongAnswer, kappa })) }, 'crystallizer');
+    const seconds = Object.fromEntries(ids.map((id) => [id, n ? +(rows.reduce((s, r) => s + (r.ms[id] || 0), 0) / n / 1000).toFixed(1) : null]));
+    const study = { at: nowIso(), items: n, voices: ids, accuracy, seconds, pairs, rescuedFirstAgent: tieBreak, domain: 'numeric', rows };
+    if (store !== false) this.store.kvSet(store || 'judge:study', study);
+    this.ledger.append('judge.study', { key: store || 'judge:study', items: n, voices: ids, accuracy, seconds, pairs: pairs.map(({ a, b, wrongTogether, sameWrongAnswer, kappa }) => ({ a, b, wrongTogether, sameWrongAnswer, kappa })) }, 'crystallizer');
     return study;
   }
 
   /** Judge a computed result against an agent's final answer (2 of 3, with the configured voices). */
-  judge(task, out, final) { return this.#judge(task, out, final, this.agentAnswer); }
+  judge(task, out, final, firstId = null) { return this.#judge(task, out, final, this.agentAnswer, firstId); }
 
   /** Who is asked after the first agent, in order. 'gemini' only when a Firebase AI Logic edge worker can answer. */
   #voices() {
@@ -780,7 +783,7 @@ export class Crystallizer {
     return cfg.cloudJudge !== false && this.cloudVoice?.available?.() ? ['gemini', ...local] : local;
   }
 
-  async #judge(task, out, firstFinal, answer) {
+  async #judge(task, out, firstFinal, answer, firstId = null) {
     const inTask = new Set((String(task).match(NUM) || []).map(Number));
     const last = (final) => (String(final ?? '').replace(/,(?=\d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
     const near = (tok, v) => {
@@ -796,7 +799,8 @@ export class Crystallizer {
     // (a different model family; measured: 20/20 on the voice study, vs 50-95% for the local agents, whose errors were NOT
     // correlated there: kappa about 0), then the local agents in order of measured accuracy. A voice that gives
     // no answer (no worker, a failed call, no number) is skipped, never replaced by a silent local fallback.
-    const voices = this.#voices();
+    // A voice never seconds itself (Phase 18): the agent that gave the first answer is not asked again.
+    const voices = this.#voices().filter((v) => v !== firstId);
     // Evaluation mode (skills.judgeAllVoices): every voice answers every split, so each voice's accuracy and how often
     // two voices are wrong TOGETHER can be measured. The decision below still uses the voices in order.
     const heard = new Map();
@@ -850,7 +854,7 @@ export class Crystallizer {
     if (!skill || !final) return null;
     const r = await this.#run(skill.code, shadow.input, this.list('active').filter((x) => x.name !== skill.name));
     if (r.error || typeof r.out !== 'number') return null;
-    const j = await this.#judge(task, r.out, final, this.agentAnswer);
+    const j = await this.#judge(task, r.out, final, this.agentAnswer, agentId);
     if (j.agree !== null) this.#example(skill.name, task, j.agree ? shadow.input : null, j.agree ? 'pos' : 'neg');
     if (j.agree === false && j.corroborated != null) this.#recordGap(skill.name, task, j.corroborated);
     this.ledger.append('skill.shadow', { skill: skill.name, agentId, missionId, ...j, reason: shadow.reason }, 'crystallizer');
@@ -878,7 +882,7 @@ export class Crystallizer {
       if (!words_.length) continue;
       const r = await this.#run(skill.code, e.input, []);
       if (r.error || typeof r.out !== 'number') { rows.push({ task: e.task, rare: words_, agree: null }); continue; }
-      const j = await this.#judge(e.task, r.out, await answer(e.task), answer);
+      const j = await this.#judge(e.task, r.out, await answer(e.task), answer, this.cfg?.skills?.auditAgent || 'tycho');
       if (j.agree === false) { this.store.run("UPDATE skill_examples SET label = 'neg', input = NULL WHERE id = ?", e.id); if (j.corroborated != null) this.#recordGap(skillName, e.task, j.corroborated); }
       rows.push({ task: e.task, rare: words_, ...j });
     }
@@ -928,7 +932,7 @@ export class Crystallizer {
   async #chainVerdict(shadow, task, final, { agentId = null, missionId = null } = {}) {
     const ran = await this.#runChain(shadow.chain, this.list('active'));
     if (ran.error || typeof ran.out !== 'number') return null;
-    const j = await this.#judge(task, ran.out, final, this.agentAnswer);
+    const j = await this.#judge(task, ran.out, final, this.agentAnswer, agentId);
     const sig = shadow.signature || chainSignature(shadow.chain);
     if (j.agree !== null) {
       const t = String(task).slice(0, 3000);
@@ -1250,7 +1254,7 @@ export class Crystallizer {
         const run = await this.#run(skill.code, x.got, library);
         if (run.error || typeof run.out !== 'number') continue;
         const final = await this.agentAnswer(x.task).catch(() => null);
-        const j = await this.#judge(x.task, run.out, final, this.agentAnswer);
+        const j = await this.#judge(x.task, run.out, final, this.agentAnswer, this.cfg?.skills?.auditAgent || 'tycho');
         if (j.agree) { x.ok = true; x.relabeled = j; relabeled.push(x.task); this.#example(skillName, x.task, x.got, 'pos'); }
       }
       if (relabeled.length) this.ledger.append('binder.relabel', { skill: skillName, tasks: relabeled.map((t) => t.slice(0, 160)) }, 'crystallizer');
@@ -1521,7 +1525,7 @@ ${final}`;
   async #trialVerdict(shadow, task, final, { agentId = null, missionId = null } = {}) {
     const s = this.list('probation').find((x) => x.name === shadow.skill);
     if (!s || !final) return null;
-    const j = await this.#judge(task, shadow.out, final, this.agentAnswer);
+    const j = await this.#judge(task, shadow.out, final, this.agentAnswer, agentId);
     const v = s.verification;
     v.trials ??= { agree: 0, refuted: 0, inconclusive: 0 };
     v.trials[j.agree === true ? 'agree' : j.agree === false ? 'refuted' : 'inconclusive']++;

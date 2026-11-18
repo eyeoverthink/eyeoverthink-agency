@@ -461,6 +461,7 @@ function askCard(r: any): string {
   return `<div class="askcard ${rt.skill ? "ok" : ""}">
     <div class="askmeta"><span class="askcalls"><b>${mt.calls ?? "?"}</b> model call${mt.calls === 1 ? "" : "s"}</span><span class="mono">${sec} s</span>${mt.overflow ? `<span>${mt.overflow} via Firebase AI Logic</span>` : ""}</div>
     <p>${by}</p>
+    ${r.pick ? `<p class="dim">First agent: <span class="mono">${esc(r.pick.agentId)}</span> (${esc(r.pick.reason)})</p>` : ""}
     ${rt.declined ? `<p class="dim">Skill declined: ${esc(rt.declined)}</p>` : ""}
     <div class="md">${md(String(r.final || ""))}</div>
     ${shadow}${rt.gap ? `<p class="dim">Recorded as a capability gap of <span class="mono">skill_${esc(rt.gap.skill)}</span> (new wording: ${esc((rt.gap.markers || []).join(", "))}).</p>` : ""}
@@ -547,7 +548,7 @@ async function loadSkills() {
     <div id="plout"></div>
     <h3>Judge voices: who to believe when they disagree</h3>
     <p class="dim">When a skill and the first agent disagree, more voices are asked and two of three decide. While a dashboard tab serves Firebase AI Logic, <b>Gemini is asked first</b>: a different model family, and the most accurate voice measured below. The local voices follow in order of measured accuracy. A task holding a value the privacy membrane would withhold never reaches it. ${d.judgeCalls ? `<b>${d.judgeCalls}</b> Gemini judge call(s) are signed in the ledger.` : ""} The voice study scores every voice on tasks with known answers.</p>
-    ${d.voiceStudy ? `<table class="evotbl"><tr><th>voice</th><th>accuracy (${d.voiceStudy.items} tasks)</th><th>first-agent errors it would fix</th></tr>${d.voiceStudy.voices.map((v: string) => `<tr><td class="mono">${v === "gemini" ? "Gemini (Firebase AI Logic)" : esc(v)}${v === "tycho" ? " (first agent)" : ""}</td><td><b>${Math.round(d.voiceStudy.accuracy[v] * 100)}%</b></td><td>${v === "tycho" ? "–" : d.voiceStudy.rescuedFirstAgent[v]}</td></tr>`).join("")}</table>
+    ${d.voiceStudy ? `<table class="evotbl"><tr><th>voice</th><th>accuracy (${d.voiceStudy.items} tasks)</th><th>held-out${d.heldout ? ` (${d.heldout.items})` : ""}</th><th>seconds per answer</th><th>first-agent errors it would fix</th></tr>${d.voiceStudy.voices.map((v: string) => `<tr><td class="mono">${v === "gemini" ? "Gemini (Firebase AI Logic)" : esc(v)}${v === "tycho" ? " (default first agent)" : ""}</td><td><b>${Math.round(d.voiceStudy.accuracy[v] * 100)}%</b></td><td>${d.heldout?.accuracy?.[v] != null ? Math.round(d.heldout.accuracy[v] * 100) + "%" : "–"}</td><td>${d.heldout?.seconds?.[v] ?? d.voiceStudy.seconds?.[v] ?? "–"}</td><td>${v === "tycho" ? "–" : d.voiceStudy.rescuedFirstAgent[v]}</td></tr>`).join("")}</table>
       <table class="evotbl"><tr><th>pair</th><th>wrong together</th><th>with the same wrong answer</th><th>kappa (right/wrong)</th></tr>${d.voiceStudy.pairs.map((p: any) => `<tr><td class="mono">${esc(p.a)} + ${esc(p.b)}</td><td>${p.wrongTogether}</td><td>${p.sameWrongAnswer}</td><td>${p.kappa ?? "–"}</td></tr>`).join("")}</table>` : '<p class="dim">No voice study yet (POST /api/skills/voice-study with tasks and their answers).</p>'}
     <h3>Skills from peers</h3>
     <p class="dim">When no skill it owns can take a task, the agency looks through its <b>trusted</b> peers' catalogs (contracts only) and matches them <b>here</b>, so the task text never leaves. It pulls the best match by name, imports it on probation, and judges it on that very task. When the judge sides with a skill against the first agent (2 of 3), the reply is the verified answer, with the dissent stated.</p>
@@ -563,7 +564,7 @@ async function loadSkills() {
     if (!task) return;
     busy(btn, true, "Answering…");
     $("#askout")!.innerHTML = '<p class="dim">Checking owned skills first…</p>';
-    const r = await guard(() => api<any>("/api/agents/tycho/ask", { body: { task } }));
+    const r = await guard(() => api<any>("/api/agents/auto/ask", { body: { task } }));
     busy(btn, false);
     if (!r) { $("#askout")!.innerHTML = ""; return; }
     $("#askout")!.innerHTML = askCard(r);

@@ -1,6 +1,6 @@
 # Phase 17: Gemini as a judge, measured voices, and the skill family tree
 
-Previous: [Phase 16](PHASE-16.md) · [Index](README.md)
+Previous: [Phase 16](PHASE-16.md) · Next: [Phase 18](PHASE-18.md) · [Index](README.md)
 
 ## The problem
 Everything the agency learns passes through one judge. When a skill and the first agent disagree, more agents are asked, and two of three decide. Until now every voice was a local model, and it was never measured how good each one is. Phase 16 also showed that the judge can know the right answer while the user is still given the wrong one; that was fixed there. Here the question is **who to believe**.

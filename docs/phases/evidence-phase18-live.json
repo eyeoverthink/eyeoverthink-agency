@@ -1,0 +1,85 @@
+[
+  {
+    "task": "A goat climbs to a ledge at 2 km/h and comes back down at 6 km/h by the same path. What is its average speed for the round trip?",
+    "pick": {
+      "agentId": "forge_keeper",
+      "reason": "measured: forge_keeper 95% (held-out 95%) vs tycho 50% (held-out 70%)"
+    },
+    "answeredBy": "calculate_average_speed",
+    "answer": 3,
+    "truth": 3,
+    "correct": true,
+    "calls": 0,
+    "s": 0.1,
+    "final": "**Answer: 3**\n\nComputed exactly by the agency's crystallized skill `skill_calculate_average_speed` (Calculates the average speed for a round trip given the spee"
+  },
+  {
+    "task": "After a 40% discount, a chair costs $90. What was its original price in dollars?",
+    "pick": {
+      "agentId": "forge_keeper",
+      "reason": "measured: forge_keeper 95% (held-out 95%) vs tycho 50% (held-out 70%)"
+    },
+    "answeredBy": "forge_keeper",
+    "answer": 150,
+    "truth": 150,
+    "correct": true,
+    "calls": 4,
+    "s": 16.7,
+    "final": "The original price of the chair was $150."
+  },
+  {
+    "task": "Printer A prints a batch in 6 hours and printer B in 12 hours. Together, how many hours do they need?",
+    "pick": {
+      "agentId": "forge_keeper",
+      "reason": "measured: forge_keeper 95% (held-out 95%) vs tycho 50% (held-out 70%)"
+    },
+    "answeredBy": "forge_keeper",
+    "answer": 24,
+    "truth": 4,
+    "correct": false,
+    "calls": 4,
+    "s": 3.9,
+    "final": "The two printers together need 24 hours to print a batch."
+  },
+  {
+    "task": "A price falls by 10% and then rises by 10%. By what percent is the final price lower than the original?",
+    "pick": {
+      "agentId": "forge_keeper",
+      "reason": "measured: forge_keeper 95% (held-out 95%) vs tycho 50% (held-out 70%)"
+    },
+    "answeredBy": "forge_keeper",
+    "answer": 1,
+    "truth": 1,
+    "correct": true,
+    "calls": 4,
+    "s": 9.8,
+    "final": "The final price is 1% lower than the original price."
+  },
+  {
+    "task": "Name one benefit of a bakery donating unsold bread, in one sentence.",
+    "pick": {
+      "agentId": "tycho",
+      "reason": "outside the measured domain (fewer than 2 stated numbers)"
+    },
+    "answeredBy": "tycho",
+    "answer": null,
+    "truth": null,
+    "correct": null,
+    "calls": 10,
+    "s": 24.7,
+    "final": "Reduces food waste by distributing excess products to those in need"
+  },
+  {
+    "task": "After a 20% discount, a bike costs $240. What was its original price in dollars?",
+    "pick": {
+      "agentId": "forge_keeper"
+    },
+    "answeredBy": "forge_keeper",
+    "answer": 300,
+    "truth": 300,
+    "correct": true,
+    "calls": 4,
+    "s": 10,
+    "via": "dashboard Ask box"
+  }
+]
