@@ -20,7 +20,17 @@ export function programsAgree(a, b) {
   return dec >= 2 && dec <= 4 && Number(x.toFixed(dec)) === Number(y.toFixed(dec)); // 1 decimal is too loose: 0.55 would "agree" with 0.6
 }
 
-const SYSTEM = 'You compute the answer to a quantitative question. Read it carefully, then write a small JavaScript program that computes the single correct numeric answer from first principles and prints ONLY that number with console.log: no units, no words, full precision. A percentage answer is printed as a percent number (25 for 25%). If the question is ambiguous (more than one reasonable answer), set "ambiguous": true. Reply with JSON only: {"ambiguous": false, "program": "<JavaScript>"}';
+// Measured in Phase 20: with the placeholder "<JavaScript>" in this prompt, hermes3 wrapped every program in
+// <JavaScript>...</JavaScript> tags and all 31 of its programs failed. The example is now a real program.
+const SYSTEM = 'You compute the answer to a quantitative question. Read it carefully, then write a small JavaScript program that computes the single correct numeric answer from first principles and prints ONLY that number with console.log: no units, no words, full precision. A percentage answer is printed as a percent number (25 for 25%). Use only standard JavaScript built-ins, and no comments. If the question is ambiguous (more than one reasonable answer), set "ambiguous": true. Reply with JSON only, for example: {"ambiguous": false, "program": "const total = 120 * 0.8; console.log(total);"}';
+
+/** Strip wrappers models put around code: <JavaScript> tags, markdown fences, a leading "javascript" label. */
+export function normalizeProgram(p) {
+  return String(p ?? '').trim()
+    .replace(/^<\/?(?:javascript|js|code)>\s*/i, '').replace(/\s*<\/(?:javascript|js|code)>$/i, '')
+    .replace(/^```(?:javascript|js)?\s*/i, '').replace(/\s*```$/, '')
+    .replace(/^(?:javascript|js)\s*\n/i, '').trim();
+}
 
 /** One independent program for the task, by one model role. Returns { role, model, answer } or { role, error }. */
 async function writeAndRun(task, role, { router, sandbox, signal }) {
@@ -32,8 +42,9 @@ async function writeAndRun(task, role, { router, sandbox, signal }) {
   let p = {};
   try { p = JSON.parse(String(res.text).match(/\{[\s\S]*\}/)?.[0] || '{}'); } catch { return { role, model: res.model, error: 'no JSON' }; }
   if (p.ambiguous === true) return { role, model: res.model, error: 'ambiguous' };
-  if (!String(p.program || '').trim()) return { role, model: res.model, error: 'no program' };
-  const run = await sandbox(String(p.program), { timeoutMs: 5000 });
+  const program = normalizeProgram(p.program);
+  if (!program) return { role, model: res.model, error: 'no program' };
+  const run = await sandbox(program, { timeoutMs: 5000 });
   if (run.exitCode !== 0 || run.timedOut) return { role, model: res.model, error: 'program failed' };
   const answer = answerKey('number', run.stdout);
   return answer == null ? { role, model: res.model, error: 'not exactly one number' } : { role, model: res.model, answer: Number(Number(answer).toPrecision(12)) }; // 0.8*0.75 prints 0.6000000000000001

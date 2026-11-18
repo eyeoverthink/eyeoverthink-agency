@@ -280,7 +280,7 @@ test('the judge: one dissenting agent is not proof; a second agent decides, and 
     const sh = { skill: 'compound_discount', input: { price: 95, discounts: [40, 10] }, reason: 'test' }; // skill: 51.3
     const task = 'A $95 helmet gets 40% off and then a further 10% off. What is the price now?';
     let second = null, third = 'No idea, maybe 12.';
-    cz.agentAnswer = async (t, id) => (id === 'forge_keeper' ? third : second);
+    cz.agentAnswer = async (t, id) => (id === 'forge_keeper' ? third : id === 'lumen' ? second : null); // only the two agents this test is about (Phase 20 adds more voices)
     assert.equal((await cz.shadowVerdict(sh, task, 'About $51.')).agree, true, '"51" is 51.3 at the agent precision');
     second = 'It costs $51.30.';
     const j = await cz.shadowVerdict(sh, task, 'It costs $240.');

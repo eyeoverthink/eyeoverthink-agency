@@ -1,0 +1,431 @@
+{
+  "at": "2026-11-18T05:46:13.546Z",
+  "items": 13,
+  "voices": [
+    "tycho",
+    "gemini",
+    "program",
+    "forge_keeper",
+    "lumen"
+  ],
+  "accuracy": {
+    "tycho": 0.615,
+    "gemini": 1,
+    "program": 0.231,
+    "forge_keeper": 0.923,
+    "lumen": 0.462
+  },
+  "seconds": {
+    "tycho": 17.3,
+    "gemini": 4.1,
+    "program": 21,
+    "forge_keeper": 12.4,
+    "lumen": 27.4
+  },
+  "pairs": [
+    {
+      "a": "tycho",
+      "b": "gemini",
+      "wrongTogether": 0,
+      "sameWrongAnswer": 0,
+      "kappa": 0
+    },
+    {
+      "a": "tycho",
+      "b": "program",
+      "wrongTogether": 4,
+      "sameWrongAnswer": 0,
+      "kappa": 0.042
+    },
+    {
+      "a": "tycho",
+      "b": "forge_keeper",
+      "wrongTogether": 1,
+      "sameWrongAnswer": 0,
+      "kappa": 0.235
+    },
+    {
+      "a": "tycho",
+      "b": "lumen",
+      "wrongTogether": 3,
+      "sameWrongAnswer": 0,
+      "kappa": 0.093
+    },
+    {
+      "a": "gemini",
+      "b": "program",
+      "wrongTogether": 0,
+      "sameWrongAnswer": 0,
+      "kappa": 0
+    },
+    {
+      "a": "gemini",
+      "b": "forge_keeper",
+      "wrongTogether": 0,
+      "sameWrongAnswer": 0,
+      "kappa": 0
+    },
+    {
+      "a": "gemini",
+      "b": "lumen",
+      "wrongTogether": 0,
+      "sameWrongAnswer": 0,
+      "kappa": 0
+    },
+    {
+      "a": "program",
+      "b": "forge_keeper",
+      "wrongTogether": 1,
+      "sameWrongAnswer": 0,
+      "kappa": 0.049
+    },
+    {
+      "a": "program",
+      "b": "lumen",
+      "wrongTogether": 6,
+      "sameWrongAnswer": 0,
+      "kappa": 0.198
+    },
+    {
+      "a": "forge_keeper",
+      "b": "lumen",
+      "wrongTogether": 1,
+      "sameWrongAnswer": 0,
+      "kappa": 0.133
+    }
+  ],
+  "rescuedFirstAgent": {
+    "gemini": 5,
+    "program": 1,
+    "forge_keeper": 4,
+    "lumen": 2
+  },
+  "domain": "numeric",
+  "rows": [
+    {
+      "task": "A price is cut by 20%, then the new price is cut by another 25%. What fraction of the original price is left? Give a decimal.",
+      "truth": 0.6,
+      "answers": {
+        "tycho": 5,
+        "gemini": 0.6,
+        "program": null,
+        "forge_keeper": 0.6000000000000001,
+        "lumen": 0.6
+      },
+      "ms": {
+        "tycho": 33978,
+        "gemini": 1485,
+        "program": 20963,
+        "forge_keeper": 12832,
+        "lumen": 23770
+      },
+      "right": {
+        "tycho": false,
+        "gemini": true,
+        "program": false,
+        "forge_keeper": true,
+        "lumen": true
+      }
+    },
+    {
+      "task": "A coat is 30% off, and then another 20% is taken off the sale price. What fraction of the original price do you pay? Give a decimal.",
+      "truth": 0.56,
+      "answers": {
+        "tycho": 1,
+        "gemini": 0.56,
+        "program": null,
+        "forge_keeper": 0.56,
+        "lumen": 56
+      },
+      "ms": {
+        "tycho": 18330,
+        "gemini": 2445,
+        "program": 23832,
+        "forge_keeper": 12572,
+        "lumen": 22276
+      },
+      "right": {
+        "tycho": true,
+        "gemini": true,
+        "program": false,
+        "forge_keeper": true,
+        "lumen": false
+      }
+    },
+    {
+      "task": "A car drives 60 km at 30 km/h and then another 60 km at 60 km/h. What is its average speed for the whole trip, in km/h?",
+      "truth": 40,
+      "answers": {
+        "tycho": 40,
+        "gemini": 40,
+        "program": null,
+        "forge_keeper": 40,
+        "lumen": 3
+      },
+      "ms": {
+        "tycho": 9340,
+        "gemini": 1943,
+        "program": 22698,
+        "forge_keeper": 13621,
+        "lumen": 32038
+      },
+      "right": {
+        "tycho": true,
+        "gemini": true,
+        "program": false,
+        "forge_keeper": true,
+        "lumen": false
+      }
+    },
+    {
+      "task": "Pipe A fills a tank in 4 hours, pipe B fills it in 6 hours, and a drain empties it in 12 hours. With all three open, how many hours to fill the tank?",
+      "truth": 3,
+      "answers": {
+        "tycho": 0.95,
+        "gemini": 3,
+        "program": 3,
+        "forge_keeper": 3,
+        "lumen": -1
+      },
+      "ms": {
+        "tycho": 33740,
+        "gemini": 1621,
+        "program": 16340,
+        "forge_keeper": 13130,
+        "lumen": 32873
+      },
+      "right": {
+        "tycho": false,
+        "gemini": true,
+        "program": true,
+        "forge_keeper": true,
+        "lumen": false
+      }
+    },
+    {
+      "task": "How many different groups of 3 people can be chosen from 8 people?",
+      "truth": 56,
+      "answers": {
+        "tycho": 56,
+        "gemini": 56,
+        "program": null,
+        "forge_keeper": 56,
+        "lumen": 56
+      },
+      "ms": {
+        "tycho": 11487,
+        "gemini": 1584,
+        "program": 21808,
+        "forge_keeper": 13566,
+        "lumen": 22441
+      },
+      "right": {
+        "tycho": true,
+        "gemini": true,
+        "program": false,
+        "forge_keeper": true,
+        "lumen": true
+      }
+    },
+    {
+      "task": "A price rises by 10% every year for three years. By what total percent has it risen? Give the percent.",
+      "truth": 33.1,
+      "answers": {
+        "tycho": 33.1,
+        "gemini": 33.1,
+        "program": null,
+        "forge_keeper": 33.1,
+        "lumen": 29.17
+      },
+      "ms": {
+        "tycho": 12938,
+        "gemini": 5731,
+        "program": 23667,
+        "forge_keeper": 12431,
+        "lumen": 23497
+      },
+      "right": {
+        "tycho": true,
+        "gemini": true,
+        "program": false,
+        "forge_keeper": true,
+        "lumen": false
+      }
+    },
+    {
+      "task": "A 20-liter drink is 30% juice. How many liters of water must be added to make it 20% juice?",
+      "truth": 10,
+      "answers": {
+        "tycho": 4,
+        "gemini": 10,
+        "program": null,
+        "forge_keeper": null,
+        "lumen": null
+      },
+      "ms": {
+        "tycho": 32933,
+        "gemini": 5936,
+        "program": 24171,
+        "forge_keeper": 17348,
+        "lumen": 20260
+      },
+      "right": {
+        "tycho": false,
+        "gemini": true,
+        "program": false,
+        "forge_keeper": false,
+        "lumen": false
+      }
+    },
+    {
+      "task": "The average of 5 numbers is 12. One of them, 20, is removed. What is the average of the remaining 4 numbers?",
+      "truth": 10,
+      "answers": {
+        "tycho": 10,
+        "gemini": 10,
+        "program": 10,
+        "forge_keeper": 10,
+        "lumen": 10
+      },
+      "ms": {
+        "tycho": 10756,
+        "gemini": 5049,
+        "program": 15116,
+        "forge_keeper": 12815,
+        "lumen": 21748
+      },
+      "right": {
+        "tycho": true,
+        "gemini": true,
+        "program": true,
+        "forge_keeper": true,
+        "lumen": true
+      }
+    },
+    {
+      "task": "A clock loses 3 minutes every hour. After exactly one day, how many minutes behind is it?",
+      "truth": 72,
+      "answers": {
+        "tycho": 48,
+        "gemini": 72,
+        "program": null,
+        "forge_keeper": 72,
+        "lumen": 0.95
+      },
+      "ms": {
+        "tycho": 11763,
+        "gemini": 5263,
+        "program": 21511,
+        "forge_keeper": 7099,
+        "lumen": 22787
+      },
+      "right": {
+        "tycho": false,
+        "gemini": true,
+        "program": false,
+        "forge_keeper": true,
+        "lumen": false
+      }
+    },
+    {
+      "task": "$1000 earns 10% interest compounded annually. How many dollars of interest are earned in 3 years?",
+      "truth": 331,
+      "answers": {
+        "tycho": 0.1,
+        "gemini": 331,
+        "program": null,
+        "forge_keeper": 331.00000000000045,
+        "lumen": 331
+      },
+      "ms": {
+        "tycho": 12468,
+        "gemini": 6708,
+        "program": 22381,
+        "forge_keeper": 9984,
+        "lumen": 35515
+      },
+      "right": {
+        "tycho": false,
+        "gemini": true,
+        "program": false,
+        "forge_keeper": true,
+        "lumen": true
+      }
+    },
+    {
+      "task": "A train 150 meters long crosses a 250-meter bridge at 72 km/h. How many seconds does it take to cross the bridge completely?",
+      "truth": 20,
+      "answers": {
+        "tycho": 20,
+        "gemini": 20,
+        "program": null,
+        "forge_keeper": 20,
+        "lumen": 20
+      },
+      "ms": {
+        "tycho": 12641,
+        "gemini": 1503,
+        "program": 24257,
+        "forge_keeper": 13747,
+        "lumen": 31645
+      },
+      "right": {
+        "tycho": true,
+        "gemini": true,
+        "program": false,
+        "forge_keeper": true,
+        "lumen": true
+      }
+    },
+    {
+      "task": "3 workers build a wall in 12 days. Working at the same rate, how many days do 4 workers need?",
+      "truth": 9,
+      "answers": {
+        "tycho": 9,
+        "gemini": 9,
+        "program": 9,
+        "forge_keeper": 9,
+        "lumen": 9
+      },
+      "ms": {
+        "tycho": 19546,
+        "gemini": 5953,
+        "program": 15012,
+        "forge_keeper": 15112,
+        "lumen": 31296
+      },
+      "right": {
+        "tycho": true,
+        "gemini": true,
+        "program": true,
+        "forge_keeper": true,
+        "lumen": true
+      }
+    },
+    {
+      "task": "What is 15% of 15% of 2000?",
+      "truth": 45,
+      "answers": {
+        "tycho": 45,
+        "gemini": 45,
+        "program": null,
+        "forge_keeper": 45,
+        "lumen": 0
+      },
+      "ms": {
+        "tycho": 4774,
+        "gemini": 7666,
+        "program": 21462,
+        "forge_keeper": 6768,
+        "lumen": 36048
+      },
+      "right": {
+        "tycho": true,
+        "gemini": true,
+        "program": false,
+        "forge_keeper": true,
+        "lumen": false
+      }
+    }
+  ]
+}

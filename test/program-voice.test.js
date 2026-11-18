@@ -62,3 +62,35 @@ test('the judge uses the program voice: it corroborates a refutation no agent co
     assert.equal(A.agency.ledger.list({ limit: 50, kind: 'judge.program' }).length, n0);
   } finally { await A.cleanup(); }
 });
+
+test('program text is unwrapped before it runs (measured: hermes3 wrapped every program in <JavaScript> tags)', async () => {
+  const { normalizeProgram } = await import('../src/evolve/program-voice.js');
+  assert.equal(normalizeProgram('<JavaScript>console.log(56)</JavaScript>'), 'console.log(56)');
+  assert.equal(normalizeProgram('```js\nconsole.log(20)\n```'), 'console.log(20)');
+  assert.equal(normalizeProgram('console.log(1)'), 'console.log(1)');
+  const r = await programVoice('How many groups of 3 can be chosen from 8 people?', { router: routerWith({ code: { program: '<JavaScript>console.log(8*7*6/6)</JavaScript>' }, reason: { program: '```js\nconsole.log(56)\n```' } }), sandbox: runSandboxedJs });
+  assert.equal(r.answer, 56);
+});
+
+test('a three-way split asks a fourth voice; a fraction and its percentage agree when the task asks for a fraction', async () => {
+  const A = await makeAgency(() => ({ final: 'x' }));
+  try {
+    const cz = A.agency.crystallizer;
+    cz.cloudVoice = { available: () => true };
+    A.agency.store.kvSet('judge:study', { items: 20, voices: ['tycho', 'gemini', 'program', 'forge_keeper', 'lumen'], accuracy: { tycho: 0.5, gemini: 1, forge_keeper: 0.9, program: 0.75, lumen: 0.5 } });
+    const TASK = 'An $80 jacket is 25% off, then 10% off. What fraction of the original price remains?';
+    // The real Phase 20 split: skill 54 (a poisoned positive), first 67.5, gemini 27, forge_keeper 40; the program says 0.675.
+    const book = { gemini: 'FINAL 27', forge_keeper: 'FINAL 40', program: 'FINAL 0.675', lumen: 'FINAL 12' };
+    const asked = [];
+    cz.agentAnswer = async (t, id) => { asked.push(id); return book[id]; };
+    const r = await cz.judge(TASK, 54, 'FINAL 67.5', 'tycho');
+    assert.deepEqual(asked, ['gemini', 'forge_keeper', 'program']);
+    assert.equal(r.agree, false, 'refuted: the poisoned positive can now be demoted');
+    assert.equal(r.corroborated, 67.5);
+    assert.match(r.by, /program corroborated first/);
+    // Outside fraction/percent tasks, 0.675 and 67.5 are different answers.
+    asked.length = 0;
+    const r2 = await cz.judge('An $80 jacket is 25% off, then 10% off. What is the final price?', 54, 'FINAL 67.5', 'tycho');
+    assert.notEqual(r2.by, 'program corroborated first');
+  } finally { await A.cleanup(); }
+});

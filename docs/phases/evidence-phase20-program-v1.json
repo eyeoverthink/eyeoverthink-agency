@@ -1,0 +1,540 @@
+{
+  "at": "2026-11-18T05:57:39.702Z",
+  "items": 40,
+  "voices": [
+    "program"
+  ],
+  "accuracy": {
+    "program": 0.475
+  },
+  "seconds": {
+    "program": 16.8
+  },
+  "pairs": [],
+  "rescuedFirstAgent": {
+    "program": 19
+  },
+  "domain": "numeric",
+  "rows": [
+    {
+      "task": "A runner goes up a trail at 6 km/h and comes back down the same trail at 12 km/h. What is the average speed for the round trip, in km/h?",
+      "truth": 8,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 16864
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "A plane flies to a city at 400 mph and back along the same route at 600 mph. What is its average speed for the round trip, in mph?",
+      "truth": 480,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 17314
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "A kayaker paddles upstream at 3 km/h and returns downstream along the same stretch at 7 km/h. Average speed for the round trip in km/h?",
+      "truth": 4.2,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 16799
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "A tractor drives to a field at 10 mph and back at 15 mph on the same road. What is the average speed for the round trip?",
+      "truth": 12,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 17943
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "A hiker walks to a hut at 4 km/h and back at 5 km/h by the same path. What is the average speed for the whole trip?",
+      "truth": 4.4444,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 17379
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "After a 20% discount, a coat costs $64. What was its original price in dollars?",
+      "truth": 80,
+      "answers": {
+        "program": 80
+      },
+      "ms": {
+        "program": 10112
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "After a 25% price increase, a ticket costs $45. What was the price before the increase, in dollars?",
+      "truth": 36,
+      "answers": {
+        "program": 36
+      },
+      "ms": {
+        "program": 9986
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "A shirt costs $50. It is discounted by 10%, and then the sale price is discounted by another 10%. What is the final price in dollars?",
+      "truth": 40.5,
+      "answers": {
+        "program": 40.5
+      },
+      "ms": {
+        "program": 10664
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "A price rises by 50% and then falls by 50%. By what percent is the final price lower than the original?",
+      "truth": 25,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 17557
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "Pipe A fills a tank in 3 hours and pipe B fills it in 6 hours. Working together, how many hours do they take to fill it?",
+      "truth": 2,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 16796
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "Alice paints a fence in 4 hours and Bob paints it in 12 hours. How many hours do they take working together?",
+      "truth": 3,
+      "answers": {
+        "program": 3
+      },
+      "ms": {
+        "program": 10883
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "A student scores 70 on a test worth 40% of the grade and 90 on a test worth 60% of the grade. What is the weighted average score?",
+      "truth": 82,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 17472
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "3 kg of apples cost $2 per kg and 2 kg of pears cost $5 per kg. What is the average price per kg of all the fruit, in dollars?",
+      "truth": 3.2,
+      "answers": {
+        "program": 3.2
+      },
+      "ms": {
+        "program": 10676
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "A $120 dinner gets 8% sales tax added and is then split evenly among 5 friends. How much does each friend pay, in dollars?",
+      "truth": 25.92,
+      "answers": {
+        "program": 25.92
+      },
+      "ms": {
+        "program": 10305
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "A $250 order is 20% off and then 6% sales tax is added. What is the final total in dollars?",
+      "truth": 212,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 17612
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "A car travels 150 miles in 2.5 hours, then 90 miles in 1.5 hours. What is its average speed for the whole journey, in mph?",
+      "truth": 60,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 16668
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "A population of 2000 grows by 10% each year. What is the population after 2 years?",
+      "truth": 2420,
+      "answers": {
+        "program": 2420
+      },
+      "ms": {
+        "program": 10243
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "$1000 earns 5% interest compounded annually. How many dollars is it worth after 3 years? Round to the cent.",
+      "truth": 1157.63,
+      "answers": {
+        "program": 1157.63
+      },
+      "ms": {
+        "program": 10863
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "A recipe for 4 people uses 300 g of flour. How many grams of flour are needed for 10 people?",
+      "truth": 750,
+      "answers": {
+        "program": 750
+      },
+      "ms": {
+        "program": 9893
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "A 12% tip is added to a $75 bill, and the total is split evenly among 3 people. How much does each person pay, in dollars?",
+      "truth": 28,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 17468
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "A courier bikes to the warehouse at 15 km/h and back along the same road at 10 km/h. What is the average speed for the round trip, in km/h?",
+      "truth": 12,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 17404
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "A bus goes to the airport at 50 mph and returns on the same route at 75 mph. What is its average speed for the round trip, in mph?",
+      "truth": 60,
+      "answers": {
+        "program": 60
+      },
+      "ms": {
+        "program": 10410
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "A dog runs to the end of the beach at 18 km/h and trots back at 9 km/h. What is its average speed for the round trip?",
+      "truth": 12,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 17391
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "A boat goes upriver at 6 knots and comes back downriver the same distance at 14 knots. What is the average speed for the round trip?",
+      "truth": 8.4,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 127047
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "A van drives to a market at 35 mph and back at 70 mph by the same road. What is the average speed for the whole trip?",
+      "truth": 46.6667,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 17742
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "After a 30% discount, a lamp costs $56. What was its original price in dollars?",
+      "truth": 80,
+      "answers": {
+        "program": 80
+      },
+      "ms": {
+        "program": 10318
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "After a 10% price increase, a meal costs $33. What was the price before the increase, in dollars?",
+      "truth": 30,
+      "answers": {
+        "program": 30
+      },
+      "ms": {
+        "program": 10296
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "A jacket costs $200. It is discounted by 20%, and then the sale price is discounted by another 25%. What is the final price in dollars?",
+      "truth": 120,
+      "answers": {
+        "program": 120
+      },
+      "ms": {
+        "program": 11252
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "A stock rises by 20% and then falls by 20%. By what percent is the final value lower than the original?",
+      "truth": 4,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 18518
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "Machine A finishes a job in 2 hours and machine B finishes it in 3 hours. Working together, how many hours do they need?",
+      "truth": 1.2,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 17370
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "Sam cleans a house in 5 hours and Kim cleans it in 20 hours. How many hours do they take working together?",
+      "truth": 4,
+      "answers": {
+        "program": 4
+      },
+      "ms": {
+        "program": 11314
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "A course grade is 30% homework and 70% exam. Homework is 90 and the exam is 60. What is the final grade?",
+      "truth": 69,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 17165
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "4 liters of juice cost $3 per liter and 6 liters cost $2 per liter. What is the average price per liter of all the juice, in dollars?",
+      "truth": 2.4,
+      "answers": {
+        "program": 2.4
+      },
+      "ms": {
+        "program": 10465
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "A $90 lunch gets 10% sales tax added and is then split evenly among 3 friends. How much does each friend pay, in dollars?",
+      "truth": 33,
+      "answers": {
+        "program": 33
+      },
+      "ms": {
+        "program": 10460
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "A $400 TV is 15% off and then 5% sales tax is added. What is the final total in dollars?",
+      "truth": 357,
+      "answers": {
+        "program": 357
+      },
+      "ms": {
+        "program": 10482
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "A train travels 200 km in 2 hours, then 100 km in 3 hours. What is its average speed for the whole journey, in km/h?",
+      "truth": 60,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 17054
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "A colony of 500 bacteria doubles every hour. How many bacteria are there after 3 hours?",
+      "truth": 4000,
+      "answers": {
+        "program": 4000
+      },
+      "ms": {
+        "program": 10286
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "$2000 earns 10% interest compounded annually. How many dollars is it worth after 2 years?",
+      "truth": 2420,
+      "answers": {
+        "program": 2420
+      },
+      "ms": {
+        "program": 10610
+      },
+      "right": {
+        "program": true
+      }
+    },
+    {
+      "task": "A recipe for 6 people uses 450 g of rice. How many grams of rice are needed for 8 people?",
+      "truth": 600,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 16742
+      },
+      "right": {
+        "program": false
+      }
+    },
+    {
+      "task": "A 15% tip is added to a $60 bill, and the total is split evenly among 4 people. How much does each person pay, in dollars?",
+      "truth": 17.25,
+      "answers": {
+        "program": null
+      },
+      "ms": {
+        "program": 17947
+      },
+      "right": {
+        "program": false
+      }
+    }
+  ]
+}

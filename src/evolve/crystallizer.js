@@ -863,10 +863,15 @@ ${final}`);
   async #judge(task, out, firstFinal, answer, firstId = null) {
     const inTask = new Set((String(task).match(NUM) || []).map(Number));
     const last = (final) => (String(final ?? '').replace(/,(?=\d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
+    // A fraction and its percentage are the same answer when the task asks for a fraction, percent or proportion
+    // (Phase 20, measured: "what fraction of the original price remains" is answered as 0.675 and as 67.5).
+    const pctTask = /\b(fraction|percent|percentage|proportion)\b|%\s*of the original/i.test(String(task));
+    const close = (a, b) => Math.abs(a - b) <= Math.max(0.01, Math.abs(b) * 0.002);
     const near = (tok, v) => {
       if (tok === undefined) return null;
       const n = Number(tok), dec = (tok.split('.')[1] || '').length;
-      return Math.abs(n - v) <= Math.max(0.01, Math.abs(v) * 0.002) || (dec <= 2 && Math.abs(n - Number(v.toFixed(dec))) < 1e-9);
+      if (Math.abs(n - v) <= Math.max(0.01, Math.abs(v) * 0.002) || (dec <= 2 && Math.abs(n - Number(v.toFixed(dec))) < 1e-9)) return true;
+      return pctTask && v !== 0 && (Math.abs(n - v * 100) <= Math.max(0.01, Math.abs(v * 100) * 0.002) || close(n * 100, v));
     };
     const first = last(firstFinal);
     const row = { skillOut: out, agentAnswer: first === undefined ? null : Number(first), second: null, third: null, agree: null };
@@ -907,6 +912,20 @@ ${final}`);
     if (near(third, out)) return { ...row, agree: true, by: 'third opinion sided with the skill' };
     if (near(third, Number(first)) || near(first, Number(third))) return { ...row, agree: false, corroborated: Number(first), by: 'third opinion corroborated the first' };
     if (near(third, Number(second)) || near(second, Number(third))) return { ...row, agree: false, corroborated: Number(second), by: 'third opinion corroborated the second' };
+    // Still a three-way split: keep asking the remaining voices (skills.maxVoices, default 4 beyond the first) until two
+    // answers agree. Measured in Phase 20: on "what fraction of the original price remains" the first agent, Gemini and
+    // forge_keeper all differed, and the program voice, ranked next, was never asked. Costs extra only on splits.
+    const heardSoFar = [['first', first], [secondBy, second], [thirdBy, third]];
+    row.extra = [];
+    for (let k = 3; k < (this.cfg?.skills?.maxVoices ?? 4); k++) {
+      const { id, tok } = await ask();
+      if (tok === undefined) break;
+      row.extra.push({ by: id, answer: Number(tok) });
+      if (near(tok, out)) return { ...row, agree: true, by: `${id} sided with the skill` };
+      const match = heardSoFar.find(([, t]) => near(tok, Number(t)) || near(t, Number(tok)));
+      if (match) return { ...row, agree: false, corroborated: Number(match[1]), by: `${id} corroborated ${match[0]}` };
+      heardSoFar.push([id, tok]);
+    }
     return row;
   }
 
