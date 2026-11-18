@@ -108,7 +108,7 @@ Evidence: [hard v1](evidence-phase20-hard-v1.json), [hard v2](evidence-phase20-h
 Evidence: [audit v1](evidence-phase20-audit-v1.json), [audit v2](evidence-phase20-audit-v2.json), [audit v3](evidence-phase20-audit-v3.json).
 
 ## The tests
-157 tests pass. `test/program-voice.test.js` covers:
+158 tests pass. `test/program-voice.test.js` covers:
 - agreement, and 2 of 3;
 - no answer when the programs disagree (no guess);
 - unwrapping tags and fences;
