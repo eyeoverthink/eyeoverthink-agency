@@ -107,12 +107,13 @@ export function createServer(agency) {
   add('POST', '/api/skills/import', async ({ body }) => a.crystallizer.importSkill(need(body.plasmid, 'plasmid required'), { trustSigner: body.trustSigner || null }));
   add('POST', '/api/skills/voice-study', async ({ body }) => {
     const items = need(Array.isArray(body.items) && body.items.length ? body.items : null, 'items[] required');
-    const opts = { voices: body.voices || null, store: body.heldout ? 'judge:heldout' : 'judge:study' };
+    const key = /^judge:[a-z]{3,20}$/.test(String(body.key || '')) ? body.key : body.heldout ? 'judge:heldout' : 'judge:study';
+    const opts = { voices: body.voices || null, store: key };
     if (!body.background) return a.crystallizer.voiceStudy(items, opts);
     a.crystallizer.voiceStudy(items, opts).catch((e) => a.bus.publish('judge.study_error', { error: String(e?.message || e) }));
     return { started: true, items: items.length, key: opts.store };
   });
-  add('GET', '/api/skills/voice-study', ({ url }) => a.store.kvGet(url.searchParams.get('heldout') ? 'judge:heldout' : 'judge:study', null));
+  add('GET', '/api/skills/voice-study', ({ url }) => { const k = url.searchParams.get('key'); return a.store.kvGet(/^judge:[a-z]{3,20}$/.test(String(k || '')) ? k : url.searchParams.get('heldout') ? 'judge:heldout' : 'judge:study', null); });
   add('GET', '/api/agents/pick', ({ url }) => a.pickAnswerer(need(url.searchParams.get('task'), 'task required')));
   add('GET', '/api/skills/lineage', () => { const l = a.crystallizer.lineage(); const peers = a.mesh.peers(); for (const n of l.nodes) if (n.kind === 'peer') { const p = peers.find((x) => (n.signer && x.public_key === n.signer) || (n.peerId && x.id === n.peerId)); n.name = p?.name || n.id; } return l; });
   add('POST', '/api/skills/compose', async ({ body }) => a.crystallizer.composeChain(need(body.signature, 'signature required')));

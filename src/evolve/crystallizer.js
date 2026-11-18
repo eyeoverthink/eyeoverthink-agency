@@ -835,7 +835,9 @@ ${final}`);
   /** Who is asked after the first agent, in order. 'gemini' only when a Firebase AI Logic edge worker can answer. */
   /** Accuracy per voice over every study (the voice study and the held-out study, weighted by their sizes). */
   measuredAccuracy() {
-    const studies = ['judge:study', 'judge:heldout'].map((k) => this.store.kvGet(k, null)).filter((s) => s?.accuracy && s.items);
+    // Every stored study counts, weighted by size: the voice study, its held-out set, and (Phase 20) the hard set and
+    // the program voice's own run on the standard tasks.
+    const studies = (this.cfg?.skills?.studyKeys || ['judge:study', 'judge:heldout', 'judge:hard', 'judge:program']).map((k) => this.store.kvGet(k, null)).filter((s) => s?.accuracy && s.items);
     if (!studies.length) return null;
     const out = {};
     for (const id of new Set(studies.flatMap((s) => Object.keys(s.accuracy)))) {
@@ -848,10 +850,13 @@ ${final}`);
   #voices() {
     const cfg = this.cfg?.skills || {};
     let local = [cfg.secondOpinion || 'lumen', cfg.thirdOpinion || 'forge_keeper'];
+    // Phase 20: the program voice (two independent local programs that must agree) joins the pool; the voice study
+    // decides its rank like any other voice. Unmeasured, it is asked after the configured agents.
+    if (cfg.programVoice !== false) local.push('program');
     // Measured order (Phase 17), over every measured local agent (Phase 19): measured on 40 tasks, forge_keeper 95%,
     // tycho 60%, lumen 55%. With forge_keeper answering first (Phase 18), a fixed pair left only lumen as a local voice.
     const acc = cfg.voiceOrder !== 'fixed' ? this.measuredAccuracy() : null;
-    if (acc) local = [...new Set([...local, ...Object.keys(acc).filter((v) => v !== 'gemini')])].sort((x, y) => (acc[y] ?? -1) - (acc[x] ?? -1)).slice(0, 3);
+    if (acc) local = [...new Set([...local, ...Object.keys(acc).filter((v) => v !== 'gemini' && (v !== 'program' || cfg.programVoice !== false))])].sort((x, y) => (acc[y] ?? -1) - (acc[x] ?? -1)).slice(0, 3);
     return cfg.cloudJudge !== false && this.cloudVoice?.available?.() ? ['gemini', ...local] : local;
   }
 
