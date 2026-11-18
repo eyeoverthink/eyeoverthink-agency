@@ -961,7 +961,8 @@ ${final}`);
 
   /**
    * Re-verify positives recorded before wording was verified: those using wording rare among positives (under 25%)
-   * are judged like a shadow verdict. Only a refutation corroborated by a second agent demotes one to a negative.
+   * are judged like a shadow verdict. A refutation corroborated by a second agent demotes one to a negative; so does a
+   * split where at least skills.unsupportedMin (4) voices answered and none matched the skill (Phase 20b).
    * `answer(task, agentId?)` returns the agent loop's final text (skill-first off).
    */
   async auditWording(skillName, answer) {
@@ -979,10 +980,21 @@ ${final}`);
       const r = await this.#run(skill.code, e.input, []);
       if (r.error || typeof r.out !== 'number') { rows.push({ task: e.task, rare: words_, agree: null }); continue; }
       const j = await this.#judge(e.task, r.out, await answer(e.task), answer, this.cfg?.skills?.auditAgent || 'tycho');
+      // No voice supports the positive (Phase 20b). A split leaves agree null: two voices must agree before an answer
+      // is taught. But a positive is itself a claim (the skill computed this task's answer), and the audit's question is
+      // whether anything still backs it. Measured in Phase 20: on "$80 jacket ... what fraction of the original price
+      // remains" the skill said 54 and four independent voices said 65, 27, 40 and 0.675 (the program, correct).
+      // When at least skills.unsupportedMin (default 4) voices answered and none matched the skill, the positive is
+      // demoted. No gap is recorded: no answer was corroborated. The failure this can cause is a refusal (that
+      // wording goes back to the agents), never a wrong answer.
+      if (j.agree === null) {
+        const heard = [j.agentAnswer, j.second, j.third, ...(j.extra || []).map((x) => x.answer)].filter((x) => x != null);
+        if (heard.length >= (this.cfg?.skills?.unsupportedMin ?? 4)) { j.agree = false; j.unsupported = heard.length; j.by = `no voice supported the skill (${heard.length} answers, none matched)`; }
+      }
       if (j.agree === false) { this.store.run("UPDATE skill_examples SET label = 'neg', input = NULL WHERE id = ?", e.id); if (j.corroborated != null) this.#recordGap(skillName, e.task, j.corroborated); }
       rows.push({ task: e.task, rare: words_, ...j });
     }
-    this.ledger.append('binder.audit_wording', { skill: skillName, checked: rows.length, demoted: rows.filter((x) => x.agree === false).length }, 'crystallizer');
+    this.ledger.append('binder.audit_wording', { skill: skillName, checked: rows.length, demoted: rows.filter((x) => x.agree === false).length, unsupported: rows.filter((x) => x.unsupported).length }, 'crystallizer');
     return rows;
   }
 
