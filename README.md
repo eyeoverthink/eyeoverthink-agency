@@ -1,7 +1,19 @@
 # EyeOverThink Agency
 
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
+[![Firebase AI Logic](https://img.shields.io/badge/Firebase%20AI%20Logic-used%20at%20runtime-ffca28.svg)](#how-firebase-ai-logic-is-used-at-runtime)
+[![#BuildHybridAI 2026](https://img.shields.io/badge/%23BuildHybridAI-2026-6a5acd.svg)](#contest-notes)
+[![Tests](https://img.shields.io/badge/tests-152%20passing-brightgreen.svg)](#testing-benchmarks-self-test)
+[![Node](https://img.shields.io/badge/node-%E2%89%A522.13-339933.svg)](#quick-start)
+
+> **Local agents do the work. Gemini, through Firebase AI Logic, keeps it honest. Everything the agency learns is verified, owned and signed.**
+> Agents on your own GPU answer tasks. When their answers need checking, Gemini via Firebase AI Logic is the first judge voice, and an extra number check catches what no skill could. Every answer that holds up becomes **verified code the agency owns**: the next task of that kind costs **zero model calls**. Skills grow from the agency's own work, its refusals and its combinations, travel between agencies as signed plasmids without the task text ever leaving, and every step is Ed25519-signed into a hash-chained ledger anyone can verify.
+
+![Ask the agency: a bill-splitting task answered by a composed skill the agency wrote itself, with 0 model calls in 0.13 s](docs/screenshots/ask-the-agency.jpg)
+*A task answered by a composed skill the agency wrote itself: **0 model calls, 0.13 s**, exact answer ([Phase 14](docs/phases/PHASE-14.md), [evidence](docs/phases/evidence-demo-rehearsal-2.json)).*
+
 **A sovereign, self-verifying multi-agent agency that runs on your own hardware.**
-Local GPU models do the work, Gemini Nano on-device (via **Firebase AI Logic** hybrid inference) keeps private work on the machine, every result is checked by a critic before it counts, and every consequential act is signed into a tamper-evident ledger.
+Local GPU models do the work, **Firebase AI Logic** (Gemini) is the judge and the overflow tier (private work goes only to Gemini Nano on-device when a browser offers it, which is not yet proven on this machine, and otherwise stays on the local GPU), every result is checked before it counts, and every consequential act is signed into a tamper-evident ledger.
 
 ```
 goal ─► Genesis plans a task graph ─► specialists run in parallel ─► Solon verifies each result
@@ -11,7 +23,7 @@ goal ─► Genesis plans a task graph ─► specialists run in parallel ─►
 
 - **Zero runtime dependencies** for the core (Node ≥ 22.13: `node:sqlite`, `node:crypto` Ed25519, `node:http`).
 - **Free and offline by default.** Ollama on the local GPU; cloud is optional fallback only and never required.
-- **32 automated tests** (deterministic, no GPU needed) + a deterministic benchmark suite with confidence intervals + an in-app self-test.
+- **152 automated tests** (deterministic, no GPU needed) + a deterministic benchmark suite with confidence intervals + an in-app self-test.
 - **Measured on a laptop GPU:** 21/24 = **0.875 (95% CI 0.69–0.96)** on the core benchmark with local 7–8B models ([Phase 2](docs/phases/PHASE-2.md)).
 - Apache-2.0.
 
@@ -23,10 +35,73 @@ goal ─► Genesis plans a task graph ─► specialists run in parallel ─►
 
 ---
 
+## See it in 60 seconds
+
+Every row is a real run on a laptop GPU (RTX 3070, 8 GB) with real local models, linked to the phase write-up and the raw JSON evidence.
+
+| What | Measured result | Source |
+|---|---|---|
+| **The learning arc** (a new kind of bill-splitting task) | 1st time: agents, **4 model calls, 15.6 s** → 2nd: verified skill chain, **1 call, 4.6 s** → 3rd: composed skill, **0 calls, 0.13 s**. All answers exact. | [Phase 14](docs/phases/PHASE-14.md), [evidence](docs/phases/evidence-demo-rehearsal-2.json) |
+| **Uses what it owns first** | On matching tasks, 22 model calls cut to 5 and 24,714 tokens to 1,423; 5 of 5 routed answers correct (agent alone: 2–3); 0 of 3 tempting controls misrouted | [Phase 10](docs/phases/PHASE-10.md) |
+| **Learned binders** (induced with no model) | **8 of 8** new matching tasks answered with **zero model calls**, all correct, ~125 ms | [Phase 11](docs/phases/PHASE-11.md) |
+| **Verified wording** | Tax and tip misroutes went from 3 of 5 to **0 of 8**, no correct example lost | [Phase 12](docs/phases/PHASE-12.md) |
+| **Refusals become skills** | Learned `calculate_final_price_with_tax` from 5 corroborated refusals (~59 model calls), then **7 of 7** new tax tasks at **0 model calls**, all correct | [Phase 13](docs/phases/PHASE-13.md) |
+| **Skill composition** | 4 of 4 composite test tasks correct, 3 with zero model calls; **0 misroutes in 14 tasks**. The composed skill is written by the agency with no model. | [Phase 14](docs/phases/PHASE-14.md) |
+| **Skills between agencies** (signed plasmids) | A brand-new agency adopted a composed skill after 2 ordinary tasks, then answered 3 of 4 fresh tasks at 0 model calls in 0.1 s | [Phase 15](docs/phases/PHASE-15.md) |
+| **Skills over the mesh** (task text never leaves) | New agency pulled 4 skills from a peer with no operator action: **7 of 8 correct** (3 corrected by the verdict) vs 4 of 8 before; the sender saw **none of the 9 task texts** | [Phase 16](docs/phases/PHASE-16.md) |
+| **Measured judge voices** | Across 40 tasks with known answers: **Gemini via Firebase AI Logic 40/40**, forge_keeper 38/40, tycho 24/40, lumen 22/40. Gemini is asked first. | [Phase 17](docs/phases/PHASE-17.md), [Phase 18](docs/phases/PHASE-18.md) |
+| **Measured first agent** | forge_keeper 95% on both the study and a held-out set, vs the default agent (tycho) 50% and 70%, about twice as fast | [Phase 18](docs/phases/PHASE-18.md) |
+| **Second-voice check** | With the weaker agent first, **8 of 12** first answers were right and **12 of 12** replies were: 4 corrected 2 of 3, 0 wrong and unflagged | [Phase 19](docs/phases/PHASE-19.md) |
+| **Firebase AI Logic as GPU overflow** | A real 160-call mission sent 3 calls through Firebase AI Logic while the GPU was busy, each ledgered `IN_CLOUD`; ledger re-verified at 721 entries | [Phase 5](docs/phases/PHASE-5.md) |
+
+---
+
+## Screenshot gallery
+
+| | |
+|---|---|
+| ![Ask the agency box showing an answer from a composed skill with 0 model calls](docs/screenshots/ask-the-agency.jpg) | ![Skill family tree built from signed ledger entries, coloured by how each skill was born](docs/screenshots/skill-family-tree.jpg) |
+| **Ask the agency.** Each answer shows who answered, its model calls and its time. | **Skill family tree.** Drawn only from signed ledger entries: learned, composed, imported, shared ([Phase 17](docs/phases/PHASE-17.md)). |
+| ![Judge voice study: per-voice accuracy with Gemini first](docs/screenshots/judge-voices.jpg) | ![Measured voices and held-out confirmation of the first agent](docs/screenshots/measured-voices.jpg) |
+| **Judge voices.** The voice study scores every voice on tasks with known answers ([Phase 17](docs/phases/PHASE-17.md)). | **Measured voices.** The first agent is chosen only after a held-out study confirms it ([Phase 18](docs/phases/PHASE-18.md)). |
+| ![Second-voice check marking an answer as checked by Gemini via Firebase AI Logic](docs/screenshots/second-voice-check.jpg) | ![Refusals turned into a new skill on the capability gaps panel](docs/screenshots/refusals-become-skills.jpg) |
+| **Second-voice check.** A number nothing else checked gets an independent voice ([Phase 19](docs/phases/PHASE-19.md)). | **Refusals become skills.** Corroborated refusals crystallize into a new skill ([Phase 13](docs/phases/PHASE-13.md)). |
+| ![Skill composition: verified chains of owned skills](docs/screenshots/skill-composition.jpg) | ![Skill plasmids: a skill imported on probation by another agency](docs/screenshots/skill-plasmids.jpg) |
+| **Skill composition.** Verified chains become skills the agency writes itself ([Phase 14](docs/phases/PHASE-14.md)). | **Skill plasmids.** Re-verified on arrival, on probation until local agents agree ([Phase 15](docs/phases/PHASE-15.md)). |
+| ![Skills pulled from a trusted peer over the signed mesh](docs/screenshots/skills-over-the-mesh.jpg) | ![Verified wording audit of a skill's binder](docs/screenshots/verified-wording.jpg) |
+| **Skills over the mesh.** Matched locally; only a skill name leaves ([Phase 16](docs/phases/PHASE-16.md)). | **Verified wording.** A skill answers only wording it has verified ([Phase 12](docs/phases/PHASE-12.md)). |
+| ![Learned binders panel showing zero-call routing](docs/screenshots/learned-binders.jpg) | ![Skill-first routing panel](docs/screenshots/skill-first.jpg) |
+| **Learned binders.** Induced from past bindings with no model ([Phase 11](docs/phases/PHASE-11.md)). | **Skill-first routing.** Owned skills before model turns ([Phase 10](docs/phases/PHASE-10.md)). |
+| ![Sovereignty map: agents on the local GPU inside the privacy membrane, Firebase AI Logic and the web outside](docs/screenshots/sovereignty-map.jpg) | ![Ledgered proof of real Firebase AI Logic calls](docs/screenshots/edge-proof-real.jpg) |
+| **Sovereignty map.** Local calls, Firebase calls, sealed crossings and blocked egress ([Phase 8](docs/phases/PHASE-8.md)). | **Firebase proof.** Every real call signed into the ledger as `edge.inference` ([Phase 5](docs/phases/PHASE-5.md)). |
+| ![Privacy membrane: sealed placeholders as Firebase saw them](docs/screenshots/membrane-firebase-saw.jpg) | ![Crystallized skills panel](docs/screenshots/crystallized-skills.jpg) |
+| **Privacy membrane.** What Firebase actually saw: placeholders, never the values ([Phase 8](docs/phases/PHASE-8.md)). | **Crystallized skills.** Solved tasks become verified, owned code ([Phase 9](docs/phases/PHASE-9.md)). |
+
+---
+
+## How Firebase AI Logic is used at runtime
+
+The dashboard is also an **edge inference node**. Firebase AI Logic is called at runtime, not only configured:
+
+- **The SDK, in the browser.** `web/src/hybrid.ts` calls `initializeApp`, `initializeAppCheck`, `getAI(app, { backend: new GoogleAIBackend() })`, `getGenerativeModel` with an official `InferenceMode`, `initializeDeviceModel()` (after a click), `generateContent()` and reads `response.inferenceSource`. `web/src/edge.ts` registers the tab with the agency, long-polls for jobs, runs them and reports whether each ran `ON_DEVICE` or `IN_CLOUD`.
+- **First judge voice.** When a skill and the first agent disagree, Gemini is asked first while a tab is serving (`prefer_in_cloud`). A reply counts only if it really came from the edge; a silent local fallback is discarded ([Phase 17](docs/phases/PHASE-17.md)).
+- **Second-voice check.** A number answer that no skill checked gets one more independent voice: Gemini first when a worker is online and the guard allows it ([Phase 19](docs/phases/PHASE-19.md)).
+- **GPU overflow.** The 8 GB GPU runs one generation at a time. While it is busy, waiting `fast`, `plan`, `critic` and `reason` calls go to the Firebase worker instead of queueing; seeded benchmark and evolution calls never overflow, and a failed edge call falls straight back to the GPU ([Phase 5](docs/phases/PHASE-5.md)).
+- **Private work stays on the machine.** `privacy: "private"` overflows only to a browser whose Gemini Nano is available (`ONLY_ON_DEVICE`); `sealed` work crosses only through the Privacy Membrane ([Phase 8](docs/phases/PHASE-8.md)).
+- **Privacy guard before every judge call.** If a task holds anything the membrane would withhold (a key, an email, a card, an owner term), Gemini is not asked (`judge.cloud_refused`); a daily cap limits judge calls (`skills.cloudJudgeDailyMax`, default 200).
+- **App Check** protects the AI Logic calls (debug provider on localhost; see [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md)).
+- **Signed proof of every call.** Each completed Firebase call is signed into the ledger as `edge.inference` with its origin (`judge`, `agency-job` for routed work, `playground` for a direct dashboard call), inference path, latency, project and the SHA-256 of the output, never the prompt or text. List them with `node bin/agency.js edge proof`.
+
+Measured: 23 Gemini judge calls in Phase 17, all `IN_CLOUD`, median 1.3 s, every one in the ledger. Gemini Nano `ON_DEVICE` is implemented but not yet exercised (see [Known limits](#known-limits)).
+
+---
+
 ## Contents
 
+- [See it in 60 seconds](#see-it-in-60-seconds) · [Screenshot gallery](#screenshot-gallery) · [How Firebase AI Logic is used at runtime](#how-firebase-ai-logic-is-used-at-runtime)
+
 1. [Why this exists](#why-this-exists)
-2. [Architecture](#architecture)
+2. [Architecture](#architecture) (including [the learning loop](#the-learning-loop))
 3. [What each subsystem does (and how it is proven)](#subsystems)
 4. [Lineage: how the FRAYMUS / Chandra / Fraynix work was consolidated](#lineage)
 5. [Quick start](#quick-start)
@@ -37,8 +112,10 @@ goal ─► Genesis plans a task graph ─► specialists run in parallel ─►
 10. [Security model](#security-model)
 11. [Testing, benchmarks, self-test](#testing-benchmarks-self-test)
 12. [Contest notes (#BuildHybridAI)](#contest-notes)
-13. [Build log: every step taken](#build-log)
-14. [Honest status and roadmap](#honest-status-and-roadmap)
+13. [Phases](#phases) and [Evidence, not claims](#evidence-not-claims)
+14. [Build log: every step taken](#build-log)
+15. [Known limits](#known-limits)
+16. [Honest status and roadmap](#honest-status-and-roadmap)
 
 ---
 
@@ -69,6 +146,31 @@ Most agent frameworks are a loop around one cloud model. They trust whatever the
 ---
 
 ## Architecture
+
+### The learning loop
+
+How one task is answered, checked and turned into something the agency owns. Every box that decides or learns writes a signed ledger entry.
+
+```mermaid
+flowchart TD
+  T["Task"] --> R{"Skill-first routing<br/>learned binder · bind call<br/>grounding · verified-wording gate"}
+  R -- "owned skill fits,<br/>wording verified" --> S["Owned skill answers<br/>verified code, 0 model calls"]
+  R -- "no fit or<br/>unverified wording" --> A["Agent loop<br/>measured first agent<br/>(forge_keeper in domain)"]
+  A --> J{"Judge<br/>shadow · trial · second-voice check<br/>Gemini via Firebase AI Logic first<br/>2 of 3 decides"}
+  S -. "shadow / trial on new wording" .-> J
+  J --> Reply["Reply<br/>checked · corrected with dissent · or marked unverified"]
+  J --> L["Learning"]
+  L --> L1["verified examples<br/>→ learned binders"]
+  L --> L2["corroborated refusals (gaps)<br/>→ new skills with an answer key"]
+  L --> L3["verified chains<br/>→ composed skills, written with no model"]
+  L --> L4["signed plasmids · mesh pulls<br/>→ skills on probation at peers"]
+  L1 & L2 & L3 & L4 --> R
+  S & J & L --> Led[("Ed25519 hash-chained ledger<br/>Merkle proofs · receipts")]
+```
+
+Gemini is a judge, never the first answerer, so cloud use stays the exception; a guard keeps any task holding a sensitive value away from it ([Phase 17](docs/phases/PHASE-17.md), [Phase 18](docs/phases/PHASE-18.md), [Phase 19](docs/phases/PHASE-19.md)).
+
+### System map
 
 ```mermaid
 flowchart LR
@@ -279,7 +381,10 @@ ollama pull llama3.1:8b
 ollama pull qwen2.5-coder:7b
 ollama pull hermes3
 ollama pull nomic-embed-text
+ollama pull llama3.2              # first choice for the `fast` role (the skill binder's bind call)
 ```
+
+The measured first agent, forge_keeper, runs on the `code` role (`qwen2.5-coder:7b`). Role preferences live in `src/core/config.js`.
 
 Then:
 
@@ -290,6 +395,18 @@ npm run build                     # installs and builds the dashboard (web/)
 node bin/agency.js selftest       # expect ALL_CLEAR
 node bin/agency.js serve          # http://127.0.0.1:8790
 node bin/agency.js token          # paste into the dashboard
+```
+
+Open the dashboard at **http://127.0.0.1:8790**, paste the token, and use the **Ask the agency** box (Agents & DNA) to watch a task go from agents to an owned skill. To add Gemini as a judge voice, follow [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md), then start serving on the **Hybrid Edge** page.
+
+Check everything before a demo, and run the tests:
+
+```bash
+node bin/agency.js edge doctor    # validates web/.env.local offline, secrets masked
+node bin/agency.js preflight      # GO/NO-GO: self-test, edge doctor, ledger, models, Firebase proof
+node bin/agency.js edge proof     # the ledgered Firebase AI Logic calls
+node bin/agency.js ledger verify  # re-verify the whole signed hash chain
+npm test                          # deterministic tests, no GPU or network needed
 ```
 
 Run a mission from the terminal:
@@ -420,7 +537,7 @@ Example `agency.config.json`:
 ## Testing, benchmarks, self-test
 
 ```bash
-npm test                                  # 32 deterministic tests (scripted model; no GPU, no network)
+npm test                                  # 152 deterministic tests (scripted model; no GPU, no network)
 node bin/agency.js selftest
 node bin/agency.js bench                  # deterministic benchmark on your real local models
 node bin/agency.js bench core --repeat 3  # per-item pass rates with Wilson 95% intervals
@@ -453,6 +570,29 @@ Hybrid inference is part of how the product works: private tasks run only on loc
 
 ---
 
+## Phases
+
+The agency was built in 19 measured phases. Each write-up records what was built, what real runs showed (including the runs that failed and what they taught), the tests added, known limits and running counts. Full index: [docs/phases/README.md](docs/phases/README.md).
+
+| Phases | Theme |
+|---|---|
+| [1](docs/phases/PHASE-1.md)–[2](docs/phases/PHASE-2.md) | Foundation and proof: the consolidated platform, real-model benchmark with confidence intervals, live mesh and MCP |
+| [3](docs/phases/PHASE-3.md), [4](docs/phases/PHASE-4.md), [6](docs/phases/PHASE-6.md) | Honest evolution: paired seeds, fresh-seed confirmation, held-out items, a measured noise floor |
+| [5](docs/phases/PHASE-5.md), [7](docs/phases/PHASE-7.md), [8](docs/phases/PHASE-8.md) | Firebase AI Logic live (GPU overflow, ledgered proof, setup doctor), contest preflight, the Privacy Membrane, receipts and the Sovereignty Map |
+| [9](docs/phases/PHASE-9.md)–[14](docs/phases/PHASE-14.md) | Owned skills: crystallization, skill-first routing, learned binders, verified wording, refusals become skills, composition |
+| [15](docs/phases/PHASE-15.md)–[16](docs/phases/PHASE-16.md) | Skills between agencies: signed plasmids with probation, skills pulled over the mesh without the task leaving |
+| [17](docs/phases/PHASE-17.md)–[19](docs/phases/PHASE-19.md) | Who to believe: Gemini as a measured judge voice, the measured first agent, the second-voice check |
+
+## Evidence, not claims
+
+- **Every measured result links its raw run.** The phase write-ups cite 41 JSON evidence files in [docs/phases](docs/phases/) (`evidence-*.json`): tasks, answers, model calls, timings and outcomes, including failed runs.
+- **The ledger verifies.** Every mission, plan, tool call, skill admission, judge verdict, mesh exchange and Firebase call is an Ed25519-signed entry in a SHA-256 hash chain with Merkle inclusion proofs. `node bin/agency.js ledger verify` recomputes it; any edit breaks it.
+- **Skill origins are ledger facts.** The skill family tree is drawn only from signed entries; each edge is one entry (seq + hash).
+- **Missions carry receipts.** A receipt can be verified offline with the zero-dependency `bin/verify-receipt.js`, or in the browser.
+- **Firebase usage is provable.** `node bin/agency.js edge proof` lists every `edge.inference` entry; `preflight` reports how many ran `IN_CLOUD`, `ON_DEVICE` and by GPU overflow.
+
+---
+
 ## Build log
 
 These are the steps taken to build this repository, in order. Per-phase detail is in [docs/phases](docs/phases/README.md). Contest materials: [docs/SUBMISSION_CHECKLIST.md](docs/SUBMISSION_CHECKLIST.md) (requirement status), [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) (video script; run `node bin/agency.js preflight` first) and [docs/DEVPOST.md](docs/DEVPOST.md).
@@ -470,6 +610,20 @@ These are the steps taken to build this repository, in order. Per-phase detail i
 11. **Interfaces.** HTTP API with SSE, CLI, and the dashboard with the Firebase AI Logic edge worker.
 12. **Verification (Phase 1).** 27 automated tests; self-test; real missions on local models; dashboard verified in a browser.
 13. **Proof (Phase 2).** Ran the benchmark on real models and traced each failure. Added four harness guards and repeated trials with confidence intervals. Proved the mesh over HTTP and MCP over stdio, and fixed a Windows spawn bug in the MCP client. Added live token streaming and fixed mobile layout. Wrote the contest demo script and Devpost text. Details: [Phase 2](docs/phases/PHASE-2.md). Fixes found this way: the calculator rejected model-style syntax (`Math.sqrt`, `**`); object finals rendered as raw JSON; placeholder citations; the `OLLAMA_HOST` bind address.
+
+---
+
+## Known limits
+
+Collected from the phases' own "Known limits" sections:
+- **The measured domain is arithmetic word problems.** The voice studies, the measured first agent and the second-voice check cover tasks that state numbers; prose answers are not checked ([Phase 18](docs/phases/PHASE-18.md), [Phase 19](docs/phases/PHASE-19.md)).
+- **Small samples.** The voice studies are 20 + 20 tasks ([Phase 17](docs/phases/PHASE-17.md), [Phase 18](docs/phases/PHASE-18.md)).
+- **Gemini needs a dashboard tab serving as the edge worker.** Without one, the judge and the second-voice check are local only, and slower (tycho about 15 s per answer) ([Phase 19](docs/phases/PHASE-19.md)).
+- **Correlated mistakes.** If both check voices make the same mistake, they can outvote a correct first answer. In the 40 study tasks, Gemini made none ([Phase 19](docs/phases/PHASE-19.md)).
+- **Gemini Nano `ON_DEVICE` is implemented but unproven here:** the test browser reported Nano `unavailable`, so the measured calls ran `IN_CLOUD` ([Phase 5](docs/phases/PHASE-5.md)).
+- **New wording falls back to the agents until it is verified**, by design; composite tasks with unseen wording do too ([Phase 14](docs/phases/PHASE-14.md), [Phase 15](docs/phases/PHASE-15.md)).
+- **Mesh skill seeking:** the first task of a kind is answered before the pulled skill exists, seeking runs only when no owned skill was a candidate, and catalog matching uses word overlap ([Phase 16](docs/phases/PHASE-16.md)).
+- **Commutative chains** ("split, then tax" vs "tax, then split") are verified as separate shapes ([Phase 14](docs/phases/PHASE-14.md)).
 
 ---
 
