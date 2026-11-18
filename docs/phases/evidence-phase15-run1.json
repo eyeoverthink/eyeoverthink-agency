@@ -1,0 +1,119 @@
+{
+  "at": "2026-11-18T00:26:56.835Z",
+  "export": {
+    "top": "final_price_with_tax_then_even_spl_dc52",
+    "skills": [
+      "calculate_final_price_with_tax",
+      "calculate_even_split",
+      "final_price_with_tax_then_even_spl_dc52"
+    ],
+    "signer": "17f52f3ad8769eb4308b00717c16c1c0edc09a824d29843c232bb320477271c2",
+    "strandSha": "3df1d842ff9cc8e5eccebf5865cd264469a4cb8b73caeeb4868a99c67f46ac86",
+    "bytes": 44349,
+    "senderLearningCost": "Phase 13 run 3: ~59 model calls to learn calculate_final_price_with_tax from refusals; Phase 14 run 6: 6 learning tasks at ~5 calls each plus the split building block"
+  },
+  "receiver": {
+    "identity": "7bce86429974ad2a8bb45853965761c7a85f3b98b0010de9d532378f2dc0b611",
+    "skillsBefore": 0
+  },
+  "import": {
+    "imported": false,
+    "reason": "skill final_price_with_tax_then_even_spl_dc52: fewer than 3 verification rows to reproduce"
+  },
+  "tasks": [
+    {
+      "id": "ts1",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 6,
+      "s": 12.7,
+      "correct": true,
+      "trial": null,
+      "statuses": {},
+      "final": "Each friend pays $51.84 for the dinner."
+    },
+    {
+      "id": "ds-near",
+      "control": true,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 7,
+      "s": 12.5,
+      "correct": true,
+      "trial": null,
+      "statuses": {},
+      "final": "# Hotel Room Cost per Friend\nEach friend pays $72.\n\n**Calculation:**\n1. Original price: $300\n2. First discount (20%): $(1 - 0.2) * $300 = $240\n3. Second discount (10%): $(1 - 0.1) * $240 = $216\n4. Spl"
+    },
+    {
+      "id": "ts2",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 7,
+      "s": 12.5,
+      "correct": true,
+      "trial": null,
+      "statuses": {},
+      "final": "Each friend pays $\boxed{47.70}$."
+    },
+    {
+      "id": "ts3",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 4,
+      "s": 6.6,
+      "correct": true,
+      "trial": null,
+      "statuses": {},
+      "final": "$72.76 per person"
+    },
+    {
+      "id": "ts4",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 4,
+      "s": 7.8,
+      "correct": false,
+      "trial": null,
+      "statuses": {},
+      "final": "# Total Amount Each Friend Pays\n$96.07"
+    },
+    {
+      "id": "ts5",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 9,
+      "s": 9.6,
+      "correct": true,
+      "trial": null,
+      "statuses": {},
+      "final": "Each friend pays $40.875 USD for the boat tour."
+    },
+    {
+      "id": "c-more",
+      "control": true,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 9,
+      "s": 16.8,
+      "correct": null,
+      "trial": null,
+      "statuses": {},
+      "final": "# Dinner Payment Difference\nAnn pays $\boxed{72.80}$ more than Bob.\n\n**Calculation Steps:**\n1. Discount amount: $200 * 0.2 = $40\n2. Price after discount: $200 - $40 = $160\n3. Sales tax amount: $160 * 0"
+    }
+  ],
+  "adopt": [],
+  "rejects": [
+    {
+      "label": "skill:final_price_with_tax_then_even_spl_dc52",
+      "reason": "skill final_price_with_tax_then_even_spl_dc52: fewer than 3 verification rows to reproduce",
+      "signer": "17f52f3ad8769eb4308b00717c16c1c0edc09a824d29843c232bb320477271c2"
+    }
+  ],
+  "binders": [],
+  "ledgerOk": true
+}

@@ -1,0 +1,200 @@
+{
+  "at": "2026-11-18T00:28:32.125Z",
+  "export": {
+    "top": "final_price_with_tax_then_even_spl_dc52",
+    "skills": [
+      "calculate_final_price_with_tax",
+      "calculate_even_split",
+      "final_price_with_tax_then_even_spl_dc52"
+    ],
+    "signer": "17f52f3ad8769eb4308b00717c16c1c0edc09a824d29843c232bb320477271c2",
+    "strandSha": "272d5829b2705ccd225d74862d0ed93beb769fb69a688af9585d065f449f6a42",
+    "bytes": 44349,
+    "senderLearningCost": "Phase 13 run 3: ~59 model calls to learn calculate_final_price_with_tax from refusals; Phase 14 run 6: 6 learning tasks at ~5 calls each plus the split building block"
+  },
+  "receiver": {
+    "identity": "dcdedf266ed164bc9b77edd39d42fd977dc2fcbfbcd578102537903b25ce804d",
+    "skillsBefore": 0
+  },
+  "import": {
+    "imported": true,
+    "reason": "3 skill(s) on probation until 2 local verdicts agree",
+    "skills": [
+      {
+        "name": "calculate_final_price_with_tax",
+        "status": "probation",
+        "examples": 6
+      },
+      {
+        "name": "calculate_even_split",
+        "status": "probation",
+        "examples": 0
+      },
+      {
+        "name": "final_price_with_tax_then_even_spl_dc52",
+        "status": "probation",
+        "examples": 3
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "ts1",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 11,
+      "s": 23.3,
+      "correct": false,
+      "trial": {
+        "agree": true,
+        "skill": 51.84,
+        "agent": 17.28,
+        "second": 51.84
+      },
+      "statuses": {
+        "calculate_final_price_with_tax": "probation",
+        "calculate_even_split": "probation",
+        "final_price_with_tax_then_even_spl_dc52": "probation"
+      },
+      "final": "$17.28 per person"
+    },
+    {
+      "id": "ds-near",
+      "control": true,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 4,
+      "s": 8.1,
+      "correct": false,
+      "trial": null,
+      "statuses": {
+        "calculate_final_price_with_tax": "probation",
+        "calculate_even_split": "probation",
+        "final_price_with_tax_then_even_spl_dc52": "probation"
+      },
+      "final": "### Hotel Room Cost Split Among Friends\nA hotel room costs $300. After a 20% discount, the price is reduced to $240.\nAnother 10% off brings it down to $216.\nThis amount is split evenly among three fri"
+    },
+    {
+      "id": "ts2",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 3,
+      "s": 4.7,
+      "correct": true,
+      "trial": {
+        "agree": true,
+        "skill": 47.7,
+        "agent": 47.7,
+        "second": null
+      },
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active"
+      },
+      "final": "# Concert Package Cost Per Friend\n$47.70"
+    },
+    {
+      "id": "ts3",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 4,
+      "s": 13.4,
+      "correct": true,
+      "trial": null,
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active"
+      },
+      "final": "### Each Friend's Payment\n\n$72.76"
+    },
+    {
+      "id": "ts4",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 5,
+      "s": 18.4,
+      "correct": false,
+      "trial": null,
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active"
+      },
+      "final": "### Meal Split\nEach friend pays $\boxed{33}."
+    },
+    {
+      "id": "ts5",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 9,
+      "s": 16.1,
+      "correct": true,
+      "trial": null,
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active"
+      },
+      "final": "Each friend pays $40.88"
+    },
+    {
+      "id": "c-more",
+      "control": true,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 9,
+      "s": 19.7,
+      "correct": null,
+      "trial": null,
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active"
+      },
+      "final": "### Difference in Payments\nAnn pays $122.80, while Bob pays $50.\nTherefore, **$72.80 more** than Bob does Ann pay."
+    }
+  ],
+  "adopt": [
+    {
+      "codeSha256": "2f59303b5b98578c34000508bd18d82d6bd71f7a3f1303093e3b891c594eb854",
+      "name": "final_price_with_tax_then_even_spl_dc52",
+      "signer": "17f52f3ad8769eb4308b00717c16c1c0edc09a824d29843c232bb320477271c2",
+      "trials": {
+        "agree": 2,
+        "inconclusive": 0,
+        "refuted": 0
+      },
+      "via": null
+    },
+    {
+      "codeSha256": "2196c4e6a2922fd4cfb45345f6cb267d90f1a73607678300632525a32476ab98",
+      "name": "calculate_even_split",
+      "signer": "17f52f3ad8769eb4308b00717c16c1c0edc09a824d29843c232bb320477271c2",
+      "trials": null,
+      "via": "final_price_with_tax_then_even_spl_dc52"
+    },
+    {
+      "codeSha256": "5721df4469812d1d774d6be131953428ca71dca73cc49b8707bdcc1c04dc9ad6",
+      "name": "calculate_final_price_with_tax",
+      "signer": "17f52f3ad8769eb4308b00717c16c1c0edc09a824d29843c232bb320477271c2",
+      "trials": null,
+      "via": "final_price_with_tax_then_even_spl_dc52"
+    }
+  ],
+  "rejects": [],
+  "binders": [
+    {
+      "skill": "calculate_final_price_with_tax",
+      "status": "active",
+      "examples": 6
+    }
+  ],
+  "ledgerOk": true
+}

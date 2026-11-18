@@ -1,6 +1,6 @@
 # Phase 14: Skill composition
 
-Previous: [Phase 13](PHASE-13.md) · [Index](README.md)
+Previous: [Phase 13](PHASE-13.md) · Next: [Phase 15](PHASE-15.md) · [Index](README.md)
 
 ## The problem
 Every skill so far answers one kind of task. "A $200 dinner is 20% off, then 8% sales tax is added, and the total is split evenly among 4 friends" needs two skills the agency already owns, one feeding the other. Without composition, each new combination is a fresh capability gap: model calls, unreliable agent arithmetic, and eventually yet another monolithic skill.

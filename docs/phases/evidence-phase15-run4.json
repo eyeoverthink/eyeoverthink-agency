@@ -1,0 +1,304 @@
+{
+  "at": "2026-11-18T00:38:38.239Z",
+  "export": {
+    "top": "final_price_with_tax_then_even_spl_dc52",
+    "skills": [
+      "calculate_final_price_with_tax",
+      "calculate_even_split",
+      "final_price_with_tax_then_even_spl_dc52"
+    ],
+    "signer": "17f52f3ad8769eb4308b00717c16c1c0edc09a824d29843c232bb320477271c2",
+    "strandSha": "96f7acd6009996fcd0b00aeb782100cc2f066bce4a6b18dd9c6cf70956299fc0",
+    "bytes": 47372,
+    "senderLearningCost": "Phase 13 run 3: ~59 model calls to learn calculate_final_price_with_tax from refusals; Phase 14 run 6: 6 learning tasks at ~5 calls each plus the split building block"
+  },
+  "binderAttempts": [
+    {
+      "skill": "calculate_final_price_with_tax",
+      "admitted": true,
+      "reason": "induced with no model from 6 example(s), each predicted from the others, refuses 0 negative(s), binds 100% of blind paraphrases",
+      "synth": [
+        {
+          "ok": true,
+          "got": {
+            "original_price": 120,
+            "discount": 0.15,
+            "tax_rate": 0.08
+          },
+          "task": "A $120 vacuum cleaner is 15% off, then 8% sales tax is added. What is the total?"
+        },
+        {
+          "ok": true,
+          "got": {
+            "original_price": 250,
+            "discount": 0.3,
+            "tax_rate": 0.18
+          },
+          "task": "The price of a $250 TV is reduced by 30%, and then an 18% sales tax is applied. What's the final cost?"
+        },
+        {
+          "ok": true,
+          "got": {
+            "original_price": 75,
+            "discount": 0.25,
+            "tax_rate": 0.12
+          },
+          "task": "A $75 printer is discounted by 25%, followed by a 12% sales tax addition. How much will it cost in total?"
+        },
+        {
+          "ok": true,
+          "got": {
+            "original_price": 350,
+            "discount": 0.4,
+            "tax_rate": 0.08
+          },
+          "task": "A $350 laptop is discounted to 40%, then an 8% sales tax rate applies. What's the final price of this item?"
+        }
+      ],
+      "negatives": []
+    },
+    {
+      "skill": "final_price_with_tax_then_even_spl_dc52",
+      "admitted": true,
+      "reason": "induced with no model from 5 example(s), each predicted from the others, refuses 0 negative(s), binds 100% of blind paraphrases",
+      "hinted": {
+        "number_of_people": [
+          "people"
+        ]
+      },
+      "synth": [
+        {
+          "ok": true,
+          "got": {
+            "original_price": 300,
+            "discount": 0.15,
+            "tax_rate": 0.1,
+            "number_of_people": 6
+          },
+          "task": "A $300 meal is 15% off, then 10% sales tax is added, and the total is split evenly among 6 friends. How much does each friend pay?"
+        },
+        {
+          "ok": true,
+          "got": {
+            "original_price": 150,
+            "discount": 0.25,
+            "tax_rate": 0.12,
+            "number_of_people": 2
+          },
+          "task": "A $150 dinner is 25% off, then 12% sales tax is added, and the total is split evenly among 2 friends. How much does each friend pay?"
+        },
+        {
+          "ok": true,
+          "got": {
+            "original_price": 500,
+            "discount": 0.18,
+            "tax_rate": 0.08,
+            "number_of_people": 5
+          },
+          "task": "A $500 meal is 18% off, then 8% sales tax is added, and the total is split evenly among 5 friends. How much does each friend pay?"
+        },
+        {
+          "ok": true,
+          "got": {
+            "original_price": 200,
+            "discount": 0.2,
+            "tax_rate": 0.08,
+            "number_of_people": 4
+          },
+          "task": "A $200 meal is 20% off, then 8% sales tax is added, and the total is split evenly among 4 friends. How much does each friend pay?"
+        }
+      ],
+      "negatives": []
+    }
+  ],
+  "receiver": {
+    "identity": "5a76a9fc1eebb54ecd2ceb28ce6ef352f225c580fe2bc8a163bf6a739705fafb",
+    "skillsBefore": 0
+  },
+  "import": {
+    "imported": true,
+    "reason": "3 skill(s) on probation until 2 local verdicts agree",
+    "skills": [
+      {
+        "name": "calculate_final_price_with_tax",
+        "status": "probation",
+        "examples": 6
+      },
+      {
+        "name": "calculate_even_split",
+        "status": "probation",
+        "examples": 0
+      },
+      {
+        "name": "final_price_with_tax_then_even_spl_dc52",
+        "status": "probation",
+        "examples": 3
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "ts1",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 3,
+      "s": 5.2,
+      "correct": true,
+      "trial": {
+        "agree": true,
+        "skill": 51.84,
+        "agent": 51.84,
+        "second": null
+      },
+      "statuses": {
+        "calculate_final_price_with_tax": "probation",
+        "calculate_even_split": "probation",
+        "final_price_with_tax_then_even_spl_dc52": "probation"
+      },
+      "final": "# Dinner Cost Per Friend\n$51.84"
+    },
+    {
+      "id": "ds-near",
+      "control": true,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 7,
+      "s": 8.5,
+      "correct": true,
+      "trial": null,
+      "statuses": {
+        "calculate_final_price_with_tax": "probation",
+        "calculate_even_split": "probation",
+        "final_price_with_tax_then_even_spl_dc52": "probation"
+      },
+      "final": "### Cost per Friend\n$72.00"
+    },
+    {
+      "id": "ts2",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 9,
+      "s": 9.3,
+      "correct": true,
+      "trial": {
+        "agree": true,
+        "skill": 47.7,
+        "agent": 47.7,
+        "second": null
+      },
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active"
+      },
+      "final": "$47.70 per person"
+    },
+    {
+      "id": "ts3",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 4,
+      "s": 13.9,
+      "correct": true,
+      "trial": null,
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active"
+      },
+      "final": "### Cost per Friend\n$72.76"
+    },
+    {
+      "id": "ts4",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 10,
+      "s": 22.2,
+      "correct": true,
+      "trial": null,
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active"
+      },
+      "final": "Each friend will pay $**33.08**, rounded to two decimal places, after a $90 meal is discounted by 30%, then has a 5% sales tax added, and the total is split evenly among 2 friends."
+    },
+    {
+      "id": "ts5",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 7,
+      "s": 20.4,
+      "correct": true,
+      "trial": null,
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active"
+      },
+      "final": "$40.88"
+    },
+    {
+      "id": "c-more",
+      "control": true,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 8,
+      "s": 19.8,
+      "correct": null,
+      "trial": null,
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active"
+      },
+      "final": "# Dinner Payment Difference\n\nAnn's payment: $122.80\nBob's payment: $43.20\nDifference: **$79.60**"
+    }
+  ],
+  "adopt": [
+    {
+      "codeSha256": "2f59303b5b98578c34000508bd18d82d6bd71f7a3f1303093e3b891c594eb854",
+      "name": "final_price_with_tax_then_even_spl_dc52",
+      "signer": "17f52f3ad8769eb4308b00717c16c1c0edc09a824d29843c232bb320477271c2",
+      "trials": {
+        "agree": 2,
+        "inconclusive": 0,
+        "refuted": 0
+      },
+      "via": null
+    },
+    {
+      "codeSha256": "2196c4e6a2922fd4cfb45345f6cb267d90f1a73607678300632525a32476ab98",
+      "name": "calculate_even_split",
+      "signer": "17f52f3ad8769eb4308b00717c16c1c0edc09a824d29843c232bb320477271c2",
+      "trials": null,
+      "via": "final_price_with_tax_then_even_spl_dc52"
+    },
+    {
+      "codeSha256": "5721df4469812d1d774d6be131953428ca71dca73cc49b8707bdcc1c04dc9ad6",
+      "name": "calculate_final_price_with_tax",
+      "signer": "17f52f3ad8769eb4308b00717c16c1c0edc09a824d29843c232bb320477271c2",
+      "trials": null,
+      "via": "final_price_with_tax_then_even_spl_dc52"
+    }
+  ],
+  "rejects": [],
+  "binders": [
+    {
+      "skill": "calculate_final_price_with_tax",
+      "status": "active",
+      "examples": 6
+    },
+    {
+      "skill": "final_price_with_tax_then_even_spl_dc52",
+      "status": "active",
+      "examples": 5
+    }
+  ],
+  "ledgerOk": true
+}

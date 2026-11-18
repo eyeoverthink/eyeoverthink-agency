@@ -23,6 +23,7 @@ const TASKS = [
 
 let current = '';
 let synthPeople = false;
+let synthBadNeg = null; // a blind "near-miss" that is really a task the skill answers (Phase 15, measured)
 function script(req) {
   const sys = systemOf(req), u = lastUser(req);
   if (/turn a solved task into ONE reusable/.test(sys)) return u.includes('DISCOUNT') ? SKILLS.DISCOUNT : u.includes('TAX') ? SKILLS.TAX : SKILLS.SPLIT;
@@ -38,6 +39,7 @@ function script(req) {
     return chainFor(task);
   }
   if (/You write test cases for a task router/.test(sys)) {
+    if (synthBadNeg && /Composed from owned skills/.test(u)) return { positives: [], negatives: [synthBadNeg] };
     if (!synthPeople || !/Composed from owned skills/.test(u)) return { positives: [], negatives: [] };
     const t = 'A $80 kettle is 25% off, then 5% sales tax is added, and the total is split evenly among 4 people. How much does each pay?';
     return { positives: [{ task: t, input: { price: 80, discount: 25, rate: 5, people: 4 } }], negatives: ['A $80 kettle is 25% off, then 5% sales tax is added, and 4 people pay. How much more does Ann pay than Bob?'] };
@@ -230,4 +232,48 @@ test('unit widening: a binder learned from "friends" also binds "4 people" when 
     assert.equal(v.coverage, 1);
     assert.equal(v.negatives, '1/1 refused', 'the widened binder still refuses the near-miss');
   } finally { synthPeople = false; await A.cleanup(); }
+});
+
+test('a composed skill travels with the skills it calls (Phase 15), dependencies first, and reproduces on arrival', async () => {
+  const A = await setup();
+  const B = await makeAgency(script, { skills: { first: true, learnBinders: false } });
+  try {
+    const cz = A.agency.crystallizer;
+    for (const t of TASKS.slice(0, 2)) await run(A, t);
+    await cz.composeQueue;
+    const sk = cz.list('active').find((s) => s.source.startsWith('chain:'));
+    const exp = cz.exportSkill(sk.name, A.agency.keyring.get('agency'));
+    assert.deepEqual(exp.skills, ['discount_price', 'add_tax', 'split_evenly', sk.name]);
+    const imp = await B.agency.crystallizer.importSkill(exp.plasmid);
+    assert.equal(imp.imported, true, imp.reason);
+    assert.deepEqual(B.agency.crystallizer.list('probation').map((s) => s.name).sort(), exp.skills.slice().sort());
+    // Importing the same plasmid again changes nothing.
+    const again = await B.agency.crystallizer.importSkill(exp.plasmid);
+    assert.match(again.reason, /already here/);
+  } finally { await A.cleanup(); await B.cleanup(); }
+});
+
+test('a blind near-miss that the skill answers correctly is judged, relabeled as a positive, and does not block the binder', async () => {
+  const bad = 'A $60 lamp is 10% off, then 5% sales tax is added, and the total is split evenly among 3 friends. How much does each pay?';
+  for (const agentsAgree of [true, false]) {
+    synthBadNeg = bad;
+    const A = await setup();
+    try {
+      const cz = A.agency.crystallizer;
+      if (!agentsAgree) cz.agentAnswer = async () => 'Each pays $99.'; // corroborated dissent: the label stands
+      for (const t of TASKS.slice(0, 2)) { current = t; if (!agentsAgree) cz.agentAnswer = async () => `Each pays $${truth(t)}.`; await run(A, t); }
+      if (!agentsAgree) cz.agentAnswer = async () => 'Each pays $99.';
+      await cz.composeQueue; await cz.binderQueue;
+      const sk = cz.list('active').find((s) => s.source.startsWith('chain:'));
+      assert.ok(sk);
+      if (agentsAgree) {
+        assert.ok(cz.binder(sk.name), 'binder admitted: the mislabeled negative was relabeled');
+        assert.equal(A.agency.ledger.list({ limit: 1, kind: 'binder.relabel' }).length, 1);
+        assert.ok(cz.examples(sk.name).some((e) => e.label === 'pos' && e.task === bad));
+      } else {
+        assert.equal(cz.binder(sk.name), null, 'agents corroborate a different answer: still a false route, binder refused');
+        assert.match(A.agency.ledger.list({ limit: 1, kind: 'binder.reject' })[0].data.reason, /must not bind/);
+      }
+    } finally { synthBadNeg = null; await A.cleanup(); }
+  }
 });

@@ -32,6 +32,8 @@ Global flags: --home <dir> (data directory)  --ollama <url> (Ollama server)
   agents exam <id>[,<id>...] [--count 6]           Red Queen: propose program-verified questions, admit frontier items
   agents export <id> <file>        Export an agent as a signed DNA plasmid (organism)
   agents adopt <file>              Import an organism plasmid
+  skills export <name> [file]      Export a verified skill (+ the skills it calls) as a signed plasmid
+  skills import <file> [--signer]  Import a skill plasmid: re-verified here, then on probation until local verdicts agree
 
   memory search "<query>"          Hybrid recall
   memory add "<text>" [--kind fact|semantic|episodic]
@@ -148,6 +150,14 @@ export async function main(argv) {
           const r = await agency.crystallizer.composeChain(pos.slice(2).join(' '));
           out(r.admitted ? `ADMITTED skill_${r.skill.name}: ${r.reason}
 ${r.code}` : `not admitted: ${r.reason}`);
+        } else if (pos[1] === 'export') {
+          const r = agency.crystallizer.exportSkill(pos[2], agency.keyring.get('agency'), { examples: !flags['no-examples'] });
+          fs.writeFileSync(pos[3] || `${pos[2]}.skill.plasmid.json`, JSON.stringify(r.plasmid));
+          out(`exported skill_${pos[2]} (with ${r.skills.length - 1} dependency skill(s)) to ${pos[3] || `${pos[2]}.skill.plasmid.json`}, signed by ${r.plasmid.signer.slice(0, 16)}…`);
+        } else if (pos[1] === 'import') {
+          const r = await agency.crystallizer.importSkill(JSON.parse(fs.readFileSync(pos[2], 'utf8')), { trustSigner: flags.signer || null });
+          out(r.imported ? `IMPORTED: ${r.reason}` : `not imported: ${r.reason}`);
+          for (const x of r.skills || []) out(`  ${x.status.padEnd(9)} skill_${x.name} (${x.examples ?? 0} example(s))`);
         } else if (pos[1] === 'gaps') {
           for (const g of agency.crystallizer.gaps(pos[2] || null)) out(`${g.status.padEnd(8)} skill_${g.skill} answer=${g.answer} markers=${g.markers.join(',')}${g.resolved_by ? ` -> skill_${g.resolved_by}` : ''}  ${g.task.slice(0, 80)}`);
         } else if (pos[1] === 'learn-gap') {

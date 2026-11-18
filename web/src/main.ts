@@ -494,6 +494,11 @@ async function loadSkills() {
     <p class="dim">When no single skill answers but a chain of them does (each step's output feeding the next), the binder may propose one. Every literal must be grounded in the task, every number used, and every step must feed a later one. A new chain shape is not trusted until the judge has verified it twice against the agent loop's answer. After that, the agency <b>writes the composed skill itself</b>: code that calls the verified skills, with no model involved. It must reproduce every verified chain, and a learned binder then routes it with zero model calls.</p>
     ${(d.chains || []).length ? `<table class="evotbl"><tr><th>chain</th><th>verdict</th><th>result</th><th>composed into</th></tr>${d.chains.slice(-10).reverse().map((c: any) => `<tr><td class="mono">${esc(c.steps.map((x: any) => x.skill).join(" → "))}</td><td>${esc(c.label)}</td><td>${c.out == null ? "–" : Number(Number(c.out).toPrecision(8))}</td><td class="mono">${c.composed ? "skill_" + esc(c.composed) : "–"}</td></tr>`).join("")}</table>` : '<p class="dim">No compositions yet.</p>'}
     ${d.skills.length ? `<table class="evotbl"><tr><th>skill</th><th>what it computes</th><th>verified on</th><th>uses</th><th>learned from</th></tr>${d.skills.map((k: any) => `<tr><td class="mono">skill_${esc(k.name)}${k.status !== "active" ? ` <span class="dim">(${esc(k.status)})</span>` : ""}</td><td>${esc(k.description)}</td><td>${k.verification?.inputs ?? "–"} inputs${k.verification?.tiebreak ? " (2-of-3)" : ""}</td><td>${k.uses}</td><td class="mono">${esc(k.source)}</td></tr>`).join("")}</table>` : '<p class="dim">No skills yet. They appear automatically after well-scored missions, or crystallize one below.</p>'}
+    <h3>Skill plasmids: learned elsewhere, verified here</h3>
+    <p class="dim">A verified skill can travel to another agency as a signed plasmid, together with the skills it calls, the signed ledger entry that admitted each one, and its verified examples. No binder travels: the receiver induces its own. On arrival the signature, code hashes and admission entries are checked, and every verification row is re-run here. Then the skill is on <b>probation</b>: it answers nothing. When a task uses wording its examples verified, the local agents answer and the skill's output is judged against theirs (2 of 3). Two agreements adopt it; a corroborated refutation rejects it.</p>
+    ${(() => { const imp = d.skills.filter((k: any) => String(k.source).startsWith("import:")); return imp.length ? `<table class="evotbl"><tr><th>skill</th><th>status</th><th>from</th><th>local trials</th><th>reproduced</th></tr>${imp.map((k: any) => `<tr><td class="mono">skill_${esc(k.name)}</td><td>${esc(k.status)}</td><td class="mono">${esc(String(k.verification?.imported?.signer || "").slice(0, 12))}…</td><td>${(() => { const t = k.verification?.trials; const via = (d.adoptions || []).find((x: any) => x.name === k.name)?.via; return via ? `adopted with <span class="mono">skill_${esc(via)}</span>, whose verified answers ran it` : t ? `${t.agree} agree · ${t.refuted} refuted · ${t.inconclusive} unclear` : "–"; })()}</td><td>${k.verification?.inputs ?? "–"} rows</td></tr>`).join("")}</table>` : '<p class="dim">No imported skills yet.</p>'; })()}
+    <div class="row"><select id="plexp">${d.skills.filter((k: any) => k.status === "active").map((k: any) => `<option>${esc(k.name)}</option>`).join("")}</select><button class="ghost" id="plexpgo">Export as plasmid</button><input type="file" id="plimp" accept=".json" /><button class="ghost" id="plimpgo">Import plasmid</button></div>
+    <div id="plout"></div>
     <div class="row"><input id="crtext" placeholder="Describe a solved task to crystallize, e.g. 'convert a recipe between servings: scale each ingredient quantity by new/old servings'" /><button id="crgo" class="ghost">Crystallize</button></div>
     <div id="crout"></div>`;
   $("#askgo")!.addEventListener("click", async (e) => {
@@ -507,6 +512,22 @@ async function loadSkills() {
     if (!r) { $("#askout")!.innerHTML = ""; return; }
     $("#askout")!.innerHTML = askCard(r);
     setTimeout(() => void loadSkills().then(() => { const o = $("#askout"); if (o) o.innerHTML = askCard(r); const t = $("#asktext") as HTMLInputElement | null; if (t) t.value = task; }), 300);
+  });
+  $("#plexpgo")?.addEventListener("click", async () => {
+    const name = val("#plexp");
+    const r = await guard(() => api<any>(`/api/skills/${encodeURIComponent(name)}/plasmid`));
+    if (r) download(`${name}.skill.plasmid.json`, JSON.stringify(r.plasmid));
+  });
+  $("#plimpgo")?.addEventListener("click", async (e) => {
+    const f = ($("#plimp") as HTMLInputElement).files?.[0];
+    if (!f) return;
+    const btn = e.currentTarget as HTMLButtonElement;
+    busy(btn, true, "Re-verifying…");
+    const r = await guard(async () => api<any>("/api/skills/import", { body: { plasmid: JSON.parse(await f.text()) } }));
+    busy(btn, false);
+    if (!r) return;
+    $("#plout")!.innerHTML = r.imported ? `<p class="ok"><b>Imported:</b> ${esc(r.reason)}</p>` : `<p class="err"><b>Not imported:</b> ${esc(r.reason)}</p>`;
+    if (r.imported) setTimeout(() => void loadSkills(), 400);
   });
   $("#crgo")!.addEventListener("click", async (e) => {
     const btn = e.currentTarget as HTMLButtonElement;

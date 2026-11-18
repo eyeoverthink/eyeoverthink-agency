@@ -1,0 +1,308 @@
+{
+  "at": "2026-11-18T00:33:59.924Z",
+  "export": {
+    "top": "final_price_with_tax_then_even_spl_dc52",
+    "skills": [
+      "calculate_final_price_with_tax",
+      "calculate_even_split",
+      "final_price_with_tax_then_even_spl_dc52"
+    ],
+    "signer": "17f52f3ad8769eb4308b00717c16c1c0edc09a824d29843c232bb320477271c2",
+    "strandSha": "6d12bd2215f6894108e1ff7235fb2d7ac74231b45c2c95ac48f0e05e08ebe250",
+    "bytes": 47372,
+    "senderLearningCost": "Phase 13 run 3: ~59 model calls to learn calculate_final_price_with_tax from refusals; Phase 14 run 6: 6 learning tasks at ~5 calls each plus the split building block"
+  },
+  "binderAttempts": [
+    {
+      "skill": "calculate_final_price_with_tax",
+      "admitted": true,
+      "reason": "induced with no model from 6 example(s), each predicted from the others, refuses 0 negative(s), binds 75% of blind paraphrases",
+      "synth": [
+        {
+          "ok": true,
+          "got": {
+            "original_price": 50,
+            "discount": 0.15,
+            "tax_rate": 0.04
+          },
+          "task": "A $50 toy is discounted by 15%, then a 4% sales tax is applied. What's the final price?"
+        },
+        {
+          "ok": true,
+          "got": {
+            "original_price": 120,
+            "discount": 0.25,
+            "tax_rate": 0.08
+          },
+          "task": "The original price of a $120 bike is reduced by 25%, and then an 8% sales tax is added. What's the total?"
+        },
+        {
+          "ok": true,
+          "got": {
+            "original_price": 75,
+            "discount": 0.3,
+            "tax_rate": 0.05
+          },
+          "task": "A $75 book is discounted at a rate of 30%, and then a 5% sales tax is applied. What's the final price?"
+        },
+        {
+          "ok": false,
+          "got": null,
+          "task": "A $40 phone case has its original price reduced by 20%, and then an additional 2% discount is applied on top of that, followed by a 6% sales tax. What's the final total?"
+        }
+      ],
+      "negatives": []
+    },
+    {
+      "skill": "final_price_with_tax_then_even_spl_dc52",
+      "admitted": false,
+      "reason": "would route 3 task(s) that must not bind, e.g. \"A $200 dinner is discounted by 20%, then an 8% sales tax is added, and the total is split among 6 friends.\"",
+      "hinted": {
+        "number_of_people": [
+          "people"
+        ]
+      },
+      "synth": [
+        {
+          "ok": true,
+          "got": {
+            "original_price": 300,
+            "discount": 0.15,
+            "tax_rate": 0.08,
+            "number_of_people": 6
+          },
+          "task": "A $300 meal is discounted by 15%, then an 8% sales tax is added, and the total is split among 6 friends. How much does each friend pay?"
+        },
+        {
+          "ok": true,
+          "got": {
+            "original_price": 150,
+            "discount": 0.1,
+            "tax_rate": 0.07,
+            "number_of_people": 3
+          },
+          "task": "A $150 dinner is discounted by 10%, then a 7% sales tax is added, and the total is split evenly among 3 friends. How much does each friend pay?"
+        },
+        {
+          "ok": true,
+          "got": {
+            "original_price": 250,
+            "discount": 0.2,
+            "tax_rate": 0.09,
+            "number_of_people": 5
+          },
+          "task": "A $250 meal is discounted by 20%, then a 9% sales tax is added, and the total is split among 5 friends. How much does each friend pay?"
+        },
+        {
+          "ok": true,
+          "got": {
+            "original_price": 180,
+            "discount": 0.12,
+            "tax_rate": 0.08,
+            "number_of_people": 4
+          },
+          "task": "A $180 dinner is discounted by 12%, then an 8% sales tax is added, and the total is split evenly among 4 friends. How much does each friend pay?"
+        }
+      ],
+      "negatives": [
+        {
+          "ok": false,
+          "task": "A $200 dinner is discounted by 20%, then an 8% sales tax is added, and the total is split among 6 friends."
+        },
+        {
+          "ok": false,
+          "task": "How much does each friend pay if a $300 meal is discounted by 15%, then a 7% sales tax is added, and the total is split evenly among 3 friends?"
+        },
+        {
+          "ok": false,
+          "task": "A $150 dinner is discounted by 10%, then an 8% sales tax is added, but only 2 people are splitting the bill."
+        }
+      ]
+    }
+  ],
+  "receiver": {
+    "identity": "9b1ec7e65e896d08ec6cb954b700568c5676c3eadd92e3b0181672a46f38d3ab",
+    "skillsBefore": 0
+  },
+  "import": {
+    "imported": true,
+    "reason": "3 skill(s) on probation until 2 local verdicts agree",
+    "skills": [
+      {
+        "name": "calculate_final_price_with_tax",
+        "status": "probation",
+        "examples": 6
+      },
+      {
+        "name": "calculate_even_split",
+        "status": "probation",
+        "examples": 0
+      },
+      {
+        "name": "final_price_with_tax_then_even_spl_dc52",
+        "status": "probation",
+        "examples": 3
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "ts1",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 7,
+      "s": 7.9,
+      "correct": true,
+      "trial": {
+        "agree": true,
+        "skill": 51.84,
+        "agent": 51.84,
+        "second": null
+      },
+      "statuses": {
+        "calculate_final_price_with_tax": "probation",
+        "calculate_even_split": "probation",
+        "final_price_with_tax_then_even_spl_dc52": "probation"
+      },
+      "final": "# Dinner Split Among Friends\nEach friend pays $51.84.\n"
+    },
+    {
+      "id": "ds-near",
+      "control": true,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 4,
+      "s": 6.1,
+      "correct": true,
+      "trial": null,
+      "statuses": {
+        "calculate_final_price_with_tax": "probation",
+        "calculate_even_split": "probation",
+        "final_price_with_tax_then_even_spl_dc52": "probation"
+      },
+      "final": "Each friend pays $72."
+    },
+    {
+      "id": "ts2",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 7,
+      "s": 11.8,
+      "correct": true,
+      "trial": {
+        "agree": true,
+        "skill": 47.7,
+        "agent": 47.7,
+        "second": null
+      },
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active"
+      },
+      "final": "# Concert Package Price per Friend\nEach friend pays $47.70.\n\n**Calculation Steps:**\n1. Discount: $250 x 10% = $25\n2. Price after discount: $250 - $25 = $225\n3. Sales tax: $225 x 6% = $13.50\n4. Total p"
+    },
+    {
+      "id": "ts3",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 8,
+      "s": 20.3,
+      "correct": true,
+      "trial": null,
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active"
+      },
+      "final": "# Lesson Cost per Friend\nEach friend pays $72.76 for the lesson.\n\n## Calculation Steps:\n1. Original price: $320\n2. Discount (15%): -$48\n3. Price after discount: $272\n4. Sales tax (7%): +$19.04\n5. Tota"
+    },
+    {
+      "id": "ts4",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 10,
+      "s": 32.9,
+      "correct": false,
+      "trial": null,
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active"
+      },
+      "final": "### Each Friend's Share of the Bill\n\n$32.18 (rounded to two decimal places)\n\nThis calculation assumes a $90 meal with a 30% discount, followed by a 5% sales tax, and then split evenly between 2 friend"
+    },
+    {
+      "id": "ts5",
+      "control": false,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 4,
+      "s": 15.7,
+      "correct": true,
+      "trial": null,
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active"
+      },
+      "final": "Each friend pays $40.88\n===============\nCalculation:\nDiscounted price: $400 * (1 - 0.25) = $300\nSales tax added: $300 * (1 + 0.09) = $327\nSplit among friends: $327 / 8 = $40.875\n"
+    },
+    {
+      "id": "c-more",
+      "control": true,
+      "answeredBy": "agents",
+      "zeroCall": false,
+      "calls": 10,
+      "s": 22.2,
+      "correct": null,
+      "trial": null,
+      "statuses": {
+        "calculate_final_price_with_tax": "active",
+        "calculate_even_split": "active",
+        "final_price_with_tax_then_even_spl_dc52": "active"
+      },
+      "final": "## Amounts Paid by Ann and Bob\nAnn pays: $122.80 (total)\nBob pays: $150.00 (remaining amount after Ann's payment)\n\n## Difference in Payments\nAnn pays $72.8 more than Bob"
+    }
+  ],
+  "adopt": [
+    {
+      "codeSha256": "2f59303b5b98578c34000508bd18d82d6bd71f7a3f1303093e3b891c594eb854",
+      "name": "final_price_with_tax_then_even_spl_dc52",
+      "signer": "17f52f3ad8769eb4308b00717c16c1c0edc09a824d29843c232bb320477271c2",
+      "trials": {
+        "agree": 2,
+        "inconclusive": 0,
+        "refuted": 0
+      },
+      "via": null
+    },
+    {
+      "codeSha256": "2196c4e6a2922fd4cfb45345f6cb267d90f1a73607678300632525a32476ab98",
+      "name": "calculate_even_split",
+      "signer": "17f52f3ad8769eb4308b00717c16c1c0edc09a824d29843c232bb320477271c2",
+      "trials": null,
+      "via": "final_price_with_tax_then_even_spl_dc52"
+    },
+    {
+      "codeSha256": "5721df4469812d1d774d6be131953428ca71dca73cc49b8707bdcc1c04dc9ad6",
+      "name": "calculate_final_price_with_tax",
+      "signer": "17f52f3ad8769eb4308b00717c16c1c0edc09a824d29843c232bb320477271c2",
+      "trials": null,
+      "via": "final_price_with_tax_then_even_spl_dc52"
+    }
+  ],
+  "rejects": [],
+  "binders": [
+    {
+      "skill": "calculate_final_price_with_tax",
+      "status": "active",
+      "examples": 6
+    }
+  ],
+  "ledgerOk": true
+}

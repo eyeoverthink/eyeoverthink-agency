@@ -1,0 +1,52 @@
+[
+  {
+    "id": "n1",
+    "control": false,
+    "answeredBy": "final_price_with_tax_then_even_spl_dc52",
+    "zeroCall": true,
+    "calls": 0,
+    "s": 0.1,
+    "correct": true,
+    "declined": null
+  },
+  {
+    "id": "n2",
+    "control": false,
+    "answeredBy": "final_price_with_tax_then_even_spl_dc52",
+    "zeroCall": true,
+    "calls": 0,
+    "s": 0.1,
+    "correct": true,
+    "declined": null
+  },
+  {
+    "id": "n3",
+    "control": false,
+    "answeredBy": "agents",
+    "zeroCall": false,
+    "calls": 18,
+    "s": 41.3,
+    "correct": true,
+    "declined": "binding rejected: discount = 0.15 does not appear in the task"
+  },
+  {
+    "id": "n4",
+    "control": false,
+    "answeredBy": "final_price_with_tax_then_even_spl_dc52",
+    "zeroCall": true,
+    "calls": 0,
+    "s": 0.1,
+    "correct": true,
+    "declined": null
+  },
+  {
+    "id": "c-disc",
+    "control": true,
+    "answeredBy": "agents",
+    "zeroCall": false,
+    "calls": 14,
+    "s": 41.2,
+    "correct": false,
+    "declined": "binding rejected: total_bill.$ref = \"calculate_final_price_with_tax\" does not appear in the task"
+  }
+]

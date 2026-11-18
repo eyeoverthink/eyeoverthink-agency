@@ -13,6 +13,9 @@
 //   measure : uses, failures, and model calls avoided: the curve that shows the system, not the model, improving.
 import { newId, nowIso, sha256 } from '../core/util.js';
 import { runSandboxedJs } from '../tools/builtin.js';
+import { buildPlasmid, openPlasmid } from '../core/dna.js';
+import { verifyWith } from '../core/identity.js';
+import { Ledger } from '../core/ledger.js';
 import { induce, leaveOneOut, compileSpec, applySpec, questionWords, numberTokens, learnBlocks, contested, novelWording, wordingOf } from './binder-induction.js';
 
 const NAME = /^[a-z][a-z0-9_]{2,39}$/;
@@ -500,7 +503,16 @@ export class Crystallizer {
    *   4. run the verified code. Any failure falls through to the normal agent loop; nothing is lost by trying.
    * Returns { skill, input, out, bindModel, usage } or { miss: reason, usage }.
    */
-  async route(task, { signal, privacy = 'normal', agentId = null, missionId = null, reflection = 0 } = {}) {
+  async route(task, opts = {}) {
+    const r = await this.#routeOwned(task, opts);
+    // Imported skills on probation (Phase 15) never answer; when nothing owned answers or is already being judged,
+    // one that would bind this task is tried in the shadow of the agent loop's answer.
+    if (r.skill || r.shadow || opts.privacy === 'private' || opts.privacy === 'sealed' || this.cfg?.skills?.trials === false) return r;
+    const trial = await this.#probationTrial(String(task)).catch(() => null);
+    return trial ? { ...r, shadow: trial } : r;
+  }
+
+  async #routeOwned(task, { signal, privacy = 'normal', agentId = null, missionId = null, reflection = 0 } = {}) {
     const cfg = this.cfg?.skills || {};
     const zero = { prompt: 0, completion: 0 };
     const active = this.list('active');
@@ -681,7 +693,7 @@ export class Crystallizer {
     // Skills born from verified examples (composed from chains, or learned from corroborated refusals) know their
     // verified wording from birth, so the gate applies from the first example. Measured in Phase 14: a composed
     // discount-then-split skill with 2 examples was chosen by the 3B binder for "...then 8% sales tax is added..." tasks.
-    const born = /^(chain|gap):/.test(this.list('active').find((s) => s.name === skill)?.source || '');
+    const born = /^(chain|gap|import):/.test(this.list('active').find((s) => s.name === skill)?.source || '');
     if (this.cfg?.skills?.verifyWording !== false && pos.length >= (born ? 1 : this.cfg?.skills?.binderMinExamples ?? 3)) {
       const novel = novelWording(pos, task);
       if (novel.length) return `unverified wording (${novel.slice(0, 4).map((w) => `"${w}"`).join(', ')}): the agent loop answers, and its answer is compared with the skill's`;
@@ -747,6 +759,7 @@ export class Crystallizer {
       if (pick.length !== 1) return null;
       return this.#chainVerdict({ chain: pick[0].chain, signature: pick[0].signature, reason: shadow.reason }, task, final, { agentId, missionId });
     }
+    if (shadow?.probation) return this.#trialVerdict(shadow, task, final, { agentId, missionId });
     if (shadow?.chain) return this.#chainVerdict(shadow, task, final, { agentId, missionId });
     const skill = this.list('active').find((s) => s.name === shadow?.skill);
     if (!skill || !final) return null;
@@ -985,7 +998,7 @@ export class Crystallizer {
    * left composed skills unrouted, because the 3B binder rarely picked them among six offered skills.
    */
   #minExamples(skill) {
-    const born = /^(chain|gap):/.test(this.list('active').find((s) => s.name === skill)?.source || '');
+    const born = /^(chain|gap|import):/.test(this.list('active').find((s) => s.name === skill)?.source || '');
     const min = this.cfg?.skills?.binderMinExamples ?? 3;
     return born ? Math.min(2, min) : min;
   }
@@ -1045,6 +1058,21 @@ export class Crystallizer {
       const ind = induce(kept, neg, skill);
       loo = leaveOneOut(kept, neg, skill);
       if (ind.spec && loo.every((x) => x.ok || x.novel)) { method = 'induction'; spec = ind.spec; code = compileSpec(spec); train = kept; disputed = pos.filter((e) => !kept.includes(e)); }
+    }
+    // Imported routing knowledge (Phase 15): the sender's binder spec travels as DATA. Only its units are used, and only
+    // where the sender's selector is the same one induced here (same number kind, position and scale); the merged spec
+    // is compiled here and verified below like any other (recorded bindings, every negative, blind paraphrases).
+    const hint = method === 'induction' ? this.store.kvGet(`binder:hint:${skillName}`, null) : null;
+    let hinted = null;
+    if (hint?.params) {
+      const merged = Object.fromEntries(Object.entries(spec.params).map(([k, p]) => {
+        const h = hint.params[k];
+        const same = h && p.units && Array.isArray(h.units) && h.kind === p.kind && h.k === p.k && h.scale === p.scale;
+        const extra = same ? h.units.filter((u) => typeof u === 'string' && u.length <= 24 && !p.units.includes(u)) : [];
+        if (extra.length) (hinted ??= {})[k] = extra;
+        return [k, extra.length ? { ...p, units: [...p.units, ...extra].sort() } : p];
+      }));
+      if (hinted) { spec = { ...spec, params: merged }; code = compileSpec(spec); }
     }
     // 2. Fallback: a model writes the parser from all but one example, which it never sees.
     if (!code) {
@@ -1125,9 +1153,26 @@ export class Crystallizer {
       }
     }
 
+    // A blind near-miss is one model's label, not ground truth. Measured in Phase 15: a model wrote "A $200 dinner is
+    // discounted by 20%, then an 8% sales tax is added, and the total is split among 6 friends" as a task the tax-split
+    // skill must NOT answer, and the correct binder was refused for binding it. A blind negative that binds is judged:
+    // if the agents agree with the skill's answer (2 of 3), it was mislabeled and becomes a positive. Recorded
+    // refusals are never relabeled.
+    const relabeled = [];
+    if (this.agentAnswer && this.cfg?.skills?.judgeNegatives !== false) {
+      for (const x of rows.negatives) {
+        if (x.ok || !synth.negatives.includes(x.task) || !x.got || typeof x.got !== 'object') continue;
+        const run = await this.#run(skill.code, x.got, library);
+        if (run.error || typeof run.out !== 'number') continue;
+        const final = await this.agentAnswer(x.task).catch(() => null);
+        const j = await this.#judge(x.task, run.out, final, this.agentAnswer);
+        if (j.agree) { x.ok = true; x.relabeled = j; relabeled.push(x.task); this.#example(skillName, x.task, x.got, 'pos'); }
+      }
+      if (relabeled.length) this.ledger.append('binder.relabel', { skill: skillName, tasks: relabeled.map((t) => t.slice(0, 160)) }, 'crystallizer');
+    }
     const coverage = rows.synthPos.length ? rows.synthPos.filter((x) => x.ok).length / rows.synthPos.length : null;
-    const verification = { train: `${rows.train.filter((x) => x.ok).length}/${rows.train.length}`, heldOut: rows.heldOut.ok,
-      negatives: `${rows.negatives.filter((x) => x.ok).length}/${rows.negatives.length} refused`, coverage, widened: widened || undefined, method, writer, spec, disputed: disputed.map((e) => e.task), rows };
+    const verification = { relabeled: relabeled.length || undefined, train: `${rows.train.filter((x) => x.ok).length}/${rows.train.length}`, heldOut: rows.heldOut.ok,
+      negatives: `${rows.negatives.filter((x) => x.ok).length}/${rows.negatives.length} refused`, coverage, widened: widened || undefined, hinted: hinted || undefined, method, writer, spec, disputed: disputed.map((e) => e.task), rows };
     if (rows.train.some((x) => !x.ok)) return fail(`does not reproduce ${rows.train.filter((x) => !x.ok).length} recorded binding(s)`, verification);
     if (!rows.heldOut.ok) return fail('fails the held-out example it never saw (memorized, not general)', verification);
     const falsePos = rows.negatives.filter((x) => !x.ok);
@@ -1177,6 +1222,159 @@ export class Crystallizer {
     const ok = this.store.run("UPDATE skills SET status = 'retired', updated = ? WHERE name = ? AND status = 'active'", nowIso(), name).changes > 0;
     if (ok) { this.tools.tools?.delete(`skill_${name}`); this.ledger.append('skill.retire', { name, reason }, 'operator'); }
     return ok;
+  }
+
+  // ---- Skill plasmids: verified skills travel between agencies (Phase 15) -------------------------------------------
+
+  /** The skills a skill's code calls (skill_<name>), recursively, dependencies first. */
+  #dependencies(skill, pool, seen = new Set()) {
+    const out = [];
+    for (const m of String(skill.code).matchAll(/\bskill_([a-z][a-z0-9_]{2,39})\b/g)) {
+      const dep = pool.find((s) => s.name === m[1]);
+      if (!dep || seen.has(dep.name) || dep.name === skill.name) continue;
+      seen.add(dep.name);
+      out.push(...this.#dependencies(dep, pool, seen), dep);
+    }
+    return out;
+  }
+
+  /**
+   * Export an active skill as a signed plasmid: its code, contract and verification rows, the skills it calls, the
+   * signed ledger entry that admitted each one, and its positive examples (task -> binding), never negatives, never
+   * private work (examples are only ever recorded from non-private tasks). No binder is shipped: the receiver induces
+   * its own from the examples, so it never runs routing code it did not derive itself.
+   */
+  exportSkill(name, identity, { examples = true } = {}) {
+    const active = this.list('active');
+    const top = active.find((s) => s.name === name);
+    if (!top) throw new Error(`no active skill ${name}`);
+    const bundle = [...this.#dependencies(top, active), top];
+    const admission = (s) => {
+      const e = this.store.all("SELECT * FROM ledger WHERE kind IN ('skill.admit', 'skill.compose', 'skill.adopt') ORDER BY seq DESC")
+        .map((r) => ({ ...r, data: JSON.parse(r.data) })).find((r) => r.data.name === s.name && r.data.codeSha256 === s.code_sha256);
+      return e ? { seq: e.seq, ts: e.ts, kind: e.kind, actor: e.actor, data: e.data, prev: e.prev, hash: e.hash, sig: e.sig, signer: e.signer } : null;
+    };
+    const skills = bundle.map((s) => ({ name: s.name, description: s.description, params: s.params, code: s.code, code_sha256: s.code_sha256, source: s.source,
+      verification: { method: s.verification?.method, answerKey: s.verification?.answerKey, inputs: s.verification?.inputs, rows: (s.verification?.rows || []).slice(0, 12) }, admission: admission(s) }));
+    const ex = examples ? Object.fromEntries(bundle.map((s) => [s.name, this.examples(s.name).filter((e) => e.label === 'pos' && e.input).slice(-24).map((e) => ({ task: e.task, input: e.input }))])) : {};
+    const binders = Object.fromEntries(bundle.map((s) => [s.name, this.binder(s.name)]).filter(([, b]) => b).map(([n, b]) => { const v = JSON.parse(b.verification || '{}'); return [n, v.method === 'induction' && v.spec ? { params: v.spec.params } : null]; }).filter(([, v]) => v));
+    const plasmid = buildPlasmid(`skill:${name}`, { 'skills.json': skills, 'examples.json': ex, 'binders.json': binders, 'provenance.json': { agency: this.cfg?.name || null, exported: nowIso(), top: name } }, identity);
+    this.ledger.append('skill.export', { name, skills: bundle.map((s) => s.name), examples: Object.values(ex).reduce((n, l) => n + l.length, 0), strandSha: plasmid.strandSha }, 'crystallizer');
+    return { skill: name, skills: bundle.map((s) => s.name), plasmid };
+  }
+
+  /**
+   * Import a skill plasmid. Nothing the sender claims is trusted:
+   *   - the plasmid's signature and every part's hash (and, if given, that the signer is the expected peer);
+   *   - each skill's code hash, and the sender's signed ledger entry that admitted it (signature by the same signer);
+   *   - every verification row is re-run in the local sandbox and must reproduce;
+   *   - every example's binding must be grounded in its task (no invented values);
+   *   - names that already exist here must be the same code.
+   * Admitted skills start on PROBATION: they answer nothing. Tasks they would bind still go to the local agents, and the
+   * skill's output is judged against that answer (the 2-of-3 judge). `skills.importTrust` local agreements adopt it.
+   */
+  async importSkill(plasmid, { trustSigner = null } = {}) {
+    const fail = (reason) => { this.ledger.append('skill.import_reject', { label: plasmid?.label || null, signer: plasmid?.signer || null, reason }, 'crystallizer'); return { imported: false, reason }; };
+    let opened;
+    try { opened = openPlasmid(plasmid, verifyWith); } catch (e) { return fail(e.message); }
+    if (!plasmid.sig || !plasmid.signer) return fail('plasmid is not signed');
+    if (trustSigner && plasmid.signer !== trustSigner) return fail('signer is not the trusted peer');
+    if (!String(opened.label).startsWith('skill:')) return fail('not a skill plasmid');
+    const json = (n) => { try { return JSON.parse(opened.parts[n]?.toString('utf8') || 'null'); } catch { return null; } };
+    const skills = json('skills.json'), examples = json('examples.json') || {};
+    if (!Array.isArray(skills) || !skills.length || skills.length > 8) return fail('skills.json is missing or malformed');
+    const local = this.list(), lib = this.list('active'), rows = [];
+    for (const s of skills) {
+      if (!NAME.test(String(s.name)) || typeof s.code !== 'string' || !s.params) return fail(`skill ${s.name}: malformed`);
+      if (sha256(s.code) !== s.code_sha256) return fail(`skill ${s.name}: code hash mismatch`);
+      const a = s.admission;
+      if (!a || a.signer !== plasmid.signer || Ledger.entryHash(a) !== a.hash || !verifyWith(a.signer, a.hash, a.sig) || a.data?.codeSha256 !== s.code_sha256) return fail(`skill ${s.name}: no valid signed admission entry from the sender`);
+      const mine = local.find((x) => x.name === s.name);
+      if (mine && mine.code_sha256 !== s.code_sha256) return fail(`skill ${s.name}: a different skill with this name already exists here`);
+      if (mine) { rows.push({ name: s.name, owned: mine.status }); lib.push(mine); continue; }
+      // Reproduce the sender's verification rows here, with the bundle's earlier skills as the library.
+      const vr = s.verification?.rows || [];
+      if (vr.length < 2) return fail(`skill ${s.name}: fewer than 2 verification rows to reproduce`);
+      for (const r of vr) {
+        const run = await this.#run(s.code, r.input, lib.filter((x) => x.name !== s.name));
+        if (run.error || !sameOutput(run.out, r.out)) return fail(`skill ${s.name}: does not reproduce its verification row ${JSON.stringify(r.input).slice(0, 80)}`);
+      }
+      const ex = (examples[s.name] || []).filter((e) => e && typeof e.task === 'string' && e.input);
+      const bad = ex.find((e) => groundingProblem(e.input, s.params, e.task));
+      if (bad) return fail(`skill ${s.name}: an example's binding is not grounded in its task (${groundingProblem(bad.input, s.params, bad.task)})`);
+      rows.push({ name: s.name, skill: s, examples: ex });
+      lib.push({ ...s, status: 'probation' });
+    }
+    const fresh = rows.filter((r) => r.skill);
+    if (!fresh.length) return { imported: true, reason: 'every skill in the plasmid is already here', skills: rows.map((r) => ({ name: r.name, status: r.owned })) };
+    const signer = String(plasmid.signer).slice(0, 12);
+    for (const r of fresh) {
+      const s = r.skill, id = newId('sk');
+      const verification = { method: `imported from ${signer}: ${s.verification?.method || 'unknown'}; reproduced ${s.verification.rows.length} row(s) locally`, inputs: s.verification.rows.length, rows: s.verification.rows,
+        imported: { signer: plasmid.signer, strandSha: plasmid.strandSha, admission: s.admission.hash, source: s.source }, trials: { agree: 0, refuted: 0, inconclusive: 0 } };
+      this.store.run('INSERT INTO skills (id, name, description, params, code, code_sha256, status, source, verification, uses, failures, created, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)',
+        id, s.name, String(s.description).slice(0, 300), JSON.stringify(s.params), s.code, s.code_sha256, 'probation', `import:${signer}`, JSON.stringify(verification), nowIso(), nowIso());
+      for (const e of r.examples.slice(0, 24)) this.#example(s.name, e.task, e.input, 'pos');
+      const hint = json('binders.json')?.[s.name];
+      if (hint?.params && typeof hint.params === 'object') this.store.kvSet(`binder:hint:${s.name}`, { params: hint.params, signer: plasmid.signer });
+    }
+    this.ledger.append('skill.import', { skills: fresh.map((r) => r.name), signer: plasmid.signer, strandSha: plasmid.strandSha, examples: fresh.reduce((n, r) => n + r.examples.length, 0) }, 'crystallizer');
+    this.bus?.publish('skill.import', { skills: fresh.map((r) => r.name) });
+    return { imported: true, reason: `${fresh.length} skill(s) on probation until ${this.cfg?.skills?.importTrust ?? 2} local verdicts agree`, skills: rows.map((r) => ({ name: r.name, status: r.owned || 'probation', examples: r.examples?.length ?? 0 })) };
+  }
+
+  /**
+   * A probation trial: an imported skill that would bind this task (binder induced here from its examples, no model)
+   * computes its answer; the agent loop still answers, and the shadow verdict judges the skill against it.
+   */
+  async #probationTrial(text) {
+    const probation = this.list('probation');
+    if (!probation.length) return null;
+    const lib = [...this.list('active'), ...probation];
+    for (const s of probation) {
+      const pos = this.examples(s.name).filter((e) => e.label === 'pos' && e.input);
+      if (!pos.length) continue;
+      // Only wording the shipped examples verified: on a near-miss ("another 10% off" for a tax skill) the agents' answer
+      // would refute a correct skill for the wrong reason. On verified wording, a corroborated refutation means wrong code.
+      if (novelWording(pos, text).length) continue;
+      const ind = induce(pos, [], s);
+      const input = ind.spec ? applySpec(ind.spec, text) : null;
+      if (!input || bindingProblem(input, s, text)) continue;
+      const run = await this.#run(s.code, input, lib.filter((x) => x.name !== s.name));
+      if (run.error || typeof run.out !== 'number') continue;
+      return { skill: s.name, input, out: run.out, probation: true, reason: 'imported skill on probation' };
+    }
+    return null;
+  }
+
+  async #trialVerdict(shadow, task, final, { agentId = null, missionId = null } = {}) {
+    const s = this.list('probation').find((x) => x.name === shadow.skill);
+    if (!s || !final) return null;
+    const j = await this.#judge(task, shadow.out, final, this.agentAnswer);
+    const v = s.verification;
+    v.trials ??= { agree: 0, refuted: 0, inconclusive: 0 };
+    v.trials[j.agree === true ? 'agree' : j.agree === false ? 'refuted' : 'inconclusive']++;
+    this.ledger.append('skill.trial', { skill: s.name, agentId, missionId, ...j }, 'crystallizer');
+    this.bus?.publish('skill.trial', { skill: s.name, agree: j.agree });
+    if (j.agree) this.#example(s.name, task, shadow.input, 'pos');
+    let status = 'probation';
+    if (j.agree === false && j.corroborated != null) status = 'rejected';
+    else if (v.trials.agree >= (this.cfg?.skills?.importTrust ?? 2)) status = 'active';
+    // Adoption brings the skills it calls: their outputs were part of every verified answer.
+    const group = status === 'active' ? [...this.#dependencies(s, this.list('probation')), s] : [s];
+    for (const g of group) {
+      const gv = g.name === s.name ? v : g.verification;
+      this.store.run('UPDATE skills SET status = ?, verification = ?, updated = ? WHERE id = ?', status, JSON.stringify(gv), nowIso(), g.id);
+    }
+    if (status === 'active') {
+      for (const g of group) this.#register(this.list('active').find((x) => x.name === g.name));
+      for (const g of group) this.ledger.append('skill.adopt', { name: g.name, codeSha256: g.code_sha256, via: g.name === s.name ? null : s.name, trials: g.name === s.name ? v.trials : null, signer: (g.name === s.name ? v : g.verification)?.imported?.signer }, 'crystallizer');
+      this.bus?.publish('skill.admit', { name: s.name, adopted: true });
+      for (const g of group) this.#maybeLearn(g.name);
+    } else if (status === 'rejected') {
+      this.ledger.append('skill.import_reject', { name: s.name, reason: `refuted on a local task (agents corroborated ${j.corroborated}, the skill computed ${shadow.out})`, signer: v.imported?.signer }, 'crystallizer');
+    }
+    return { ...j, trial: true, status };
   }
 
   /** The compounding curve: how much work learned skills are doing instead of models. */

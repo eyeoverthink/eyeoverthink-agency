@@ -18,3 +18,4 @@ Each phase records what was built, what changed, the patterns used, and running 
 | [12](PHASE-12.md) | Verified wording: misroutes stop protecting themselves (shadow verdicts, two-agent judge, body block words; tax and tip misroutes 3/5 to 0/8) | 2026-11-17 |
 | [13](PHASE-13.md) | Refusals become skills: corroborated refusals crystallized into a new skill with an answer key (real run: tax tasks 7/7 at zero model calls after learning) | 2026-11-17 |
 | [14](PHASE-14.md) | Skill composition: chains of owned skills, verified then composed into skills the agency writes itself (real run: 4/4 composite tasks correct, 3 at zero model calls, 0 misroutes in 14) | 2026-11-17 |
+| [15](PHASE-15.md) | Skill plasmids: verified skills travel between agencies, re-verified on arrival, on probation until the receiver's own agents agree (real run: a brand-new agency adopted a composed skill after 2 answered tasks, then 3 of 4 fresh tasks at 0 model calls in 0.1 s) | 2026-11-17 |

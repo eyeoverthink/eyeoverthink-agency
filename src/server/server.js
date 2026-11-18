@@ -102,7 +102,9 @@ export function createServer(agency) {
   add('POST', '/api/exams', ({ body }) => a.evolution.start(need(Array.isArray(body.agents) && body.agents.length ? body.agents : null, 'agents[] required'), { kind: 'exam', count: body.count || 6, repeats: body.repeats || 3 }));
   add('GET', '/api/agents/:id/exams', ({ params }) => a.examiner.list(params.id).map(({ program, ...r }) => ({ ...r, hasProgram: Boolean(program) })));
   // Crystallized skills: verified, owned code distilled from solved tasks.
-  add('GET', '/api/skills', () => ({ stats: a.crystallizer.stats(), skills: a.crystallizer.list().map((s) => ({ ...s, code: undefined, codeLines: s.code.split(String.fromCharCode(10)).length })), binders: a.crystallizer.binders().map((b) => ({ ...b, verification: { ...b.verification, rows: undefined } })), gaps: a.crystallizer.gaps(), chains: a.crystallizer.chains().slice(-30) }));
+  add('GET', '/api/skills', () => ({ stats: a.crystallizer.stats(), skills: a.crystallizer.list().map((s) => ({ ...s, code: undefined, codeLines: s.code.split(String.fromCharCode(10)).length })), binders: a.crystallizer.binders().map((b) => ({ ...b, verification: { ...b.verification, rows: undefined } })), gaps: a.crystallizer.gaps(), chains: a.crystallizer.chains().slice(-30), adoptions: a.ledger.list({ limit: 50, kind: 'skill.adopt' }).map((e) => e.data) }));
+  add('GET', '/api/skills/:name/plasmid', ({ params }) => a.crystallizer.exportSkill(params.name, a.keyring.get('agency')));
+  add('POST', '/api/skills/import', async ({ body }) => a.crystallizer.importSkill(need(body.plasmid, 'plasmid required'), { trustSigner: body.trustSigner || null }));
   add('POST', '/api/skills/compose', async ({ body }) => a.crystallizer.composeChain(need(body.signature, 'signature required')));
   add('POST', '/api/skills/:name/learn-gap', async ({ params }) => a.crystallizer.learnGap(params.name));
   add('POST', '/api/skills/:name/learn-binder', async ({ params }) => a.crystallizer.learnBinder(params.name));
