@@ -80,7 +80,7 @@ test('the cloud guard: a task holding a sensitive value or an owner term never r
 });
 
 test('evaluation mode: every voice answers each split, so voices can be scored against the truth; the decision is unchanged', async () => {
-  const A = await makeAgency(local, { skills: { judgeAllVoices: true } });
+  const A = await makeAgency(local, { skills: { judgeAllVoices: true, programVoice: false } });
   try {
     const cz = A.agency.crystallizer;
     cz.cloudVoice = { available: () => true };
@@ -93,7 +93,7 @@ test('evaluation mode: every voice answers each split, so voices can be scored a
 });
 
 test('voice study: every voice answers tasks with known truth; accuracy, wrong-together and kappa per pair', async () => {
-  const A = await makeAgency(local);
+  const A = await makeAgency(local, { skills: { programVoice: false } });
   try {
     const cz = A.agency.crystallizer;
     cz.cloudVoice = { available: () => true };

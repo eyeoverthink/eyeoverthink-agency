@@ -6,13 +6,13 @@ Deadline: **Nov 30, 2026, 2:00 PM PT**. Status as of Nov 17, 2026 (code frozen a
 |---|---|---|
 | Firebase AI Logic called at runtime | **Done** | Real project `eyeoverthink-agency`: direct calls plus 3 GPU-overflow calls from a real mission, each signed into the ledger as `edge.inference` ([Phase 5](phases/PHASE-5.md)). `node bin/agency.js edge proof` lists them. |
 | Apache-2.0 license | **Done** | `LICENSE` (Apache 2.0); `"license": "Apache-2.0"` in both `package.json` files; GitHub detects `apache-2.0`. |
-| Public repository | **To do (you)** | The repo is still **private**. Make it public with the command below, once the video is recorded. |
+| Public repository | **Done** (Nov 18) | https://github.com/eyeoverthink/eyeoverthink-agency is public; a signed-out visit loads it. Default branch `master`. |
 | YouTube video, 3 minutes or less | **Done** | https://www.youtube.com/watch?v=dXUTdhnmbvA (2:52, public). Built from the live take of [DEMO_SCRIPT.md](DEMO_SCRIPT.md), which was re-rehearsed through the dashboard on real models after the freeze ([evidence](phases/evidence-demo-rehearsal-2.json)): skill learning live (4 calls → 1 → **0 calls, 0.13 s**) and a number checked live by Gemini via Firebase AI Logic. Record from a fresh copy of `demo-base`, with the Firebase worker serving. |
-| Devpost text | **Drafted** (updated with Phases 9–14) | [DEVPOST.md](DEVPOST.md). Paste it into Devpost and add the video URL. |
+| Devpost text | **Ready to paste** (Nov 18) | [DEVPOST.md](DEVPOST.md): name, links, 200-character pitch, video, About sections, Built with. **Submit (you).** |
 
 ## Before making the repo public
-- [ ] Secret scan on the full history. Phase 5 scanned the staged changes; also run `git log -p | grep -E "AIza|6Le|FRAYMUS_TOKEN"` (expect only the placeholders in `web/.env.example`).
-- [ ] `web/.env.local` is untracked (`node bin/agency.js edge doctor` checks this).
+- [x] Secret scan on the full history of all branches (Nov 18): no real keys; only fake `sk-` keys in the redaction tests and a lockfile hash.
+- [x] `web/.env.local` is untracked and gitignored; only `web/.env.example` is in git.
 - [ ] Rotate the reCAPTCHA **secret** (it was pasted into a chat), then update it in Firebase console → App Check.
 - [ ] Rotate the Gemini key and `FRAYMUS_TOKEN` found in `fraynix-dreamer-120b/boot_daemon.vbs`. That's a different repo, but those keys should not stay live.
 - [ ] Firebase console: add your public demo domain (if any) to the reCAPTCHA key, turn on App Check **enforcement** for AI Logic, and delete debug tokens you no longer use.

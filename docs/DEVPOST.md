@@ -1,9 +1,18 @@
 # Devpost submission text — EyeOverThink Agency
 
+Paste each section into the Devpost field of the same name. The "About the project" field takes everything from **Inspiration** through **What's next**.
+
+## Project name
+EyeOverThink Agency
+
+## Try it out
+- Code (Apache-2.0): https://github.com/eyeoverthink/eyeoverthink-agency
+- Run it: `npm test`, then `node bin/agency.js serve` (needs Node.js and Ollama; the dashboard in `web/` needs a Firebase project, see `web/.env.example` and `node bin/agency.js edge doctor`).
+
 ## Video
 https://www.youtube.com/watch?v=dXUTdhnmbvA (2:52, recorded live on real local models; narration in my own voice).
 
-## Tagline
+## Elevator pitch (tagline, exactly 200 characters, Devpost's limit)
 A sovereign AI agency on your own machine: local GPU agents, Firebase AI Logic as extra capacity when the GPU is busy, every result verified before it counts, and every act signed so you can audit it.
 
 ## Inspiration
@@ -80,8 +89,14 @@ The dashboard is also an **edge inference node**. `web/src/hybrid.ts` calls, at 
 - Skills travel between agencies over a signed mesh, and are re-verified and adopted only after local agreement.
 - Its judge is measured, not assumed, and every number it gives is checked by an independent voice.
 
+## What I learned
+- **Measure every voice before trusting it.** The default agent I would have picked as judge was right 50–70% of the time. Gemini was right 40 of 40. Only the measurement showed that.
+- **Independent models are not independent.** When agents were wrong, they were often wrong together, with the same misreading of the question. Two of three agreeing is strong evidence, not proof.
+- **Real calls beat simulated ones.** The first real Firebase AI Logic calls exposed two bugs that every mocked test had passed.
+- **A system that learns must be able to unlearn.** The hardest part wasn't learning skills. It was stopping a wrong example from protecting itself, and letting the agency demote it later.
+
 ## What's next
-- A program-verified judge for tasks the agents can't solve reliably themselves.
+- A program-verified judge for tasks the agents can't solve reliably themselves. (Started after the code freeze on branch `phase-20-program-judge`; not part of the submitted build.)
 - Multi-turn on-device sessions.
 - A visual workflow canvas.
 - Gossip-based memory sync between trusted agencies.

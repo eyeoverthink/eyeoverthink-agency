@@ -74,6 +74,47 @@ test('learning re-audits stored positives: a binding the gates now reject become
   } finally { await A.cleanup(); }
 });
 
+test('wording audit: a positive that no voice supports is demoted only when enough voices answered (Phase 20b)', async () => {
+  const A = await setup({}, { learnBinders: false });
+  try {
+    await teach(A);
+    const cz = A.agency.crystallizer;
+    const add = (id, task, input) => A.agency.store.run("INSERT INTO skill_examples (id, skill, task, input, label, created) VALUES (?, 'compound_discount', ?, ?, 'pos', '2026-01-01')", id, task, JSON.stringify(input));
+    add('se_ok', 'Sneakers list at $80; first 25% off, then 10% off the sale price. What do I pay?', { price: 80, discounts: [25, 10] });
+    // The real Phase 20 row: the skill computes 54 (a price) for a question about a fraction.
+    const POISON = 'An $80 jacket is 25% off, then 10% off. What fraction of the original price remains?';
+    add('se_poison', POISON, { price: 80, discounts: [25, 10] });
+    cz.cloudVoice = { available: () => true };
+    A.agency.store.kvSet('judge:study', { items: 20, voices: ['tycho', 'gemini', 'program', 'forge_keeper', 'lumen'], accuracy: { tycho: 0.5, gemini: 1, forge_keeper: 0.9, program: 0.75, lumen: 0.5 } });
+    // Every voice answers ordinary tasks correctly; on the poisoned one the four voices all differ (measured: 65, 27, 40, 0.675).
+    const split = { undefined: 'FINAL 65', gemini: 'FINAL 27', forge_keeper: 'FINAL 40', program: 'FINAL 0.675' };
+    let silent = new Set();
+    const answer = async (task, id) => {
+      if (silent.has(id)) return null;
+      if (task === POISON) return split[id];
+      const inp = parse(task);
+      return `FINAL ${inp.discounts.reduce((p, d) => p * (1 - d / 100), inp.price)}`;
+    };
+    const label = () => cz.examples('compound_discount').find((e) => e.id === 'se_poison')?.label;
+    // Only 2 voices answer: a split with too few voices proves nothing, so the positive stays.
+    silent = new Set(['forge_keeper', 'program']);
+    let rows = await cz.auditWording('compound_discount', answer);
+    assert.equal(rows.find((r) => r.task === POISON).agree, null);
+    assert.equal(label(), 'pos');
+    // Four voices answer and none matches the skill's 54: demoted, with no corroborated answer (so no gap is taught).
+    silent = new Set();
+    rows = await cz.auditWording('compound_discount', answer);
+    const row = rows.find((r) => r.task === POISON);
+    assert.equal(row.agree, false);
+    assert.equal(row.unsupported, 4);
+    assert.equal(row.corroborated, undefined);
+    assert.match(row.by, /no voice supported the skill/);
+    assert.equal(label(), 'neg');
+    assert.equal(cz.examples('compound_discount').find((e) => e.id === 'se_ok').label, 'pos', 'a supported positive is kept');
+    assert.equal(A.agency.ledger.list({ limit: 1, kind: 'binder.audit_wording' })[0].data.unsupported, 1);
+  } finally { await A.cleanup(); }
+});
+
 test('sameInput is strict about structure (no unwrapping) with numeric tolerance', () => {
   assert.ok(sameInput({ price: 120, discounts: [12, 8.0000000000001] }, { discounts: [12, 8], price: 120 }));
   assert.ok(!sameInput({ price: 120 }, 120));
@@ -280,7 +321,7 @@ test('the judge: one dissenting agent is not proof; a second agent decides, and 
     const sh = { skill: 'compound_discount', input: { price: 95, discounts: [40, 10] }, reason: 'test' }; // skill: 51.3
     const task = 'A $95 helmet gets 40% off and then a further 10% off. What is the price now?';
     let second = null, third = 'No idea, maybe 12.';
-    cz.agentAnswer = async (t, id) => (id === 'forge_keeper' ? third : second);
+    cz.agentAnswer = async (t, id) => (id === 'forge_keeper' ? third : id === 'lumen' ? second : null); // only the two agents this test is about (Phase 20 adds more voices)
     assert.equal((await cz.shadowVerdict(sh, task, 'About $51.')).agree, true, '"51" is 51.3 at the agent precision');
     second = 'It costs $51.30.';
     const j = await cz.shadowVerdict(sh, task, 'It costs $240.');
