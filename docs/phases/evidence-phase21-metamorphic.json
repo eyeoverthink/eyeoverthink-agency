@@ -1,0 +1,2524 @@
+{
+  "phase": 21,
+  "at": "2026-11-26T03:56:48.122Z",
+  "suite": "all",
+  "referenceCheck": {
+    "total": 10,
+    "falseVetoCount": 0,
+    "passed": 10,
+    "rows": [
+      {
+        "name": "round_trip_average (2-arg)",
+        "family": "round_trip_average",
+        "ok": true,
+        "answer": 12,
+        "truth": 12,
+        "right": true,
+        "vetoReason": null
+      },
+      {
+        "name": "round_trip_average (4-arg equal distance)",
+        "family": "round_trip_average",
+        "ok": true,
+        "answer": 40,
+        "truth": 40,
+        "right": true,
+        "vetoReason": null
+      },
+      {
+        "name": "parallel_work_rate (2-arg)",
+        "family": "parallel_work_rate",
+        "ok": true,
+        "answer": 2,
+        "truth": 2,
+        "right": true,
+        "vetoReason": null
+      },
+      {
+        "name": "drain_guard (must not false-veto)",
+        "family": "general_numeric",
+        "ok": true,
+        "answer": 3,
+        "truth": 3,
+        "right": true,
+        "vetoReason": null
+      },
+      {
+        "name": "sequential_percent (discount-only final)",
+        "family": "sequential_percent",
+        "ok": true,
+        "answer": 918,
+        "truth": 918,
+        "right": true,
+        "vetoReason": null
+      },
+      {
+        "name": "sequential_percent (reverse original price)",
+        "family": "sequential_percent",
+        "ok": true,
+        "answer": 80,
+        "truth": 80,
+        "right": true,
+        "vetoReason": null
+      },
+      {
+        "name": "weighted_average_mixture (price blend)",
+        "family": "weighted_average_mixture",
+        "ok": true,
+        "answer": 9,
+        "truth": 9,
+        "right": true,
+        "vetoReason": null
+      },
+      {
+        "name": "weighted_average_mixture (concentration)",
+        "family": "weighted_average_mixture",
+        "ok": true,
+        "answer": 30,
+        "truth": 30,
+        "right": true,
+        "vetoReason": null
+      },
+      {
+        "name": "dilution_guard (must not false-veto)",
+        "family": "general_numeric",
+        "ok": true,
+        "answer": 10,
+        "truth": 10,
+        "right": true,
+        "vetoReason": null
+      },
+      {
+        "name": "general_numeric (combinations)",
+        "family": "general_numeric",
+        "ok": true,
+        "answer": 56,
+        "truth": 56,
+        "right": true,
+        "vetoReason": null
+      }
+    ]
+  },
+  "suites": {
+    "standard": {
+      "name": "standard",
+      "items": 40,
+      "accuracy": 0.75,
+      "correct": 30,
+      "wrong": 0,
+      "silent": 10,
+      "vetoes": 18,
+      "distinctModelViolations": 0,
+      "remoteCalls": 0,
+      "avgSec": 15.39,
+      "rows": [
+        {
+          "index": 1,
+          "task": "A runner goes up a trail at 6 km/h and comes back down the same trail at 12 km/h. What is the average speed for the round trip, in km/h?",
+          "truth": 8,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "round_trip_average",
+          "verdict": "programs disagree",
+          "vetoes": [
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 32,
+              "vetoReason": "cauchy_bounds: 32 outside [6, 12]"
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 4,
+              "vetoReason": "cauchy_bounds: 4 outside [6, 12]"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 8,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 32,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 32 outside [6, 12]",
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 4,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 4 outside [6, 12]",
+              "error": null
+            }
+          ],
+          "ms": 16279
+        },
+        {
+          "index": 2,
+          "task": "A plane flies to a city at 400 mph and back along the same route at 600 mph. What is its average speed for the round trip, in mph?",
+          "truth": 480,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "round_trip_average",
+          "verdict": "programs disagree",
+          "vetoes": [
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 240,
+              "vetoReason": "cauchy_bounds: 240 outside [400, 600]"
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 0.00416666666667,
+              "vetoReason": "cauchy_bounds: 0.00416666666667 outside [400, 600]"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 480,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 240,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 240 outside [400, 600]",
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 0.00416666666667,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 0.00416666666667 outside [400, 600]",
+              "error": null
+            }
+          ],
+          "ms": 19649
+        },
+        {
+          "index": 3,
+          "task": "A kayaker paddles upstream at 3 km/h and returns downstream along the same stretch at 7 km/h. Average speed for the round trip in km/h?",
+          "truth": 4.2,
+          "answer": 4.2,
+          "right": true,
+          "silent": false,
+          "family": "round_trip_average",
+          "verdict": "two of 3 programs agree",
+          "vetoes": [
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 2.1,
+              "vetoReason": "cauchy_bounds: 2.1 outside [3, 7]"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 4.2,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 2.1,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 2.1 outside [3, 7]",
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 4.2,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 19607
+        },
+        {
+          "index": 4,
+          "task": "A tractor drives to a field at 10 mph and back at 15 mph on the same road. What is the average speed for the round trip?",
+          "truth": 12,
+          "answer": 12,
+          "right": true,
+          "silent": false,
+          "family": "round_trip_average",
+          "verdict": "two of 3 programs agree",
+          "vetoes": [
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 0.333333333333,
+              "vetoReason": "cauchy_bounds: 0.333333333333 outside [10, 15]"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 12,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 0.333333333333,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 0.333333333333 outside [10, 15]",
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 12,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 19427
+        },
+        {
+          "index": 5,
+          "task": "A hiker walks to a hut at 4 km/h and back at 5 km/h by the same path. What is the average speed for the whole trip?",
+          "truth": 4.4444,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "round_trip_average",
+          "verdict": "programs disagree",
+          "vetoes": [
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 0.9,
+              "vetoReason": "cauchy_bounds: 0.9 outside [4, 5]"
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 2.22222222222,
+              "vetoReason": "cauchy_bounds: 2.22222222222 outside [4, 5]"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 4.44444444444,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 0.9,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 0.9 outside [4, 5]",
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 2.22222222222,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 2.22222222222 outside [4, 5]",
+              "error": null
+            }
+          ],
+          "ms": 18949
+        },
+        {
+          "index": 6,
+          "task": "After a 20% discount, a coat costs $64. What was its original price in dollars?",
+          "truth": 80,
+          "answer": 80,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 80,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 80,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11247
+        },
+        {
+          "index": 7,
+          "task": "After a 25% price increase, a ticket costs $45. What was the price before the increase, in dollars?",
+          "truth": 36,
+          "answer": 36,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 36,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 36,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11239
+        },
+        {
+          "index": 8,
+          "task": "A shirt costs $50. It is discounted by 10%, and then the sale price is discounted by another 10%. What is the final price in dollars?",
+          "truth": 40.5,
+          "answer": 40.5,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two of 3 programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 40.5,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": null,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": "not exactly one number"
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 40.5,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 19061
+        },
+        {
+          "index": 9,
+          "task": "A price rises by 50% and then falls by 50%. By what percent is the final price lower than the original?",
+          "truth": 25,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "sequential_percent",
+          "verdict": "programs disagree",
+          "vetoes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 25,
+              "vetoReason": "non_constant_sensitivity: output remained constant at 25 under all perturbations"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 25,
+              "vetoed": true,
+              "vetoReason": "non_constant_sensitivity: output remained constant at 25 under all perturbations",
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 50,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 33.3333333333,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 18779
+        },
+        {
+          "index": 10,
+          "task": "Pipe A fills a tank in 3 hours and pipe B fills it in 6 hours. Working together, how many hours do they take to fill it?",
+          "truth": 2,
+          "answer": 2,
+          "right": true,
+          "silent": false,
+          "family": "parallel_work_rate",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 2,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 2,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11505
+        },
+        {
+          "index": 11,
+          "task": "Alice paints a fence in 4 hours and Bob paints it in 12 hours. How many hours do they take working together?",
+          "truth": 3,
+          "answer": 3,
+          "right": true,
+          "silent": false,
+          "family": "parallel_work_rate",
+          "verdict": "two of 3 programs agree",
+          "vetoes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 6,
+              "vetoReason": "faster_than_fastest: 6 not in (0, 4)"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 6,
+              "vetoed": true,
+              "vetoReason": "faster_than_fastest: 6 not in (0, 4)",
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 3,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 3,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 18378
+        },
+        {
+          "index": 12,
+          "task": "A student scores 70 on a test worth 40% of the grade and 90 on a test worth 60% of the grade. What is the weighted average score?",
+          "truth": 82,
+          "answer": 82,
+          "right": true,
+          "silent": false,
+          "family": "weighted_average_mixture",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 82,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 82,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11876
+        },
+        {
+          "index": 13,
+          "task": "3 kg of apples cost $2 per kg and 2 kg of pears cost $5 per kg. What is the average price per kg of all the fruit, in dollars?",
+          "truth": 3.2,
+          "answer": 3.2,
+          "right": true,
+          "silent": false,
+          "family": "weighted_average_mixture",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 3.2,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 3.2,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 12925
+        },
+        {
+          "index": 14,
+          "task": "A $120 dinner gets 8% sales tax added and is then split evenly among 5 friends. How much does each friend pay, in dollars?",
+          "truth": 25.92,
+          "answer": 25.92,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two of 3 programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 25.92,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 21.696,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 25.92,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 18407
+        },
+        {
+          "index": 15,
+          "task": "A $250 order is 20% off and then 6% sales tax is added. What is the final total in dollars?",
+          "truth": 212,
+          "answer": 212,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 212,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 212,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 12684
+        },
+        {
+          "index": 16,
+          "task": "A car travels 150 miles in 2.5 hours, then 90 miles in 1.5 hours. What is its average speed for the whole journey, in mph?",
+          "truth": 60,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "general_numeric",
+          "verdict": "programs disagree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 60,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 1500,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 112.5,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 20543
+        },
+        {
+          "index": 17,
+          "task": "A population of 2000 grows by 10% each year. What is the population after 2 years?",
+          "truth": 2420,
+          "answer": 2420,
+          "right": true,
+          "silent": false,
+          "family": "general_numeric",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 2420,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 2420,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11502
+        },
+        {
+          "index": 18,
+          "task": "$1000 earns 5% interest compounded annually. How many dollars is it worth after 3 years? Round to the cent.",
+          "truth": 1157.63,
+          "answer": 1157.625,
+          "right": true,
+          "silent": false,
+          "family": "general_numeric",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 1157.625,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 1157.63,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 12482
+        },
+        {
+          "index": 19,
+          "task": "A recipe for 4 people uses 300 g of flour. How many grams of flour are needed for 10 people?",
+          "truth": 750,
+          "answer": 750,
+          "right": true,
+          "silent": false,
+          "family": "general_numeric",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 750,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 750,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11955
+        },
+        {
+          "index": 20,
+          "task": "A 12% tip is added to a $75 bill, and the total is split evenly among 3 people. How much does each person pay, in dollars?",
+          "truth": 28,
+          "answer": 28,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 28,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 28,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 12086
+        },
+        {
+          "index": 21,
+          "task": "A courier bikes to the warehouse at 15 km/h and back along the same road at 10 km/h. What is the average speed for the round trip, in km/h?",
+          "truth": 12,
+          "answer": 12,
+          "right": true,
+          "silent": false,
+          "family": "round_trip_average",
+          "verdict": "two of 3 programs agree",
+          "vetoes": [
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 5,
+              "vetoReason": "cauchy_bounds: 5 outside [10, 15]"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 12,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 5,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 5 outside [10, 15]",
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 12,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 19356
+        },
+        {
+          "index": 22,
+          "task": "A bus goes to the airport at 50 mph and returns on the same route at 75 mph. What is its average speed for the round trip, in mph?",
+          "truth": 60,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "round_trip_average",
+          "verdict": "programs disagree",
+          "vetoes": [
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 125,
+              "vetoReason": "cauchy_bounds: 125 outside [50, 75]"
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 0.0333333333333,
+              "vetoReason": "cauchy_bounds: 0.0333333333333 outside [50, 75]"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 60,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 125,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 125 outside [50, 75]",
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 0.0333333333333,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 0.0333333333333 outside [50, 75]",
+              "error": null
+            }
+          ],
+          "ms": 19886
+        },
+        {
+          "index": 23,
+          "task": "A dog runs to the end of the beach at 18 km/h and trots back at 9 km/h. What is its average speed for the round trip?",
+          "truth": 12,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "round_trip_average",
+          "verdict": "programs disagree",
+          "vetoes": [
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 0.333333333333,
+              "vetoReason": "cauchy_bounds: 0.333333333333 outside [9, 18]"
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 0.037037037037,
+              "vetoReason": "cauchy_bounds: 0.037037037037 outside [9, 18]"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 12,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 0.333333333333,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 0.333333333333 outside [9, 18]",
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 0.037037037037,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 0.037037037037 outside [9, 18]",
+              "error": null
+            }
+          ],
+          "ms": 18246
+        },
+        {
+          "index": 24,
+          "task": "A boat goes upriver at 6 knots and comes back downriver the same distance at 14 knots. What is the average speed for the round trip?",
+          "truth": 8.4,
+          "answer": 8.4,
+          "right": true,
+          "silent": false,
+          "family": "round_trip_average",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 8.4,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 8.4,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 12201
+        },
+        {
+          "index": 25,
+          "task": "A van drives to a market at 35 mph and back at 70 mph by the same road. What is the average speed for the whole trip?",
+          "truth": 46.6667,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "round_trip_average",
+          "verdict": "programs disagree",
+          "vetoes": [
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 3,
+              "vetoReason": "cauchy_bounds: 3 outside [35, 70]"
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 23.3333333333,
+              "vetoReason": "cauchy_bounds: 23.3333333333 outside [35, 70]"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 46.6666666667,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 3,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 3 outside [35, 70]",
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 23.3333333333,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 23.3333333333 outside [35, 70]",
+              "error": null
+            }
+          ],
+          "ms": 18429
+        },
+        {
+          "index": 26,
+          "task": "After a 30% discount, a lamp costs $56. What was its original price in dollars?",
+          "truth": 80,
+          "answer": 80,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two of 3 programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 72.8,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 80,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 80,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 17561
+        },
+        {
+          "index": 27,
+          "task": "After a 10% price increase, a meal costs $33. What was the price before the increase, in dollars?",
+          "truth": 30,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "sequential_percent",
+          "verdict": "programs disagree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 29.7,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 30,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 33,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 18089
+        },
+        {
+          "index": 28,
+          "task": "A jacket costs $200. It is discounted by 20%, and then the sale price is discounted by another 25%. What is the final price in dollars?",
+          "truth": 120,
+          "answer": 120,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two of 3 programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 120,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 88,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 120,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 19583
+        },
+        {
+          "index": 29,
+          "task": "A stock rises by 20% and then falls by 20%. By what percent is the final value lower than the original?",
+          "truth": 4,
+          "answer": 4,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two of 3 programs agree",
+          "vetoes": [
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": -33.3333333333,
+              "vetoReason": "non_negative: -33.3333333333 < 0"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 4,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": -33.3333333333,
+              "vetoed": true,
+              "vetoReason": "non_negative: -33.3333333333 < 0",
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 4,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 19347
+        },
+        {
+          "index": 30,
+          "task": "Machine A finishes a job in 2 hours and machine B finishes it in 3 hours. Working together, how many hours do they need?",
+          "truth": 1.2,
+          "answer": 1.2,
+          "right": true,
+          "silent": false,
+          "family": "parallel_work_rate",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 1.2,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 1.2,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11429
+        },
+        {
+          "index": 31,
+          "task": "Sam cleans a house in 5 hours and Kim cleans it in 20 hours. How many hours do they take working together?",
+          "truth": 4,
+          "answer": 4,
+          "right": true,
+          "silent": false,
+          "family": "parallel_work_rate",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 4,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 4,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11994
+        },
+        {
+          "index": 32,
+          "task": "A course grade is 30% homework and 70% exam. Homework is 90 and the exam is 60. What is the final grade?",
+          "truth": 69,
+          "answer": 69,
+          "right": true,
+          "silent": false,
+          "family": "weighted_average_mixture",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 69,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 69,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11622
+        },
+        {
+          "index": 33,
+          "task": "4 liters of juice cost $3 per liter and 6 liters cost $2 per liter. What is the average price per liter of all the juice, in dollars?",
+          "truth": 2.4,
+          "answer": 2.4,
+          "right": true,
+          "silent": false,
+          "family": "weighted_average_mixture",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 2.4,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 2.4,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 12709
+        },
+        {
+          "index": 34,
+          "task": "A $90 lunch gets 10% sales tax added and is then split evenly among 3 friends. How much does each friend pay, in dollars?",
+          "truth": 33,
+          "answer": 33,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 33,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 33,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11760
+        },
+        {
+          "index": 35,
+          "task": "A $400 TV is 15% off and then 5% sales tax is added. What is the final total in dollars?",
+          "truth": 357,
+          "answer": 357,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 357,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 357,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 12562
+        },
+        {
+          "index": 36,
+          "task": "A train travels 200 km in 2 hours, then 100 km in 3 hours. What is its average speed for the whole journey, in km/h?",
+          "truth": 60,
+          "answer": 60,
+          "right": true,
+          "silent": false,
+          "family": "general_numeric",
+          "verdict": "two of 3 programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 60,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 250,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 60,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 20008
+        },
+        {
+          "index": 37,
+          "task": "A colony of 500 bacteria doubles every hour. How many bacteria are there after 3 hours?",
+          "truth": 4000,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "general_numeric",
+          "verdict": "programs disagree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 4000,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": null,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": "ungrounded params"
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 250,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 17450
+        },
+        {
+          "index": 38,
+          "task": "$2000 earns 10% interest compounded annually. How many dollars is it worth after 2 years?",
+          "truth": 2420,
+          "answer": 2420,
+          "right": true,
+          "silent": false,
+          "family": "general_numeric",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 2420,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 2420,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11639
+        },
+        {
+          "index": 39,
+          "task": "A recipe for 6 people uses 450 g of rice. How many grams of rice are needed for 8 people?",
+          "truth": 600,
+          "answer": 600,
+          "right": true,
+          "silent": false,
+          "family": "general_numeric",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 600,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 600,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11485
+        },
+        {
+          "index": 40,
+          "task": "A 15% tip is added to a $60 bill, and the total is split evenly among 4 people. How much does each person pay, in dollars?",
+          "truth": 17.25,
+          "answer": 17.25,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 17.25,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 17.25,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11790
+        }
+      ]
+    },
+    "hard": {
+      "name": "hard",
+      "items": 13,
+      "accuracy": 0.769,
+      "correct": 10,
+      "wrong": 0,
+      "silent": 3,
+      "vetoes": 1,
+      "distinctModelViolations": 0,
+      "remoteCalls": 0,
+      "avgSec": 207.64,
+      "rows": [
+        {
+          "index": 1,
+          "task": "A price is cut by 20%, then the new price is cut by another 25%. What fraction of the original price is left? Give a decimal.",
+          "truth": 0.6,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "sequential_percent",
+          "verdict": "programs disagree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": null,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": "not exactly one number"
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": null,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": "ungrounded params"
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 0.6,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 18457
+        },
+        {
+          "index": 2,
+          "task": "A coat is 30% off, and then another 20% is taken off the sale price. What fraction of the original price do you pay? Give a decimal.",
+          "truth": 0.56,
+          "answer": 0.56,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 0.56,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 0.56,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 12034
+        },
+        {
+          "index": 3,
+          "task": "A car drives 60 km at 30 km/h and then another 60 km at 60 km/h. What is its average speed for the whole trip, in km/h?",
+          "truth": 40,
+          "answer": 40,
+          "right": true,
+          "silent": false,
+          "family": "round_trip_average",
+          "verdict": "two of 3 programs agree",
+          "vetoes": [
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 0.0111111111111,
+              "vetoReason": "cauchy_bounds: 0.0111111111111 outside [30, 60]"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 40,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 0.0111111111111,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 0.0111111111111 outside [30, 60]",
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 40,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 20833
+        },
+        {
+          "index": 4,
+          "task": "Pipe A fills a tank in 4 hours, pipe B fills it in 6 hours, and a drain empties it in 12 hours. With all three open, how many hours to fill the tank?",
+          "truth": 3,
+          "answer": 3,
+          "right": true,
+          "silent": false,
+          "family": "general_numeric",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 3,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 3,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 12801
+        },
+        {
+          "index": 5,
+          "task": "How many different groups of 3 people can be chosen from 8 people?",
+          "truth": 56,
+          "answer": 56,
+          "right": true,
+          "silent": false,
+          "family": "general_numeric",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 56,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 56,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11900
+        },
+        {
+          "index": 6,
+          "task": "A price rises by 10% every year for three years. By what total percent has it risen? Give the percent.",
+          "truth": 33.1,
+          "answer": 33.1,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 33.1,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 33.1,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11891
+        },
+        {
+          "index": 7,
+          "task": "A 20-liter drink is 30% juice. How many liters of water must be added to make it 20% juice?",
+          "truth": 10,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "general_numeric",
+          "verdict": "programs disagree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 28,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 0,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 594,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 19889
+        },
+        {
+          "index": 8,
+          "task": "The average of 5 numbers is 12. One of them, 20, is removed. What is the average of the remaining 4 numbers?",
+          "truth": 10,
+          "answer": 10,
+          "right": true,
+          "silent": false,
+          "family": "general_numeric",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 10,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 10,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11873
+        },
+        {
+          "index": 9,
+          "task": "A clock loses 3 minutes every hour. After exactly one day, how many minutes behind is it?",
+          "truth": 72,
+          "answer": 72,
+          "right": true,
+          "silent": false,
+          "family": "general_numeric",
+          "verdict": "two of 3 programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 72,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": null,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": "ungrounded params"
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 72,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 16949
+        },
+        {
+          "index": 10,
+          "task": "$1000 earns 10% interest compounded annually. How many dollars of interest are earned in 3 years?",
+          "truth": 331,
+          "answer": 331,
+          "right": true,
+          "silent": false,
+          "family": "general_numeric",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 331,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 331,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11934
+        },
+        {
+          "index": 11,
+          "task": "A train 150 meters long crosses a 250-meter bridge at 72 km/h. How many seconds does it take to cross the bridge completely?",
+          "truth": 20,
+          "answer": 20,
+          "right": true,
+          "silent": false,
+          "family": "general_numeric",
+          "verdict": "two of 3 programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 20,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": null,
+              "answer": null,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": "model unavailable"
+            },
+            {
+              "role": "plan",
+              "model": "niles-fraymus:v9",
+              "answer": 20,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 2110110
+        },
+        {
+          "index": 12,
+          "task": "3 workers build a wall in 12 days. Working at the same rate, how many days do 4 workers need?",
+          "truth": 9,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "general_numeric",
+          "verdict": "programs disagree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "fraymus-prime:v1",
+              "answer": 9,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 3.42857142857,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 16,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 428783
+        },
+        {
+          "index": 13,
+          "task": "What is 15% of 15% of 2000?",
+          "truth": 45,
+          "answer": 45,
+          "right": true,
+          "silent": false,
+          "family": "general_numeric",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 45,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 45,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11807
+        }
+      ]
+    },
+    "adversarial": {
+      "name": "adversarial",
+      "items": 12,
+      "accuracy": 0.75,
+      "correct": 9,
+      "wrong": 0,
+      "silent": 3,
+      "vetoes": 8,
+      "distinctModelViolations": 0,
+      "remoteCalls": 0,
+      "avgSec": 15.49,
+      "rows": [
+        {
+          "index": 1,
+          "task": "A cyclist rides up a mountain pass at 12 km/h and descends the same road at 36 km/h. What is the average speed for the round trip, in km/h?",
+          "truth": 18,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "round_trip_average",
+          "verdict": "programs disagree",
+          "vetoes": [
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 432,
+              "vetoReason": "cauchy_bounds: 432 outside [12, 36]"
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 432,
+              "vetoReason": "cauchy_bounds: 432 outside [12, 36]"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 18,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 432,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 432 outside [12, 36]",
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 432,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 432 outside [12, 36]",
+              "error": null
+            }
+          ],
+          "ms": 19502
+        },
+        {
+          "index": 2,
+          "task": "A ferry crosses a channel at 16 knots and returns along the same route at 24 knots. What is its average speed for the round trip, in knots?",
+          "truth": 19.2,
+          "answer": 19.2,
+          "right": true,
+          "silent": false,
+          "family": "round_trip_average",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 19.2,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 19.2,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 13629
+        },
+        {
+          "index": 3,
+          "task": "A delivery drone flies to a depot at 20 mph and returns along the same path at 30 mph. What is its average speed for the round trip, in mph?",
+          "truth": 24,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "round_trip_average",
+          "verdict": "programs disagree",
+          "vetoes": [
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 5,
+              "vetoReason": "cauchy_bounds: 5 outside [20, 30]"
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 0.0833333333333,
+              "vetoReason": "cauchy_bounds: 0.0833333333333 outside [20, 30]"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 24,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 5,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 5 outside [20, 30]",
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 0.0833333333333,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 0.0833333333333 outside [20, 30]",
+              "error": null
+            }
+          ],
+          "ms": 19119
+        },
+        {
+          "index": 4,
+          "task": "A swimmer swims across a lake at 2 km/h and swims back along the same stretch at 6 km/h. What is the average speed for the round trip, in km/h?",
+          "truth": 3,
+          "answer": null,
+          "right": false,
+          "silent": true,
+          "family": "round_trip_average",
+          "verdict": "programs disagree",
+          "vetoes": [
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 1.5,
+              "vetoReason": "cauchy_bounds: 1.5 outside [2, 6]"
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 12,
+              "vetoReason": "cauchy_bounds: 12 outside [2, 6]"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 3,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 1.5,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 1.5 outside [2, 6]",
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 12,
+              "vetoed": true,
+              "vetoReason": "cauchy_bounds: 12 outside [2, 6]",
+              "error": null
+            }
+          ],
+          "ms": 19432
+        },
+        {
+          "index": 5,
+          "task": "Pump A fills a reservoir in 4 hours and pump B fills it in 12 hours. Working together, how many hours do they take to fill it?",
+          "truth": 3,
+          "answer": 3,
+          "right": true,
+          "silent": false,
+          "family": "parallel_work_rate",
+          "verdict": "two of 3 programs agree",
+          "vetoes": [
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 0.333333333333,
+              "vetoReason": "equal_worker_halving: solve(4,4)=0.5, expected 2"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 3,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 0.333333333333,
+              "vetoed": true,
+              "vetoReason": "equal_worker_halving: solve(4,4)=0.5, expected 2",
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 3,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 18187
+        },
+        {
+          "index": 6,
+          "task": "Printer X prints a catalog in 10 hours and printer Y prints it in 15 hours. Working together, how many hours do they need?",
+          "truth": 6,
+          "answer": 6,
+          "right": true,
+          "silent": false,
+          "family": "parallel_work_rate",
+          "verdict": "two of 3 programs agree",
+          "vetoes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 12,
+              "vetoReason": "faster_than_fastest: 12 not in (0, 10)"
+            }
+          ],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 12,
+              "vetoed": true,
+              "vetoReason": "faster_than_fastest: 12 not in (0, 10)",
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 6,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "plan",
+              "model": "hermes3:latest",
+              "answer": 6,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 18583
+        },
+        {
+          "index": 7,
+          "task": "Robot A assembles a batch in 6 minutes and robot B assembles it in 12 minutes. Working together, how many minutes do they take?",
+          "truth": 4,
+          "answer": 4,
+          "right": true,
+          "silent": false,
+          "family": "parallel_work_rate",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 4,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 4,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11998
+        },
+        {
+          "index": 8,
+          "task": "Crew A paves a road in 15 days and crew B paves it in 30 days. Working together, how many days do they need?",
+          "truth": 10,
+          "answer": 10,
+          "right": true,
+          "silent": false,
+          "family": "general_numeric",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 10,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 10,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 11992
+        },
+        {
+          "index": 9,
+          "task": "A $240 jacket is discounted by 25%, and then an extra 20% off coupon is applied to the sale price. What is the final price in dollars?",
+          "truth": 144,
+          "answer": 144,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 144,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 144,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 13045
+        },
+        {
+          "index": 10,
+          "task": "A $1,200 laptop is marked down 15%, then a further 10% off the reduced price. What is the final price in dollars?",
+          "truth": 918,
+          "answer": 918,
+          "right": true,
+          "silent": false,
+          "family": "sequential_percent",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 918,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 918,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 13174
+        },
+        {
+          "index": 11,
+          "task": "5 kg of Arabica beans cost $12 per kg and 3 kg of Robusta beans cost $4 per kg. What is the average price per kg of the blend, in dollars?",
+          "truth": 9,
+          "answer": 9,
+          "right": true,
+          "silent": false,
+          "family": "weighted_average_mixture",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 9,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 9,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 14032
+        },
+        {
+          "index": 12,
+          "task": "A chemist mixes 2 liters of 15% saline solution with 3 liters of 40% saline solution. What is the percent concentration of the mixture?",
+          "truth": 30,
+          "answer": 30,
+          "right": true,
+          "silent": false,
+          "family": "weighted_average_mixture",
+          "verdict": "two programs agree",
+          "vetoes": [],
+          "votes": [
+            {
+              "role": "code",
+              "model": "qwen2.5-coder:7b",
+              "answer": 30,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            },
+            {
+              "role": "reason",
+              "model": "fraymus-prime:v1",
+              "answer": 30,
+              "vetoed": false,
+              "vetoReason": null,
+              "error": null
+            }
+          ],
+          "ms": 13168
+        }
+      ]
+    }
+  }
+}
