@@ -1,0 +1,17 @@
+{
+  "phase": 26,
+  "title": "SVA Open Standards (AER/1, VSC/1, EMA/1) & Tri-Runtime Conformance",
+  "date": "2026-11-26",
+  "branch": "phase-26-open-standards",
+  "specs": ["docs/specs/AER-1.md", "docs/specs/VSC-1.md", "docs/specs/EMA-1.md"],
+  "goldenSuite": {
+    "path": "conformance/v1/vectors.json",
+    "totalVectors": 62,
+    "breakdown": { "jcs": 10, "merkle": 10, "aer1": 15, "vsc1": 13, "ema1": 14 }
+  },
+  "triRuntimeResults": [
+    { "runtime": "node:v24.11.1 (node:crypto)", "passed": 62, "total": 62, "failed": 0, "durationMs": 17.44 },
+    { "runtime": "W3C WebCrypto (globalThis.crypto.subtle, zero node:crypto)", "passed": 62, "total": 62, "failed": 0, "durationMs": 33.37 },
+    { "runtime": "java:25.0.1 (single-file pure JDK, zero deps)", "passed": 62, "total": 62, "failed": 0, "durationMs": 243.28 }
+  ]
+}
