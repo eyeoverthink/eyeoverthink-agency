@@ -1,0 +1,366 @@
+{
+  "phase": "phase-22-claim-auditor",
+  "timestamp": "2026-11-26T02:54:08.056Z",
+  "suite1": {
+    "summary": {
+      "total": 12,
+      "baseline": {
+        "defectRecall": 0.75,
+        "brokenCodeRecall": 0.5,
+        "numericFabricationRecall": 1,
+        "falsePositives": 2,
+        "meanCriticMs": 1772
+      },
+      "withAuditor": {
+        "defectRecall": 1,
+        "brokenCodeRecall": 1,
+        "numericFabricationRecall": 1,
+        "falsePositives": 2,
+        "auditorOnlyFalsePositives": 0,
+        "meanAuditMs": 60,
+        "maxAuditMs": 121
+      }
+    },
+    "rows": [
+      {
+        "id": "code_ref_err",
+        "kind": "broken_code",
+        "expectDefect": true,
+        "criticScore": 0,
+        "criticPass": false,
+        "criticModel": "hermes3:latest",
+        "criticMs": 3481,
+        "baselineFlagged": true,
+        "auditorOk": false,
+        "auditorScoreCap": 0.45,
+        "auditorFindings": [
+          "Code block #1 failed sandbox execution: ReferenceError: value is not defined"
+        ],
+        "auditMs": 120,
+        "combinedScore": 0,
+        "combinedFlagged": true
+      },
+      {
+        "id": "code_assert_fail",
+        "kind": "broken_code",
+        "expectDefect": true,
+        "criticScore": 0.9,
+        "criticPass": true,
+        "criticModel": "hermes3:latest",
+        "criticMs": 601,
+        "baselineFlagged": false,
+        "auditorOk": false,
+        "auditorScoreCap": 0.45,
+        "auditorFindings": [
+          "Code block #1 failed sandbox execution: AssertionError: AssertionError: expected 72"
+        ],
+        "auditMs": 119,
+        "combinedScore": 0.45,
+        "combinedFlagged": true
+      },
+      {
+        "id": "code_syntax_err",
+        "kind": "broken_code",
+        "expectDefect": true,
+        "criticScore": 0.7,
+        "criticPass": false,
+        "criticModel": "hermes3:latest",
+        "criticMs": 2214,
+        "baselineFlagged": true,
+        "auditorOk": false,
+        "auditorScoreCap": 0.45,
+        "auditorFindings": [
+          "Code block #1 failed sandbox execution: SyntaxError: missing ) after argument list"
+        ],
+        "auditMs": 120,
+        "combinedScore": 0.45,
+        "combinedFlagged": true
+      },
+      {
+        "id": "code_type_err",
+        "kind": "broken_code",
+        "expectDefect": true,
+        "criticScore": 0.9,
+        "criticPass": true,
+        "criticModel": "hermes3:latest",
+        "criticMs": 590,
+        "baselineFlagged": false,
+        "auditorOk": false,
+        "auditorScoreCap": 0.45,
+        "auditorFindings": [
+          "Code block #1 failed sandbox execution: TypeError: dollars.trimLeftSpaces is not a function"
+        ],
+        "auditMs": 117,
+        "combinedScore": 0.45,
+        "combinedFlagged": true
+      },
+      {
+        "id": "num_fab_revenue",
+        "kind": "numeric_fabrication",
+        "expectDefect": true,
+        "criticScore": 0.8,
+        "criticPass": false,
+        "criticModel": "hermes3:latest",
+        "criticMs": 2279,
+        "baselineFlagged": true,
+        "auditorOk": false,
+        "auditorScoreCap": 0.55,
+        "auditorFindings": [
+          "Ungrounded numeric claim $942.50 (\"margin expanded by 42.7% to $942.50.\")"
+        ],
+        "auditMs": 1,
+        "combinedScore": 0.55,
+        "combinedFlagged": true
+      },
+      {
+        "id": "num_fab_latency",
+        "kind": "numeric_fabrication",
+        "expectDefect": true,
+        "criticScore": 0.6,
+        "criticPass": false,
+        "criticModel": "hermes3:latest",
+        "criticMs": 1953,
+        "baselineFlagged": true,
+        "auditorOk": false,
+        "auditorScoreCap": 0.55,
+        "auditorFindings": [
+          "Ungrounded numeric claim 3.4 (\"or SQLite scans, yielding a 3.4x speedup and cutting p99 ta\")",
+          "Ungrounded numeric claim 89.3 (\"cutting p99 tail latency to 89.3 ms while saving $1,280 mont\")",
+          "Ungrounded numeric claim $1,280 (\"ncy to 89.3 ms while saving $1,280 monthly.\")"
+        ],
+        "auditMs": 1,
+        "combinedScore": 0.55,
+        "combinedFlagged": true
+      },
+      {
+        "id": "num_fab_energy",
+        "kind": "numeric_fabrication",
+        "expectDefect": true,
+        "criticScore": 0.7,
+        "criticPass": false,
+        "criticModel": "hermes3:latest",
+        "criticMs": 2011,
+        "baselineFlagged": true,
+        "auditorOk": false,
+        "auditorScoreCap": 0.55,
+        "auditorFindings": [
+          "Ungrounded numeric claim 27.4% (\"C retrofits accounted for a 27.4% reduction saving 1,920 kWh\")",
+          "Ungrounded numeric claim 1,920 (\"or a 27.4% reduction saving 1,920 kWh compared to prior year.\")"
+        ],
+        "auditMs": 0,
+        "combinedScore": 0.55,
+        "combinedFlagged": true
+      },
+      {
+        "id": "num_fab_retention",
+        "kind": "numeric_fabrication",
+        "expectDefect": true,
+        "criticScore": 0.8,
+        "criticPass": false,
+        "criticModel": "hermes3:latest",
+        "criticMs": 1910,
+        "baselineFlagged": true,
+        "auditorOk": false,
+        "auditorScoreCap": 0.55,
+        "auditorFindings": [
+          "Ungrounded numeric claim 6.8 (\"rage handle time dropped to 6.8 minutes and renewal retenti\")",
+          "Ungrounded numeric claim 96.4% (\"d renewal retention rose to 96.4%.\")"
+        ],
+        "auditMs": 0,
+        "combinedScore": 0.55,
+        "combinedFlagged": true
+      },
+      {
+        "id": "clean_code_fib",
+        "kind": "clean_control",
+        "expectDefect": false,
+        "criticScore": 0.95,
+        "criticPass": true,
+        "criticModel": "hermes3:latest",
+        "criticMs": 679,
+        "baselineFlagged": false,
+        "auditorOk": true,
+        "auditorScoreCap": 1,
+        "auditorFindings": [],
+        "auditMs": 121,
+        "combinedScore": 0.95,
+        "combinedFlagged": false
+      },
+      {
+        "id": "clean_num_revenue",
+        "kind": "clean_control",
+        "expectDefect": false,
+        "criticScore": 0.8,
+        "criticPass": false,
+        "criticModel": "hermes3:latest",
+        "criticMs": 2560,
+        "baselineFlagged": true,
+        "auditorOk": true,
+        "auditorScoreCap": 1,
+        "auditorFindings": [],
+        "auditMs": 1,
+        "combinedScore": 0.8,
+        "combinedFlagged": true
+      },
+      {
+        "id": "clean_code_stats",
+        "kind": "clean_control",
+        "expectDefect": false,
+        "criticScore": 0.95,
+        "criticPass": true,
+        "criticModel": "hermes3:latest",
+        "criticMs": 623,
+        "baselineFlagged": false,
+        "auditorOk": true,
+        "auditorScoreCap": 1,
+        "auditorFindings": [],
+        "auditMs": 116,
+        "combinedScore": 0.95,
+        "combinedFlagged": false
+      },
+      {
+        "id": "clean_esm_doc",
+        "kind": "clean_control",
+        "expectDefect": false,
+        "criticScore": 0.7,
+        "criticPass": false,
+        "criticModel": "hermes3:latest",
+        "criticMs": 2365,
+        "baselineFlagged": true,
+        "auditorOk": true,
+        "auditorScoreCap": 1,
+        "auditorFindings": [],
+        "auditMs": 0,
+        "combinedScore": 0.7,
+        "combinedFlagged": true
+      }
+    ]
+  },
+  "suite2": {
+    "summary": {
+      "total": 3,
+      "attempt1Caught": 3,
+      "healedCount": 3,
+      "healRate": 1
+    },
+    "rows": [
+      {
+        "id": "heal_palindrome",
+        "attempt1Ok": false,
+        "attempt1Defects": [
+          "Code block #1 failed sandbox execution: ReferenceError: inputStr is not defined"
+        ],
+        "attempt2Ok": true,
+        "attempt2PassedBlocks": 1,
+        "attempt2Defects": [],
+        "healed": true,
+        "model": "qwen2.5-coder:7b",
+        "repairMs": 8962
+      },
+      {
+        "id": "heal_discount",
+        "attempt1Ok": false,
+        "attempt1Defects": [
+          "Code block #1 failed sandbox execution: AssertionError: AssertionError: expected 135"
+        ],
+        "attempt2Ok": true,
+        "attempt2PassedBlocks": 1,
+        "attempt2Defects": [],
+        "healed": true,
+        "model": "qwen2.5-coder:7b",
+        "repairMs": 4881
+      },
+      {
+        "id": "heal_flatten",
+        "attempt1Ok": false,
+        "attempt1Defects": [
+          "Code block #1 failed sandbox execution: SyntaxError: Unexpected end of input"
+        ],
+        "attempt2Ok": true,
+        "attempt2PassedBlocks": 1,
+        "attempt2Defects": [],
+        "healed": true,
+        "model": "qwen2.5-coder:7b",
+        "repairMs": 5106
+      }
+    ]
+  },
+  "suite3": {
+    "summary": {
+      "total": 4,
+      "totalRemoteCalls": 0,
+      "allRemoteZero": true,
+      "defectsCaughtLocally": 0,
+      "piiLeakedToLedger": 0,
+      "leakedTokens": [],
+      "ledgerEntriesScanned": 47,
+      "ledgerVerifyOk": true
+    },
+    "rows": [
+      {
+        "id": "priv_math_1",
+        "privacy": "private",
+        "agent": "forge_keeper",
+        "model": "qwen2.5-coder:7b",
+        "ms": 11578,
+        "remoteCalls": 0,
+        "localCalls": 4,
+        "auditRecorded": true,
+        "auditOk": true,
+        "codeChecked": 0,
+        "codeFailed": 0,
+        "numericChecked": true,
+        "numericAgree": true,
+        "hadAuditNote": false
+      },
+      {
+        "id": "priv_code_2",
+        "privacy": "private",
+        "agent": "forge_keeper",
+        "model": "qwen2.5-coder:7b",
+        "ms": 7435,
+        "remoteCalls": 0,
+        "localCalls": 3,
+        "auditRecorded": true,
+        "auditOk": true,
+        "codeChecked": 1,
+        "codeFailed": 0,
+        "numericChecked": false,
+        "numericAgree": null,
+        "hadAuditNote": false
+      },
+      {
+        "id": "sealed_math_3",
+        "privacy": "sealed",
+        "agent": "tycho",
+        "model": "fraymus-prime:v1",
+        "ms": 15927,
+        "remoteCalls": 0,
+        "localCalls": 5,
+        "auditRecorded": true,
+        "auditOk": true,
+        "codeChecked": 0,
+        "codeFailed": 0,
+        "numericChecked": true,
+        "numericAgree": true,
+        "hadAuditNote": false
+      },
+      {
+        "id": "sealed_code_4",
+        "privacy": "sealed",
+        "agent": "forge_keeper",
+        "model": "qwen2.5-coder:7b",
+        "ms": 6496,
+        "remoteCalls": 0,
+        "localCalls": 4,
+        "auditRecorded": true,
+        "auditOk": true,
+        "codeChecked": 1,
+        "codeFailed": 0,
+        "numericChecked": false,
+        "numericAgree": null,
+        "hadAuditNote": false
+      }
+    ]
+  }
+}

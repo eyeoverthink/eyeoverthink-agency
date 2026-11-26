@@ -73,7 +73,7 @@ function stagePrompt(objective, role, ledgerView) {
 }
 
 export class LogicChain {
-  constructor({ router, ledger, bus }) { Object.assign(this, { router, ledger, bus }); }
+  constructor({ router, ledger, bus, auditor = null }) { Object.assign(this, { router, ledger, bus, auditor }); }
 
   async run(objective, { passes = 1, span = null, signal, privacy = 'normal', missionId = null } = {}) {
     const ledger = emptyLedger();
@@ -108,11 +108,17 @@ export class LogicChain {
       }
     }
     const review = await this.review(ledger, stages, { span, signal, privacy });
-    const brief = await this.synthesize(objective, ledger, review, { span, signal, privacy });
+    let brief = await this.synthesize(objective, ledger, review, { span, signal, privacy });
+    const audit = this.auditor ? this.auditor.auditLogicChain(ledger, review, brief, { missionId }) : null;
     const okRatio = stages.filter((s) => s.ok).length / stages.length;
     const warnings = review.items.length || 1;
-    const score = Math.round((okRatio * 0.7 + (review.dismissed.length / warnings) * 0.3) * 1000) / 1000;
-    return { ledger, stages, review, brief, dropped, score };
+    let score = Math.round((okRatio * 0.7 + (review.dismissed.length / warnings) * 0.3) * 1000) / 1000;
+    if (audit && audit.unacknowledged > 0) {
+      score = Math.min(score, 0.55);
+      const list = audit.findings.map((f) => `- [${f.id || f.kind}] ${f.text}`).join('\n');
+      brief = `${brief}\n\n## Unacknowledged Open Warnings (Auditor)\n${list}`;
+    }
+    return { ledger, stages, review, brief, dropped, score, ...(audit ? { audit } : {}) };
   }
 
   /** JEV-style review of protected warnings by non-author models. */

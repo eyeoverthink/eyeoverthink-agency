@@ -8,7 +8,8 @@ const TERMINAL = new Set(['completed', 'failed', 'cancelled']);
 
 export class MissionEngine {
   constructor(deps) {
-    Object.assign(this, deps); // cfg, store, router, runtime, agents, memory, ledger, bus, tracer, logicChain, consensus
+    Object.assign(this, deps); // cfg, store, router, runtime, agents, memory, ledger, bus, tracer, logicChain, consensus, auditor
+    this.auditor = deps.auditor || null;
     this.active = new Map(); // missionId -> AbortController
   }
 
@@ -254,20 +255,35 @@ export class MissionEngine {
     }
   }
 
-  async #critique(task, result, span, signal) {
+  async #critique(task, result, span, signal, { audit: runAudit = true } = {}) {
     const evidence = result.steps.filter((s) => s.tool).map((s) => `- ${s.tool} ${s.ok ? 'OK' : 'FAILED'} (sha ${s.evidence?.sha256?.slice(0, 10) ?? '-'}) ${truncate(s.summary, 260)}`).join('\n');
     const solon = this.agents.get('solon');
     const threshold = Math.max(this.cfg.limits.criticThreshold, (solon?.traits.criticStrictness ?? 0.6) - 0.05);
+    const audit = runAudit && this.auditor ? await this.auditor.auditTask(task, result, { signal }) : null;
     try {
       const res = await this.router.chat({ role: 'critic', messages: criticPrompt(task, truncate(result.final, 6000), evidence), json: true, temperature: 0.1, maxTokens: 700, privacy: task.privacy, missionId: task.mission_id, span: span.child('critic', { kind: 'critic', agentId: 'solon' }), signal });
       const c = extractJson(res.text) || {};
-      const score = Math.min(1, Math.max(0, Number(c.score) || 0));
-      return { score, pass: score >= threshold && c.pass !== false, defects: Array.isArray(c.defects) ? c.defects.map(String).slice(0, 8) : [], fix: String(c.fix || '').slice(0, 800), threshold };
+      let score = Math.min(1, Math.max(0, Number(c.score) || 0));
+      let pass = score >= threshold && c.pass !== false;
+      const defects = Array.isArray(c.defects) ? c.defects.map(String).slice(0, 8) : [];
+      let fix = String(c.fix || '').slice(0, 800);
+      if (audit && !audit.ok) {
+        score = Math.min(score, audit.scoreCap);
+        pass = false;
+        defects.unshift(...audit.defects);
+        if (!fix) fix = 'Fix the deterministic audit defects and verify all code and claims before finishing.';
+      }
+      return { score, pass, defects: defects.slice(0, 10), fix, threshold, ...(audit ? { audit } : {}) };
     } catch (e) {
       if (signal.aborted) throw e;
       // Critic unavailable: fall back to the agent's own confidence, capped below a verified pass.
-      const score = Math.min(0.59, result.confidence);
-      return { score, pass: false, defects: [`critic unavailable: ${errorMessage(e)}`], fix: '', threshold, unverified: true };
+      let score = Math.min(0.59, result.confidence);
+      const defects = [`critic unavailable: ${errorMessage(e)}`];
+      if (audit && !audit.ok) {
+        score = Math.min(score, audit.scoreCap);
+        defects.unshift(...audit.defects);
+      }
+      return { score, pass: false, defects, fix: '', threshold, unverified: true, ...(audit ? { audit } : {}) };
     }
   }
 
@@ -287,7 +303,17 @@ export class MissionEngine {
       deliverable = last.output;
     }
     deliverable = redactSecrets(deliverable);
-    const finalCritique = await this.#critique({ title: 'Final deliverable', instructions: mission.goal, privacy: mission.options.privacy }, { final: deliverable, steps: [], confidence: 0.6 }, span, signal);
+    const finalCritique = await this.#critique({ title: 'Final deliverable', instructions: mission.goal, privacy: mission.options.privacy }, { final: deliverable, steps: [], confidence: 0.6 }, span, signal, { audit: false });
+    let audit = null;
+    if (this.auditor) {
+      audit = await this.auditor.auditDeliverable(mission.goal, deliverable, done, { missionId: id, privacy: mission.options.privacy || 'normal', signal });
+      if (!audit.ok) {
+        finalCritique.score = Math.min(finalCritique.score, audit.scoreCap);
+        finalCritique.pass = false;
+        const notes = audit.findings.map((f) => `- ${f.message}`).join('\n');
+        deliverable = `${deliverable}\n\n## Audit Notes\n${notes}`;
+      }
+    }
 
     let security = null;
     if (mission.options.securityReview) {
@@ -302,7 +328,7 @@ export class MissionEngine {
     }
 
     const score = Math.round(((finalCritique.score * 0.6) + (done.reduce((s, t) => s + (t.score || 0), 0) / done.length) * 0.4) * 1000) / 1000;
-    const result = { deliverable, finalCritique, security, tasks: mission.tasks.map((t) => ({ id: t.id, title: t.title, agent: t.agent_id, status: t.status, score: t.score, attempts: t.attempts })) };
+    const result = { deliverable, finalCritique, ...(audit ? { audit } : {}), security, tasks: mission.tasks.map((t) => ({ id: t.id, title: t.title, agent: t.agent_id, status: t.status, score: t.score, attempts: t.attempts })) };
     this.store.run('UPDATE missions SET result = ?, score = ? WHERE id = ?', result, score, id);
     await this.memory.write({ kind: 'episodic', importance: 0.4 + score * 0.4, tags: ['mission', mission.options.mode],
       content: `Mission "${truncate(mission.goal, 300)}" completed with score ${score} after ${mission.replans} replan(s). Team: ${[...new Set(done.map((t) => t.agent_id))].join(', ')}. Outcome: ${truncate(deliverable, 600)}`, source: `mission:${id}` });
@@ -314,7 +340,7 @@ export class MissionEngine {
   async #runLogicChain(mission, span, signal) {
     this.#setStatus(mission.id, 'running');
     const out = await this.logicChain.run(mission.goal, { span, signal, privacy: mission.options.privacy, missionId: mission.id });
-    const result = { deliverable: redactSecrets(out.brief), logicChain: { ledger: out.ledger, review: out.review, stages: out.stages }, tasks: [] };
+    const result = { deliverable: redactSecrets(out.brief), logicChain: { ledger: out.ledger, review: out.review, stages: out.stages, ...(out.audit ? { audit: out.audit } : {}) }, tasks: [] };
     const score = out.score;
     this.store.run('UPDATE missions SET result = ?, score = ? WHERE id = ?', result, score, mission.id);
     await this.memory.write({ kind: 'episodic', importance: 0.6, tags: ['mission', 'logic_chain'], content: `Logic-chain design for "${truncate(mission.goal, 300)}": ${out.ledger.new_logic.length} logic items, ${out.review.open.length} open contradictions/unsupported claims. Brief: ${truncate(out.brief, 500)}`, source: `mission:${mission.id}` });
