@@ -1,25 +1,28 @@
 // Phase 22: Deterministic Claim-and-Evidence Auditor.
 // Replaces prose-only verification blind spots with deterministic checks:
-//   1. Code-block sandbox execution (catches syntax/runtime/assertion/timeout bugs).
+//   1. Double-isolated code-block execution (node --permission + vm.runInNewContext with zero network/process
+//      access and frozen non-overridable console.assert).
 //   2. Numeric provenance checking (catches fabricated synthesis numbers absent from sources).
 //   3. Logic-chain open-warning accountability (catches silently dropped protected warnings).
-//   4. 100% local private-reply auditing (privacy: 'private', remoteCalls === 0, hashes/counts only in ledger).
+//   4. 100% local private-reply auditing (privacy: 'private', measured remoteCalls, hashes/counts only in ledger).
 import { sha256, extractJson } from '../core/util.js';
 import { runSandboxedJs } from '../tools/builtin.js';
 
 const JS_LANGS = new Set(['js', 'javascript', 'mjs']);
 const FENCE_RE = /```([a-zA-Z0-9_+-]*)[ \t]*\r?\n([\s\S]*?)```/g;
-const ESM_RE = /(?:^|\n)\s*(?:import\s+[\s\S]*?\bfrom\b|import\s+['"]|export\s+(?:default\b|const\b|let\b|var\b|function\b|async\b|class\b|\{))/m;
-const EXTERNAL_ENV_RE = /\b(?:require\s*\(|fetch\s*\(|document\.|window\.|process\.env\b)/;
+// Single-line import/export detection (avoids O(N^2) catastrophic backtracking and false comment matches).
+const ESM_RE = /(?:^|\n)\s*(?:import\s+(?:[^'\n]*\bfrom\s+)?['"][^'"\n]+['"]|export\s+(?:default\b|const\b|let\b|var\b|function\b|async\b|class\b|\{))/m;
+const EXTERNAL_ENV_RE = /\b(?:require\s*\(|import\s*\(|fetch\b|WebSocket\b|XMLHttpRequest\b|document\.|window\.|process\b)/;
 const PLACEHOLDER_RE = /(?:^\s*\.\.\.\s*$|\/\*\s*\.\.\.\s*\*\/|\/\/\s*\.\.\.|;\s*\.\.\.(?!\s*[\w$[{])|\{\s*\.\.\.\s*\}|\/\/\s*your code\b|\/\/\s*TODO\b)/im;
 
-const ASSERT_SHIM = ';(() => { const _a = console.assert.bind(console); console.assert = (c, ...r) => { if (!c) throw new Error("AssertionError: " + (r.length ? r.map((x) => { if (typeof x === "string") return x; try { return JSON.stringify(x); } catch { return String(x); } }).join(" ") : "console.assert failed")); return _a(c, ...r); }; })();';
+const MAX_RUNNABLE_BLOCKS = 10;
+const MAX_BLOCK_BYTES = 32768;
 
 const STOP = new Set(
   'the a an and or of to in on for with is are was were be been being it this that these those as at by from into about over under not no yes you your we our they their i me my he she his her them can will would should could do does did done has have had than then so if but what which who whom how when where why all any each some such only own same too very just also more most other must may might'.split(' ')
 );
 
-const LABEL_PREFIX_RE = /\b(?:step|phase|section|item|part|stage|attempt|task|block|chapter|figure|table|level|tier|version|v|option|choice|rule|law|point|note|line|row|col|column|quarter|q)\s*#?\s*$/i;
+const LABEL_PREFIX_RE = /\b(?:step|phase|section|item|part|stage|attempt|task|block|chapter|figure|table|level|tier|version|v|option|choice|rule|law|point|note|line|row|col|column|quarter|q|http|status|port|code)\s*#?\s*$/i;
 const NUM_CLAIM_RE = /(?<![A-Za-z0-9_.])(?:(?<!\d)-)?([\$€£])?(?:(?<!\d)-)?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(%?)/g;
 const RAW_NUM_RE = /(?<![\w.])-?\d+(?:\.\d+)?/g;
 
@@ -40,6 +43,7 @@ export function extractCodeBlocks(markdown) {
     let runnable = true;
     let reason = null;
     if (!code.trim()) { runnable = false; reason = 'empty'; }
+    else if (Buffer.byteLength(code, 'utf8') > MAX_BLOCK_BYTES) { runnable = false; reason = 'too_large'; }
     else if (ESM_RE.test(code)) { runnable = false; reason = 'esm'; }
     else if (EXTERNAL_ENV_RE.test(code)) { runnable = false; reason = 'external_env'; }
     else if (PLACEHOLDER_RE.test(code)) { runnable = false; reason = 'placeholder'; }
@@ -61,7 +65,38 @@ function summarizeSandboxError(run, timeoutMs) {
 }
 
 /**
- * Execute every runnable fenced JS block in the permission-locked sandbox.
+ * Wrap a code block in a double-isolated `vm.runInNewContext` harness inside the `--permission` child:
+ * - Zero access to `fetch`, `process`, `require`, `WebSocket`, `XMLHttpRequest`, or dynamic `import()`.
+ * - Frozen `console` with non-writable, non-configurable `assert` that throws `AssertionError` on falsy.
+ */
+function buildIsolatedHarness(code, timeoutMs) {
+  const vmTimeout = Math.max(500, Math.min(timeoutMs, 3500));
+  return [
+    'const vm = require("node:vm");',
+    'const __assert = (c, ...r) => {',
+    '  if (!c) {',
+    '    const msg = r.length ? r.map((x) => { if (typeof x === "string") return x; try { return JSON.stringify(x); } catch { return String(x); } }).join(" ") : "console.assert failed";',
+    '    const err = new Error("AssertionError: " + msg);',
+    '    err.name = "AssertionError";',
+    '    throw err;',
+    '  }',
+    '};',
+    'const __console = Object.create(null);',
+    'Object.defineProperties(__console, {',
+    '  assert: { value: __assert, writable: false, configurable: false, enumerable: true },',
+    '  log: { value: (...a) => console.log(...a), writable: false, configurable: false, enumerable: true },',
+    '  info: { value: () => {}, writable: false, configurable: false, enumerable: true },',
+    '  warn: { value: () => {}, writable: false, configurable: false, enumerable: true },',
+    '  error: { value: () => {}, writable: false, configurable: false, enumerable: true },',
+    '});',
+    'Object.freeze(__console);',
+    'const __ctx = vm.createContext({ console: __console });',
+    `vm.runInContext(${JSON.stringify(code)}, __ctx, { timeout: ${vmTimeout}, importModuleDynamically: () => { throw new Error("dynamic import disabled"); } });`,
+  ].join('\n');
+}
+
+/**
+ * Execute every runnable fenced JS block (capped at MAX_RUNNABLE_BLOCKS) in the double-isolated sandbox.
  * Intercepts console.assert failures so failed assertions fail the block.
  */
 export async function auditCodeBlocks(markdown, { sandbox = runSandboxedJs, timeoutMs = 4000 } = {}) {
@@ -69,12 +104,12 @@ export async function auditCodeBlocks(markdown, { sandbox = runSandboxedJs, time
   let checked = 0, passed = 0, failed = 0, skipped = 0;
   const findings = [];
   for (const b of blocks) {
-    if (!b.runnable) {
+    if (!b.runnable || checked >= MAX_RUNNABLE_BLOCKS) {
       skipped++;
       continue;
     }
     checked++;
-    const wrapped = `${ASSERT_SHIM}\n${b.code}`;
+    const wrapped = buildIsolatedHarness(b.code, timeoutMs);
     const run = await sandbox(wrapped, { timeoutMs });
     if (run.timedOut || run.exitCode !== 0) {
       failed++;
@@ -99,6 +134,10 @@ function maskNonClaims(text, { stripFences = false } = {}) {
   s = s.replace(/\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?Z?)?\b/g, blank);
   s = s.replace(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g, blank);
   s = s.replace(/\b\d+\.\d+\.\d+(?:\.\d+)?\b/g, blank);
+  // Mask technical identifiers & calendar dates (e.g. SHA-256, AES-256, HTTP 404, May 25, 100% local).
+  s = s.replace(/\b(?:SHA|AES|RSA|MD|UTF|TLS|HMAC|BASE|IPv|ED)[-\s]?\d+\b/gi, blank);
+  s = s.replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\.?\s+\d{1,2}\b/gi, blank);
+  s = s.replace(/\b100%\s+(?:local|offline|deterministic|private|pass|passing|verified|coverage)\b/gi, blank);
   return s;
 }
 
@@ -124,23 +163,17 @@ function extractNumericTokens(text, { stripFences = false, ignoreBenign = false 
     const start = m.index;
     const end = start + raw.length;
     const after = masked.slice(end, end + 8);
-    // Skip dotted numbers like 1.2.3 that slipped past masking.
     if (after.startsWith('.') && /\d/.test(after[1] || '')) continue;
 
     if (ignoreBenign) {
       const plainInt = !hasCurrency && !isPercent && !hasDecimal && Number.isInteger(value);
-      // Ordinals: 1st, 2nd, 3rd, 4th...
       if (plainInt && /^(?:st|nd|rd|th)\b/i.test(after)) continue;
-      // Numbered list index at line start: "1. ", "(2) ", "14) "
       const lineStart = masked.lastIndexOf('\n', start - 1) + 1;
       const linePrefix = masked.slice(lineStart, start);
       if (plainInt && /^\s*\(?$/.test(linePrefix) && /^(?:\.|\))\s/.test(after)) continue;
-      // Explicit structural label: "Step 3", "Phase 22", "Block #14"
       const before = masked.slice(Math.max(0, start - 32), start);
       if (plainInt && LABEL_PREFIX_RE.test(before)) continue;
-      // Calendar years 1900..2100
       if (plainInt && !hasComma && value >= 1900 && value <= 2100) continue;
-      // Small trivial counts 0..12
       if (plainInt && value >= 0 && value <= 12) continue;
     }
 
@@ -152,13 +185,14 @@ function extractNumericTokens(text, { stripFences = false, ignoreBenign = false 
   return items;
 }
 
-function isGroundedNumber(claim, sourceNums, pairSums) {
+function isGroundedNumber(claim, sourceNums, derivedNums, derivedPcts) {
   const { value: v, isPercent } = claim;
   for (const s of sourceNums) {
     if (Math.abs(v - s) <= Math.max(0.01, Math.abs(s) * 0.005)) return true;
-    // Fraction <-> percent equivalence (e.g. 0.675 <-> 67.5%)
-    if (s !== 0 && (isPercent || Math.abs(s) <= 1.5) && Math.abs(v - s * 100) <= Math.max(0.01, Math.abs(s * 100) * 0.005)) return true;
-    if (s !== 0 && Math.abs(v) <= 1.5 && Math.abs(v * 100 - s) <= Math.max(0.01, Math.abs(s) * 0.005)) return true;
+    // Fraction <-> percent equivalence ONLY for proper fractions (0 < |s| < 1) or explicit percent claims (avoids integer 1 grounding $100).
+    if (s !== 0 && Math.abs(s) < 1 && Math.abs(v - s * 100) <= Math.max(0.01, Math.abs(s * 100) * 0.005)) return true;
+    if (isPercent && s !== 0 && Math.abs(s) <= 1 && Math.abs(v - s * 100) <= Math.max(0.01, Math.abs(s * 100) * 0.005)) return true;
+    if (s !== 0 && Math.abs(v) > 0 && Math.abs(v) < 1 && Math.abs(v * 100 - s) <= Math.max(0.01, Math.abs(s) * 0.005)) return true;
     // Rounded to 0/1/2 decimals when |v| >= 10 and within 1%
     if (Math.abs(v) >= 10 && Math.abs(v - s) <= Math.abs(s) * 0.01) {
       if (Math.abs(v - Math.round(s)) < 1e-9 || Math.abs(v - Number(s.toFixed(1))) < 1e-9 || Math.abs(v - Number(s.toFixed(2))) < 1e-9) {
@@ -166,16 +200,21 @@ function isGroundedNumber(claim, sourceNums, pairSums) {
       }
     }
   }
-  for (const ps of pairSums) {
-    if (Math.abs(v - ps) <= 1e-6) return true;
+  for (const d of derivedNums) {
+    if (Math.abs(v - d) <= Math.max(0.01, Math.abs(d) * 0.005)) return true;
+  }
+  if (isPercent) {
+    for (const p of derivedPcts) {
+      if (Math.abs(v - p) <= Math.max(0.1, Math.abs(p) * 0.01)) return true;
+    }
   }
   return false;
 }
 
 /**
  * Check quantitative claims in a synthesis against upstream sources (goal + task outputs + tool evidence).
- * Ignores benign numbers (0..12, calendar years, list indices, ordinals, structural labels) and allows
- * formatted numbers, percent/fraction forms, rounding within 1%, and exact pair sums.
+ * Allows exact matches, formatted numbers, proper fraction/percent forms, rounding within 1%,
+ * pair sums/differences, small 3-term sums, and derived percentage ratios.
  */
 export function auditNumericProvenance(synthesis, sources = []) {
   const srcList = Array.isArray(sources) ? sources : [sources];
@@ -189,11 +228,29 @@ export function auditNumericProvenance(synthesis, sources = []) {
       }
     }
   }
-  const capped = sourceNums.slice(0, 80);
-  const pairSums = [];
+  const capped = sourceNums.slice(0, 60);
+  const derivedNums = [];
+  const derivedPcts = [];
   for (let i = 0; i < capped.length; i++) {
     for (let j = i + 1; j < capped.length; j++) {
-      pairSums.push(capped[i] + capped[j]);
+      const a = capped[i], b = capped[j];
+      derivedNums.push(a + b);
+      derivedNums.push(Math.abs(a - b));
+      if (b > 0) derivedPcts.push((a / b) * 100);
+      if (a > 0) derivedPcts.push((b / a) * 100);
+      if (a > 0 && b > 0) {
+        derivedPcts.push((a / (a + b)) * 100);
+        derivedPcts.push((b / (a + b)) * 100);
+      }
+    }
+  }
+  // 3-term sums for small source sets (catches multi-item totals like $100+$200+$300=$600 without combinatoric blowup).
+  const small = capped.slice(0, 18);
+  for (let i = 0; i < small.length; i++) {
+    for (let j = i + 1; j < small.length; j++) {
+      for (let k = j + 1; k < small.length; k++) {
+        derivedNums.push(small[i] + small[j] + small[k]);
+      }
     }
   }
 
@@ -201,7 +258,7 @@ export function auditNumericProvenance(synthesis, sources = []) {
   let grounded = 0, ungrounded = 0;
   const findings = [];
   for (const c of claims) {
-    if (isGroundedNumber(c, sourceNums, pairSums)) {
+    if (isGroundedNumber(c, sourceNums, derivedNums, derivedPcts)) {
       grounded++;
     } else {
       ungrounded++;
@@ -222,14 +279,14 @@ function escapeRegExp(s) {
 
 /**
  * Verify that every open protected warning from a LogicChain review (contradictions & unsupported_claims)
- * is acknowledged in the final design brief (by warning ID or >=2 non-stopword content tokens).
+ * is acknowledged in the final design brief (by warning ID or >=2 distinct word-boundary content tokens).
  */
 export function auditLogicChain(ledgerObj, review, brief) {
   const open = Array.isArray(review?.open) ? review.open : [];
   const briefStr = String(brief ?? '');
-  const briefLower = briefStr.toLowerCase();
-  const briefWords = new Set(briefLower.match(/[a-z0-9]{3,}/g) || []);
-  const contradictionIds = new Set((ledgerObj?.contradictions || []).map((c) => c.id));
+  const briefWords = new Set(briefStr.toLowerCase().match(/[a-z0-9]{3,}/g) || []);
+  const rawContradictions = Array.isArray(ledgerObj?.contradictions) ? ledgerObj.contradictions : [];
+  const contradictionIds = new Set(rawContradictions.map((c) => c?.id).filter(Boolean));
 
   let acknowledged = 0, unacknowledged = 0;
   const findings = [];
@@ -248,7 +305,7 @@ export function auditLogicChain(ledgerObj, review, brief) {
       if (needed > 0) {
         let hits = 0;
         for (const tok of tokens) {
-          if (briefWords.has(tok) || (tok.length >= 4 && briefLower.includes(tok))) hits++;
+          if (briefWords.has(tok)) hits++;
           if (hits >= needed) { matched = true; break; }
         }
       }
@@ -266,11 +323,12 @@ export function auditLogicChain(ledgerObj, review, brief) {
 
 function extractAnswerNumber(task, text) {
   const s = String(text ?? '').replace(/```[\s\S]*?```/g, ' ');
-  // Explicit FINAL or **Answer:** markers override inTask filtering.
+  // Require uppercase FINAL when colon is omitted so prose like "final 10% discount" never hijacks extraction.
   const explicitMatches = [
-    ...s.matchAll(/\bFINAL\s*:?\s*\$?\s*(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)/gi),
+    ...s.matchAll(/\bFINAL\s*:?\s*\$?\s*(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)/g),
+    ...s.matchAll(/\bfinal\s*:\s*\$?\s*(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)/gi),
     ...s.matchAll(/\*\*Answer:\s*\$?\s*(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\*\*/gi),
-  ];
+  ].sort((a, b) => a.index - b.index);
   if (explicitMatches.length) {
     const n = Number(explicitMatches.at(-1)[1].replace(/,/g, ''));
     if (Number.isFinite(n)) return n;
@@ -280,14 +338,20 @@ function extractAnswerNumber(task, text) {
   return nums.length ? nums.at(-1) : null;
 }
 
-function numbersAgree(a, b, task = '') {
+export function numbersAgree(a, b, task = '') {
   if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
   const close = (x, y) => Math.abs(x - y) <= Math.max(0.01, Math.abs(y) * 0.002);
   if (close(a, b) || close(b, a)) return true;
   const decA = Math.min(4, (String(a).split('.')[1] || '').length);
   const decB = Math.min(4, (String(b).split('.')[1] || '').length);
-  if (decA <= 2 && Math.abs(Number(b.toFixed(decA)) - a) < 1e-9) return true;
-  if (decB <= 2 && Math.abs(Number(a.toFixed(decB)) - b) < 1e-9) return true;
+  // Prevent coarse dec=0/1 rounding from equating wildly different small numbers (e.g. 1 vs 0.6 or 0.6 vs 0.55).
+  const roundOk = (ref, val, dec) => {
+    if (dec > 2) return false;
+    if (Math.abs(Number(ref.toFixed(dec)) - val) >= 1e-9) return false;
+    if (dec < 2 && Math.abs(ref - val) > Math.abs(ref) * 0.02) return false;
+    return true;
+  };
+  if (roundOk(b, a, decA) || roundOk(a, b, decB)) return true;
   const pctTask = /\b(fraction|percent|percentage|proportion)\b|%\s*of the original/i.test(String(task));
   if (pctTask && b !== 0 && (close(a, b * 100) || close(a * 100, b))) return true;
   return false;
@@ -300,7 +364,7 @@ export class ClaimAuditor {
 
   /**
    * Audit a single mission task output before/alongside the prose critic.
-   * Runs runnable JS blocks in the sandbox and checks for unresolved tool-failure contradictions.
+   * Runs runnable JS blocks in the double-isolated sandbox and checks for unresolved tool-failure contradictions.
    */
   async auditTask(task, result, { signal } = {}) {
     if (signal?.aborted) throw new Error('aborted');
@@ -319,7 +383,7 @@ export class ClaimAuditor {
       }
     }
 
-    const steps = Array.isArray(result?.steps) ? result.steps : [];
+    const steps = Array.isArray(result?.steps) ? result.steps.filter(Boolean) : [];
     const failedTools = steps.filter((s) => s.tool && s.ok === false);
     const unresolvedFailures = failedTools.filter((ft) => !steps.some((s) => s.tool === ft.tool && s.ok === true));
     if (unresolvedFailures.length > 0) {
@@ -354,11 +418,12 @@ export class ClaimAuditor {
     const text = String(deliverable ?? '');
     const timeoutMs = this.cfg?.auditor?.codeTimeoutMs ?? 4000;
     const codeAudit = await auditCodeBlocks(text, { sandbox: this.sandbox, timeoutMs });
+    const safeTasks = Array.isArray(sourceTasks) ? sourceTasks : [];
     const sources = [
       String(goal ?? ''),
-      ...(sourceTasks || []).map((t) => [
+      ...safeTasks.map((t) => [
         t?.output || '',
-        ...((t?.evidence || []).map((e) => e?.preview || '')),
+        ...(Array.isArray(t?.evidence) ? t.evidence.map((e) => e?.preview || '') : []),
       ].join('\n')),
     ].filter(Boolean);
     const provenanceAudit = auditNumericProvenance(text, sources);
@@ -436,8 +501,8 @@ export class ClaimAuditor {
 
   /**
    * Audit a private or sealed direct reply 100% locally.
-   * Privacy invariant: every model call is pinned to privacy: 'private' (remoteCalls === 0),
-   * and the ledger records ONLY hashes, counts, and booleans — NEVER raw task/reply text or PII.
+   * Privacy invariant: every model call is pinned to privacy: 'private', remoteCalls is MEASURED via
+   * router.metered (never hardcoded), and the ledger records ONLY hashes, counts, and booleans.
    */
   async auditPrivateReply(task, final, { agentId = null, privacy = 'private', signal } = {}) {
     if (signal?.aborted) throw new Error('aborted');
@@ -447,6 +512,7 @@ export class ClaimAuditor {
     let ok = true;
     let checked = codeAudit.checked > 0;
     let numericCheck = null;
+    let measuredRemoteCalls = 0;
 
     if (codeAudit.failed > 0) {
       ok = false;
@@ -461,7 +527,7 @@ export class ClaimAuditor {
       const replyNum = extractAnswerNumber(task, final);
       if (replyNum !== null) {
         try {
-          const res = await this.router.chat({
+          const call = () => this.router.chat({
             role: agentId === 'forge_keeper' ? 'reason' : 'code',
             privacy: 'private',
             temperature: 0.1,
@@ -472,6 +538,14 @@ export class ClaimAuditor {
               { role: 'user', content: String(task ?? '').slice(0, 3000) },
             ],
           });
+          let res;
+          if (typeof this.router.metered === 'function') {
+            const metered = await this.router.metered(call);
+            res = metered.result;
+            measuredRemoteCalls = metered.meter?.remote ?? 0;
+          } else {
+            res = await call();
+          }
           const checkNum = extractAnswerNumber(task, res?.text);
           if (checkNum !== null) {
             checked = true;
@@ -506,10 +580,10 @@ export class ClaimAuditor {
       codeFailed: codeAudit.failed,
       numericChecked: numericCheck !== null,
       numericAgree: numericCheck ? numericCheck.agree : null,
-      remoteCalls: 0,
+      remoteCalls: measuredRemoteCalls,
     };
     this.ledger?.append('audit.private', meta, 'auditor');
     this.bus?.publish('audit.private', meta);
-    return { ok, checked, codeAudit, numericCheck, findings, note };
+    return { ok, checked, codeAudit, numericCheck, findings, note, remoteCalls: measuredRemoteCalls };
   }
 }

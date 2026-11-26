@@ -398,7 +398,48 @@ test('LogicChain integration: attaches auditLogicChain result and ledgers audit.
     assert.ok(entry, 'audit.logic_chain ledger entry recorded');
     assert.equal(entry.data.missionId, 'ms_lc1');
     assert.equal(entry.data.unacknowledged, 1);
+    assert.ok(out.score <= 0.55, 'unacknowledged open warnings penalize LogicChain score');
+    assert.match(out.brief, /Unacknowledged Open Warnings/i);
   } finally {
     await cleanup();
   }
+});
+
+test('red-team regressions (P22-1..P22-4): VM network isolation, frozen assert, numbersAgree, provenance FP/FN, null safety', async () => {
+  // P22-1: Frozen console.assert cannot be overridden, and fetch/process are absent inside VM context.
+  const bypassAssert = await auditCodeBlocks('```js\ntry { console.assert = () => {}; } catch {}\nconsole.assert(2 + 2 === 5, "boom");\n```');
+  assert.equal(bypassAssert.failed, 1, 'console.assert override must not bypass assertion check');
+
+  const noNet = await auditCodeBlocks('```js\nconsole.assert(typeof globalThis["fe" + "tch"] === "undefined", "net leaked");\nconsole.assert(typeof globalThis["pro" + "cess"] === "undefined", "proc leaked");\n```');
+  assert.equal(noNet.checked, 1);
+  assert.equal(noNet.passed, 1, `VM context must not expose fetch/process: ${JSON.stringify(noNet.findings)}`);
+
+  // P22-2: numbersAgree rejects 1 vs 0.6 and 0.6 vs 0.55.
+  const { numbersAgree } = await import('../src/orchestrator/auditor.js');
+  assert.equal(numbersAgree(1, 0.6), false);
+  assert.equal(numbersAgree(0, 0.49), false);
+  assert.equal(numbersAgree(0.6, 0.55), false);
+  assert.equal(numbersAgree(51, 51.3), true);
+
+  // P22-3: Provenance allows pair differences, 3-term sums, derived %, SHA-256, May 25; catches integer-1 $100 fabrication.
+  const cleanDerived = auditNumericProvenance(
+    'On May 25, 2026, SHA-256 verified net profit was $830, total revenue across regions was $600, with an 8% escalation rate (100% local).',
+    ['Revenue $1,450 and costs $620. Regional sales: $100, $200, $300. Tickets: 184 resolved, 16 escalated.'],
+  );
+  assert.equal(cleanDerived.ungrounded, 0, `benign derived figures falsely flagged: ${JSON.stringify(cleanDerived.findings)}`);
+
+  const fab100 = auditNumericProvenance(
+    'The verified savings reached $100.',
+    ['Step 1 completed with status ok.'],
+  );
+  assert.equal(fab100.ungrounded, 1, 'integer 1 in source must NOT ground fabricated $100');
+
+  // P22-4: Null-safety on malformed inputs and word-boundary matching in auditLogicChain.
+  const auditor = new ClaimAuditor();
+  const nullTask = await auditor.auditTask(null, { final: 'ok', steps: [null] });
+  assert.equal(nullTask.ok, true);
+  const nullDeliv = await auditor.auditDeliverable('goal', 'clean summary', 'not-an-array');
+  assert.equal(nullDeliv.ok, true);
+  const lcSub = auditLogicChain({ contradictions: 'bad' }, { open: [{ id: 'con1', text: 'rate limit broken' }] }, 'The modules are separate and solid.');
+  assert.equal(lcSub.unacknowledged, 1, '"rate" must not match substring inside "separate"');
 });
