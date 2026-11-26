@@ -1,0 +1,131 @@
+{
+  "phase": 23,
+  "name": "Cross-Agency Immune System (Verified Skill Revocation & Peer Reputation)",
+  "measuredAt": "2026-11-26T02:52:31.962Z",
+  "totalMs": 90244,
+  "allPassed": true,
+  "scenarios": {
+    "crashContainment": {
+      "ok": true,
+      "ms": 143,
+      "gpuCalls": 0,
+      "bStatus": "quarantined",
+      "cStatus": "quarantined",
+      "bRepConfirmedForA": 1,
+      "cRepConfirmedForB": 1,
+      "emitResult": {
+        "sent": 1,
+        "results": [
+          {
+            "peerId": "peer_01m8aw6ygr761pvyz64rg4",
+            "peer": "B",
+            "ok": true,
+            "reply": {
+              "ok": true,
+              "verdict": "confirmed",
+              "skill": "safe_split_buggy",
+              "demoted": false,
+              "relayed": 1
+            }
+          }
+        ]
+      }
+    },
+    "semanticBugContainment": {
+      "ok": true,
+      "ms": 55746,
+      "localGpuCalls": 5,
+      "bStatus": "quarantined",
+      "cStatus": "quarantined",
+      "reimportBlockedB": {
+        "imported": false,
+        "reason": "skill compound_discount_buggy: quarantined by confirmed immune advisory"
+      },
+      "reimportBlockedC": {
+        "imported": false,
+        "reason": "skill compound_discount_buggy: quarantined by confirmed immune advisory"
+      },
+      "emitResult": {
+        "sent": 2,
+        "results": [
+          {
+            "peerId": "peer_01m8aw6ynjt7ng486hr6bn",
+            "peer": "C",
+            "ok": true,
+            "reply": {
+              "ok": true,
+              "verdict": "confirmed",
+              "skill": "compound_discount_buggy",
+              "demoted": false
+            }
+          },
+          {
+            "peerId": "peer_01m8aw6ygr761pvyz64rg4",
+            "peer": "B",
+            "ok": true,
+            "reply": {
+              "ok": true,
+              "verdict": "confirmed",
+              "skill": "compound_discount_buggy",
+              "demoted": false
+            }
+          }
+        ]
+      }
+    },
+    "byzantineFalseFlag": {
+      "ok": true,
+      "ms": 33978,
+      "falseQuarantines": 0,
+      "healthyStatusB": "active",
+      "healthyStatusC": "active",
+      "dPeerOnB": {
+        "trust": "known",
+        "rep_false_flags": 2
+      },
+      "dPeerOnC": {
+        "trust": "known",
+        "rep_false_flags": 2
+      },
+      "replies": {
+        "dB1": {
+          "ok": true,
+          "verdict": "false_flag",
+          "skill": "compound_discount",
+          "demoted": false
+        },
+        "dB2": {
+          "ok": true,
+          "verdict": "false_flag",
+          "skill": "compound_discount",
+          "demoted": true
+        },
+        "dC1": {
+          "ok": true,
+          "verdict": "false_flag",
+          "skill": "compound_discount",
+          "demoted": false
+        },
+        "dC2": {
+          "ok": true,
+          "verdict": "false_flag",
+          "skill": "compound_discount",
+          "demoted": true
+        }
+      }
+    },
+    "securityNegativeControls": {
+      "ok": true,
+      "unsignedPlasmidRejected": true,
+      "piiAdvisoryBlocked": true,
+      "remoteCalls": 0,
+      "localCalls": 11,
+      "ledgersOk": {
+        "A": true,
+        "B": true,
+        "C": true,
+        "D": true
+      }
+    }
+  }
+}
