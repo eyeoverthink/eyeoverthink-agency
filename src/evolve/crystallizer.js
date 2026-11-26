@@ -23,9 +23,12 @@ const NAME = /^[a-z][a-z0-9_]{2,39}$/;
 /** Deep equality with numeric tolerance, for comparing two implementations' outputs. */
 /** A computed value matches an agent's answer: within 0.2%, or equal at the answer's own rounding ("110.16", "51"). */
 export function nearAnswer(out, answer) {
-  if (typeof out !== 'number' || typeof answer !== 'number' || !Number.isFinite(out)) return false;
+  if (typeof out !== 'number' || typeof answer !== 'number' || !Number.isFinite(out) || !Number.isFinite(answer)) return false;
   const dec = Math.min(4, (String(answer).split('.')[1] || '').length);
-  return Math.abs(out - answer) <= Math.max(0.01, Math.abs(answer) * 0.002) || (dec <= 2 && Math.abs(Number(out.toFixed(dec)) - answer) < 1e-9);
+  if (Math.abs(out - answer) <= Math.max(0.01, Math.abs(answer) * 0.002)) return true;
+  if (dec === 2) return Math.abs(Number(out.toFixed(2)) - answer) < 1e-9;
+  if (dec < 2) return Math.abs(Number(out.toFixed(dec)) - answer) < 1e-9 && Math.abs(out - answer) <= Math.abs(answer) * 0.02;
+  return false;
 }
 
 export function sameOutput(a, b) {
@@ -44,6 +47,20 @@ export function sameOutput(a, b) {
 
 const STOP = new Set('the and for with that this from into what which when then than are was were has have had its his her their them they you your our who how why per each all any but not can will would should could does did done get gets got use used using one two after before about over under then also only just very more most much many some such same other another final answer task compute calculate find give return value result total number amount'.split(' '));
 const NUM = /(?<![\w.])-?\d+(?:\.\d+)?/g; // "2026-11" is 2026 and 11, not -11
+/**
+ * Extract the numeric answer from a voice's final text. Explicit final markers (**Answer: N** or FINAL: N) are read
+ * directly without discarding numbers that also appear in the task; plain prose falls back to the last number not in
+ * the task.
+ */
+export function extractAnswerNumber(text, task = '') {
+  const raw = String(text ?? '');
+  const bold = raw.match(/\*\*Answer:\s*\$?\s*(-?[\d,]+(?:\.\d+)?)\*\*/i);
+  if (bold) return bold[1].replace(/,(?=\d{3}\b)/g, '');
+  const finals = [...raw.matchAll(/\bFINAL:?\s*\$?\s*(-?[\d,]+(?:\.\d+)?)/gi)];
+  if (finals.length) return finals.at(-1)[1].replace(/,(?=\d{3}\b)/g, '');
+  const inTask = new Set((String(task).replace(/,(?=\d{3}\b)/g, '').match(NUM) || []).map(Number));
+  return (raw.replace(/,(?=\d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
+}
 /** Content words, lightly stemmed, for the no-model prefilter. */
 export function words(text) {
   return String(text).toLowerCase().replace(/%/g, ' percent percentage ').match(/[a-z]{3,}/g)?.filter((w) => !STOP.has(w)).map((w) => w.replace(/(ies)$/, 'y').replace(/(ing|ed|es|s)$/, '')).filter((w) => w.length >= 3) || [];
@@ -734,16 +751,15 @@ export class Crystallizer {
    * 2-of-3 vote cannot fix), and Cohen's kappa on right/wrong between each pair. items: [{ task, truth }].
    */
   async voiceStudy(items, { voices = null, store = null } = {}) {
-    const ids = voices || ['tycho', ...this.#voices()];
+    const ids = voices || [...new Set(['tycho', ...this.#voices()])];
     const rows = [];
     for (const it of items.slice(0, 40)) {
-      const inTask = new Set((String(it.task).match(NUM) || []).map(Number));
       const answers = {}, ms = {};
       for (const id of ids) {
         const t0 = Date.now();
         const fin = await this.agentAnswer?.(it.task, id).catch(() => null);
         ms[id] = Date.now() - t0;
-        const tok = (String(fin ?? '').replace(/,(?=\d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
+        const tok = extractAnswerNumber(fin, it.task);
         answers[id] = tok === undefined ? null : Number(tok);
       }
       rows.push({ task: it.task, truth: it.truth, answers, ms, right: Object.fromEntries(ids.map((id) => [id, answers[id] != null && nearAnswer(Number(it.truth), answers[id])])) });
@@ -778,8 +794,7 @@ export class Crystallizer {
    */
   async checkAnswer(task, final, { agentId = null, missionId = null } = {}) {
     if (this.cfg?.skills?.checkAnswers === false || !this.agentAnswer || !final) return null;
-    const inTask = new Set((String(task).match(NUM) || []).map(Number));
-    const last = (f) => (String(f ?? '').replace(/,(?=\d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
+    const last = (f) => extractAnswerNumber(f, task);
     const first = last(final);
     if (first === undefined) return null;
     const f = Number(first);
@@ -856,13 +871,12 @@ ${final}`);
     // Measured order (Phase 17), over every measured local agent (Phase 19): measured on 40 tasks, forge_keeper 95%,
     // tycho 60%, lumen 55%. With forge_keeper answering first (Phase 18), a fixed pair left only lumen as a local voice.
     const acc = cfg.voiceOrder !== 'fixed' ? this.measuredAccuracy() : null;
-    if (acc) local = [...new Set([...local, ...Object.keys(acc).filter((v) => v !== 'gemini' && (v !== 'program' || cfg.programVoice !== false))])].sort((x, y) => (acc[y] ?? -1) - (acc[x] ?? -1)).slice(0, 3);
+    if (acc) local = [...new Set([...local, ...Object.keys(acc).filter((v) => v !== 'gemini' && (v !== 'program' || cfg.programVoice !== false))])].sort((x, y) => (acc[y] ?? -1) - (acc[x] ?? -1));
     return cfg.cloudJudge !== false && this.cloudVoice?.available?.() ? ['gemini', ...local] : local;
   }
 
   async #judge(task, out, firstFinal, answer, firstId = null) {
-    const inTask = new Set((String(task).match(NUM) || []).map(Number));
-    const last = (final) => (String(final ?? '').replace(/,(?=\d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
+    const last = (final) => extractAnswerNumber(final, task);
     // A fraction and its percentage are the same answer when the task asks for a fraction, percent or proportion
     // (Phase 20, measured: "what fraction of the original price remains" is answered as 0.675 and as 67.5).
     const pctTask = /\b(fraction|percent|percentage|proportion)\b|%\s*of the original/i.test(String(task));
@@ -870,11 +884,13 @@ ${final}`);
     const near = (tok, v) => {
       if (tok === undefined) return null;
       const n = Number(tok), dec = (tok.split('.')[1] || '').length;
-      if (Math.abs(n - v) <= Math.max(0.01, Math.abs(v) * 0.002) || (dec <= 2 && Math.abs(n - Number(v.toFixed(dec))) < 1e-9)) return true;
+      if (Math.abs(n - v) <= Math.max(0.01, Math.abs(v) * 0.002)) return true;
+      if (dec === 2 && Math.abs(n - Number(v.toFixed(2))) < 1e-9) return true;
+      if (dec < 2 && Math.abs(n - Number(v.toFixed(dec))) < 1e-9 && Math.abs(n - v) <= Math.abs(n) * 0.02) return true;
       return pctTask && v !== 0 && (Math.abs(n - v * 100) <= Math.max(0.01, Math.abs(v * 100) * 0.002) || close(n * 100, v));
     };
     const first = last(firstFinal);
-    const row = { skillOut: out, agentAnswer: first === undefined ? null : Number(first), second: null, third: null, agree: null };
+    const row = { skillOut: out, agentAnswer: first === undefined ? null : Number(first), second: null, third: null, agree: null, ...(pctTask ? { pctTask: true } : {}) };
     if (first === undefined) return row;
     if (near(first, out)) return { ...row, agree: true };
     // Voices in order of independence (Phase 17): Gemini through Firebase AI Logic first when an edge worker is online
@@ -937,8 +953,7 @@ ${final}`);
   async shadowVerdict(shadow, task, final, { agentId = null, missionId = null } = {}) {
     if (shadow?.candidates) {
       // Ambiguous structure: the candidate whose result the agent loop's answer matches is judged; none or several, nothing.
-      const inTask = new Set((String(task).match(NUM) || []).map(Number));
-      const tok = (String(final ?? '').replace(/,(?=\d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
+      const tok = extractAnswerNumber(final, task);
       const pick = tok === undefined ? [] : shadow.candidates.filter((c) => nearAnswer(c.out, Number(tok)) || nearAnswer(Number(tok), c.out));
       this.ledger.append('skill.chain_pick', { candidates: shadow.candidates.map((c) => c.signature), agentAnswer: tok ?? null, picked: pick.length === 1 ? pick[0].signature : null }, 'crystallizer');
       if (pick.length !== 1) return null;
@@ -1414,10 +1429,16 @@ ${final}`);
    * dissent stated. Measured in Phase 16: twice in one run the first agent was wrong, the judge knew it, and the wrong
    * answer was still returned. Returns the corrected text, or null when nothing changes.
    */
-  correctAnswer(v, final, { agentId = null, missionId = null } = {}) {
+  correctAnswer(v, final, { agentId = null, missionId = null, task = null } = {}) {
     if (!v?.agree || v.agentAnswer == null || typeof v.skillOut !== 'number') return null;
     const n = Number(v.skillOut.toPrecision(12));
     const what = v.chain ? `the verified chain ${v.chain}` : `skill_${v.skill}`;
+    const pctTask = Boolean(v.pctTask || (task && /\b(fraction|percent|percentage|proportion)\b|%\s*of the original/i.test(String(task))));
+    const matchesSkill = (ans) => {
+      if (ans == null) return false;
+      if (nearAnswer(v.skillOut, ans)) return true;
+      return pctTask && v.skillOut !== 0 && (nearAnswer(v.skillOut * 100, ans) || nearAnswer(v.skillOut, ans * 100));
+    };
     if (nearAnswer(v.skillOut, v.agentAnswer)) {
       // Agreement only at the agent's rounding ("24" for 23.85): verified, and the exact value is the better reply.
       if (Math.abs(v.skillOut - v.agentAnswer) <= Math.max(0.01, Math.abs(v.agentAnswer) * 0.002)) return null;
@@ -1431,8 +1452,14 @@ Agents' working, kept for reference:
 
 ${final}`;
     }
-    const name = (id, fallback) => (id === 'gemini' ? 'Gemini via Firebase AI Logic' : fallback);
-    const who = v.second != null && nearAnswer(v.skillOut, v.second) ? `${name(v.secondBy, 'a second agent')} (${v.second})` : v.third != null && nearAnswer(v.skillOut, v.third) ? `${name(v.thirdBy, 'a third agent')} (${v.third})` : null;
+    const name = (id, fallback) => (id === 'gemini' ? 'Gemini via Firebase AI Logic' : id === 'program' ? 'the program voice' : fallback);
+    const candidates = [
+      ...(v.second != null ? [{ by: v.secondBy, answer: v.second, fallback: 'a second agent' }] : []),
+      ...(v.third != null ? [{ by: v.thirdBy, answer: v.third, fallback: 'a third agent' }] : []),
+      ...((v.extra || []).filter((x) => x && x.answer != null).map((x) => ({ by: x.by, answer: x.answer, fallback: x.by ? `agent ${x.by}` : 'an extra voice' }))),
+    ];
+    const hit = candidates.find((c) => matchesSkill(c.answer));
+    const who = hit ? `${name(hit.by, hit.fallback)} (${hit.answer})` : null;
     if (!who) return null;
     this.ledger.append('skill.correct', { skill: v.skill || null, chain: v.chain || null, agentId, missionId, first: v.agentAnswer, corrected: n, by: who }, 'crystallizer');
     return `**Answer: ${n}**
