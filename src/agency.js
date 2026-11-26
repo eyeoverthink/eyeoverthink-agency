@@ -270,8 +270,16 @@ export class Agency {
    */
   async programAnswer(task) {
     if (this.cfg.skills?.programVoice === false) return null;
-    const r = await programVoice(task, { router: this.router, sandbox: runSandboxedJs });
-    this.ledger.append('judge.program', { taskSha256: sha256(String(task)), verdict: r.verdict, answer: r.answer, votes: r.votes.map((v) => ({ role: v.role, model: v.model || null, answer: v.answer ?? null, error: v.error || null })) }, 'agency');
+    const taskSha256 = sha256(String(task));
+    const r = await programVoice(task, { router: this.router, sandbox: runSandboxedJs, ledger: this.ledger, taskSha256 });
+    this.ledger.append('judge.program', {
+      taskSha256,
+      verdict: r.verdict,
+      answer: r.answer,
+      family: r.family || null,
+      votes: r.votes.map((v) => ({ role: v.role, model: v.model || null, answer: v.answer ?? null, vetoed: Boolean(v.vetoed), vetoReason: v.vetoReason || null, error: v.error || null })),
+      vetoes: r.vetoes || [],
+    }, 'agency');
     return r.answer == null ? null : `FINAL ${r.answer}`;
   }
 
