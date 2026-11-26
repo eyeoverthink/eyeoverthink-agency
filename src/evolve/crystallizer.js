@@ -1481,7 +1481,7 @@ ${final}`;
    *   shared   : this agency exported a skill (skill.export, mesh.skill_out)
    */
   lineage() {
-    const entries = this.store.all("SELECT seq, ts, kind, data, hash FROM ledger WHERE kind IN ('skill.admit','skill.gap_learned','skill.compose','skill.import','skill.adopt','skill.export','skill.retire','skill.import_reject','mesh.skill_out') ORDER BY seq")
+    const entries = this.store.all("SELECT seq, ts, kind, data, hash FROM ledger WHERE kind IN ('skill.admit','skill.gap_learned','skill.compose','skill.import','skill.adopt','skill.export','skill.retire','skill.quarantine','skill.import_reject','mesh.skill_out') ORDER BY seq")
       .map((r) => ({ ...r, data: JSON.parse(r.data) }));
     const skills = this.list();
     const ref = (e) => ({ seq: e.seq, hash: e.hash, ts: e.ts });
@@ -1582,13 +1582,16 @@ ${final}`;
     for (const s of skills) {
       if (!NAME.test(String(s.name)) || typeof s.code !== 'string' || !s.params) return fail(`skill ${s.name}: malformed`);
       if (sha256(s.code) !== s.code_sha256) return fail(`skill ${s.name}: code hash mismatch`);
-      if (this.store.get("SELECT id FROM skill_advisories WHERE code_sha256 = ? AND verdict = 'confirmed' LIMIT 1", String(s.code_sha256).toLowerCase())) {
+      if (this.store.get("SELECT id FROM skill_advisories WHERE code_sha256 = ? AND verdict = 'confirmed' LIMIT 1", String(s.code_sha256).toLowerCase())
+        || this.store.get("SELECT id FROM skills WHERE code_sha256 = ? AND status = 'quarantined' LIMIT 1", String(s.code_sha256).toLowerCase())) {
         return fail(`skill ${s.name}: quarantined by confirmed immune advisory`);
       }
       const a = s.admission;
-      if (!a || a.signer !== plasmid.signer || Ledger.entryHash(a) !== a.hash || !verifyWith(a.signer, a.hash, a.sig) || a.data?.codeSha256 !== s.code_sha256) return fail(`skill ${s.name}: no valid signed admission entry from the sender`);
+      if (!a || !['skill.admit', 'skill.compose', 'skill.adopt'].includes(a.kind) || a.signer !== plasmid.signer || Ledger.entryHash(a) !== a.hash || !verifyWith(a.signer, a.hash, a.sig) || a.data?.codeSha256 !== s.code_sha256) return fail(`skill ${s.name}: no valid signed admission entry from the sender`);
       const mine = local.find((x) => x.name === s.name);
       if (mine && mine.code_sha256 !== s.code_sha256) return fail(`skill ${s.name}: a different skill with this name already exists here`);
+      if (mine && mine.status === 'quarantined') return fail(`skill ${s.name}: quarantined locally`);
+      if (mine && !['active', 'probation'].includes(mine.status)) return fail(`skill ${s.name}: local skill is ${mine.status}`);
       if (mine) { rows.push({ name: s.name, owned: mine.status }); lib.push(mine); continue; }
       // Reproduce the sender's verification rows here, with the bundle's earlier skills as the library.
       const vr = s.verification?.rows || [];

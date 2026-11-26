@@ -67,7 +67,8 @@ export class Mesh {
     const { sig, ...unsigned } = env || {};
     if (!env || env.v !== 1 || !env.from || !env.type) throw new Error('malformed envelope');
     if (!verifyWith(env.from, unsigned, sig)) throw new Error('bad signature');
-    if (Math.abs(Date.now() - Number(env.ts)) > WINDOW_MS) throw new Error('timestamp outside ±300s window');
+    const ts = Number(env.ts);
+    if (!Number.isFinite(ts) || Math.abs(Date.now() - ts) > WINDOW_MS) throw new Error('timestamp outside ±300s window');
     this.store.run('DELETE FROM mesh_nonces WHERE ts < ?', Date.now() - 2 * WINDOW_MS);
     if (this.store.get('SELECT nonce FROM mesh_nonces WHERE nonce = ?', String(env.nonce))) throw new Error('replayed nonce');
     this.store.run('INSERT INTO mesh_nonces (nonce, ts) VALUES (?, ?)', String(env.nonce), Date.now());
@@ -124,6 +125,7 @@ export class Mesh {
         return { ok: true, ...r };
       }
       case 'skill.advisory': {
+        if (!trusted) throw new Error('skill.advisory requires a trusted peer');
         if (!this.immune) throw new Error('immune system is not enabled here');
         return await this.immune.handleAdvisory(peer, env.body);
       }
