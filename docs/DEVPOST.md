@@ -1,13 +1,34 @@
 # Devpost submission text — EyeOverThink Agency
 
+Paste each section into the Devpost field of the same name. The "About the project" field takes everything from **Inspiration** through **What's next**.
+
+## Project name
+EyeOverThink Agency
+
+## Try it out
+- Code (Apache-2.0): https://github.com/eyeoverthink/eyeoverthink-agency
+- **30-second check (no GPU, no Ollama, no Firebase account):** clone it and run `npm test` (Node.js 22.13+; 152 deterministic tests covering the ledger, Privacy Membrane, receipts, skills, judge and mesh). Then read `web/src/hybrid.ts`, `web/src/edge.ts`, `src/guard/membrane.js` and the raw evidence JSON files in `docs/phases/`.
+- **Full run:** `node bin/agency.js serve` (needs Ollama; the dashboard in `web/` needs a Firebase project, see `web/.env.example`; `node bin/agency.js edge doctor` checks the setup offline).
+
 ## Video
 https://www.youtube.com/watch?v=dXUTdhnmbvA (2:52, recorded live on real local models; narration in my own voice).
 
-## Tagline
-A sovereign AI agency on your own machine: local GPU agents, Firebase AI Logic as extra capacity when the GPU is busy, every result verified before it counts, and every act signed so you can audit it.
+## Elevator pitch (tagline, 190 characters; Devpost's limit is 200)
+Local AI that compiles verified answers into 0-call code. Gemini via Firebase AI Logic is its measured 40/40 judge, Privacy Membrane cloud tier and GPU overflow. Every act is Ed25519-signed.
+
+## Image gallery (upload in this order)
+1. `docs/screenshots/ask-the-agency.jpg`: 0 calls, 0.13 s, a skill the agency composed itself.
+2. `docs/screenshots/membrane-firebase-saw.jpg`: what Firebase actually received (placeholders only).
+3. `docs/screenshots/sovereignty-map.jpg`: local GPU and membrane vs Firebase AI Logic at a glance.
+4. `docs/screenshots/skill-family-tree.jpg` and `judge-voices.jpg`: crop out the red "OFFLINE" sidebar badge first.
+5. `docs/screenshots/mission-control.jpg` or `agents-dna.jpg`.
+
+Leave out `edge-proof-real.jpg` (its big "0 ON_DEVICE" reads as a failure without context), `second-voice-check.jpg` (too small to read) and `program-voice.jpg` (made after the code freeze).
 
 ## Inspiration
 Agent tools usually trust whatever the model says it did, forget everything between runs, and send your private work to someone else's servers. I wanted an agency I could run and audit myself, one that uses the cloud only when I allow it.
+
+The people who need this most are privacy-bound teams: clinics, accounting and finance operations, legal practices. Cloud-only AI rents intelligence per call and sees their clients' data. Small local models keep the data private, but in my measurements the default local agent got only 50–70% of multi-step number problems right, with no record of how. This project is my answer to that trade-off: private by default, cloud power when it's safe, and proof for every answer.
 
 ## What it does
 - You give it a goal. **Genesis** plans a task graph, and specialists (research, engineering, analysis, writing) run in parallel on local models.
@@ -22,10 +43,12 @@ Most AI products rent intelligence per call and keep nothing. This agency turns 
 - **Skills.** A solved task is distilled into a pure function. It is admitted only if it agrees with an independent implementation that a different model wrote from the description alone.
 - **Zero-call routing.** Before agents spend model turns, the agency checks whether a skill it owns answers the task. It learns, with no model, how to read each skill's inputs from the task text. Then the next task of that kind costs **zero model calls**.
 - **It doesn't trust itself blindly.** A skill answers only task wording it has verified. Unfamiliar wording goes to the agents, and the skill's output is checked against their answer afterwards. A verdict needs two of three different agents to agree.
-- **Refusals become skills.** When a skill refuses a task and the agents agree on its answer, that's a solved example of something the agency doesn't own yet. Three of them crystallize a new skill, which must reproduce those answers before it is admitted.
+- **Refusals become skills.** When a skill refuses a task and the agents agree on its answer, that's a solved example of something the agency doesn't own yet. Once at least three agree (the default), the agency tries to crystallize a new skill, which must reproduce those answers before it is admitted. In the live run, five refusals became a tax skill that matched the answer key 5 of 5.
 - **Composition.** Owned skills chain together (discount, then tax, then split the bill). After the judge verifies a chain shape twice, the agency **writes the combined skill itself, with no model**.
 
-Measured live on my laptop (real local models): a new kind of bill-splitting task cost **5–8 model calls and about 25 s** the first time, **1 call and 4 s** the second, and **0 calls and 0.13 s** the third. All answers were exact. In the test runs, no task was routed to the wrong skill.
+Measured live on my laptop (real local models): a new kind of bill-splitting task cost **4 model calls and 15.6 s** the first time, **1 call and 4.6 s** the second, and **0 calls and 0.13 s** the third, the same run shown in the video. All answers were exact. Earlier phases did route some tasks to the wrong skill; how each case was caught and blocked is documented in Phases 11 and 12, and the final runs of Phases 13–15 had no misroutes.
+
+**Why number problems?** Pricing, tax, splits and rates mirror real quoting and invoicing work, and they have exact answers, so every claim here is checked against ground truth instead of another model's opinion.
 
 ## It measures who to believe, and checks every number
 - **Skills travel safely.** Verified skills move between agencies as signed plasmids. The receiver re-checks every signature and test case and keeps the skill on probation until its own agents agree with it twice. Over the signed mesh, an agency pulls the skills it lacks from trusted peers by name, and **the peer never sees the task**.
@@ -41,16 +64,20 @@ The dashboard is also an **edge inference node**. `web/src/hybrid.ts` calls, at 
 - `initializeDeviceModel()` after a click;
 - `generateContent()` and `response.inferenceSource`.
 
-`web/src/edge.ts` registers the browser with the agency, takes jobs, runs them, and reports `ON_DEVICE` or `IN_CLOUD` for each one.
+`web/src/edge.ts` registers the browser with the agency, takes jobs, runs them, and reports `ON_DEVICE` or `IN_CLOUD` for each one. Firebase AI Logic has three jobs in the agency: the Privacy Membrane's cloud tier, the measured judge, and GPU overflow.
+
+**Private work, cloud power: the Privacy Membrane.** In `sealed` mode, deterministic detectors (emails, phones, card numbers, SSNs, IBANs, secrets, owner terms) and a local-only name finder replace every sensitive value with a placeholder such as `⟦PERSON_1⟧`. A fail-closed audit checks the outgoing text, only placeholders go to Firebase AI Logic, and the reply is restored on the machine. Live test: a clinic appointment email with five private fields. Gemini (`IN_CLOUD`, 1.7 s) saw only `⟦PERSON_1⟧`, `⟦EMAIL_1⟧`, `⟦ADDRESS_1⟧`, `⟦ID_1⟧` and `⟦PHONE_1⟧`, kept all five, and the agency restored the real values locally (ledger entry #1173, `membrane.crossing`).
+
+**Honest note on Gemini Nano.** `web/src/hybrid.ts` supports all four `InferenceMode`s. On my laptop, Chrome exposed the Prompt API but reported Gemini Nano as unavailable, so `PREFER_ON_DEVICE` fell back to the cloud as designed and `ONLY_ON_DEVICE` kept private work on the local GPU instead of sending it anywhere. Every measured Firebase call therefore ran `IN_CLOUD`; the on-device path is implemented and tested, not yet exercised on real hardware.
 
 **Why the agency calls Firebase at runtime: GPU overflow.** The local 8 GB GPU runs one model call at a time. While it is busy, waiting planning, reasoning and critic calls go to a dashboard tab acting as a Firebase AI Logic worker, instead of queueing. It's real extra capacity, not a demo path:
 - Benchmark and evolution calls never overflow, so their comparisons stay on one model.
 - Private work overflows only to a browser whose Gemini Nano is actually available, pinned to `ONLY_ON_DEVICE`. Otherwise it stays on the local GPU.
 - If the edge fails, each call falls straight back to the GPU.
 
-**Gemini is the agency's most accurate judge.** While a dashboard tab serves Firebase AI Logic, the agency asks Gemini first whenever its own answers need checking. In the measurements it was right 40 of 40 times, at a median of 1.3 s per call. A guard in front of every judge call means a task holding private values (emails, keys, owner terms) never reaches it.
+**Gemini is the agency's most accurate judge.** While a dashboard tab serves Firebase AI Logic, the agency asks Gemini first whenever its own answers need checking. In the measurements it was right 40 of 40 times (20 tasks, then 20 held-out), at a median of about 1.3 s per call. A guard in front of every judge call means a task holding private values (emails, keys, owner terms) never reaches it.
 
-**Proof, not claims.** Every Firebase call is signed into the agency's Ed25519 hash-chained ledger as an `edge.inference` entry: the inference path, latency, project and a SHA-256 of the output (never the prompt or text). On my machine, a real mission sent 3 of its 160 model calls through Firebase AI Logic while the GPU was busy, each ledgered as `IN_CLOUD`.
+**Proof, not claims.** A finished mission exports a receipt that anyone can verify offline, with zero dependencies, in Node or a browser (`bin/verify-receipt.js`). Every Firebase call is signed into the agency's Ed25519 hash-chained ledger as an `edge.inference` entry: the inference path, latency, project and a SHA-256 of the output (never the prompt or text). On my machine, a real mission sent 3 of its 160 model calls through Firebase AI Logic while the GPU was busy, each ledgered as `IN_CLOUD`.
 
 **Setup that tells you what's wrong.** `agency edge doctor` checks the Firebase config offline, masks secrets, refuses an env file git could commit, and catches a dashboard build older than its config. First-call errors are translated into their fix.
 
@@ -80,8 +107,14 @@ The dashboard is also an **edge inference node**. `web/src/hybrid.ts` calls, at 
 - Skills travel between agencies over a signed mesh, and are re-verified and adopted only after local agreement.
 - Its judge is measured, not assumed, and every number it gives is checked by an independent voice.
 
+## What I learned
+- **Measure every voice before trusting it.** The default agent I would have picked as judge was right 50–70% of the time. Gemini was right 40 of 40. Only the measurement showed that.
+- **Independent models are not independent.** When agents were wrong, they were often wrong together, with the same misreading of the question. Two of three agreeing is strong evidence, not proof.
+- **Real calls beat simulated ones.** The first real Firebase AI Logic calls exposed two bugs that every mocked test had passed.
+- **A system that learns must be able to unlearn.** The hardest part wasn't learning skills. It was stopping a wrong example from protecting itself, and letting the agency demote it later.
+
 ## What's next
-- A program-verified judge for tasks the agents can't solve reliably themselves.
+- A program-verified judge for tasks the agents can't solve reliably themselves. (Started after the code freeze on branch `phase-20-program-judge`; not part of the submitted build.)
 - Multi-turn on-device sessions.
 - A visual workflow canvas.
 - Gossip-based memory sync between trusted agencies.

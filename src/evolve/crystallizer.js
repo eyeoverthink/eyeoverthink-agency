@@ -835,7 +835,9 @@ ${final}`);
   /** Who is asked after the first agent, in order. 'gemini' only when a Firebase AI Logic edge worker can answer. */
   /** Accuracy per voice over every study (the voice study and the held-out study, weighted by their sizes). */
   measuredAccuracy() {
-    const studies = ['judge:study', 'judge:heldout'].map((k) => this.store.kvGet(k, null)).filter((s) => s?.accuracy && s.items);
+    // Every stored study counts, weighted by size: the voice study, its held-out set, and (Phase 20) the hard set and
+    // the program voice's own run on the standard tasks.
+    const studies = (this.cfg?.skills?.studyKeys || ['judge:study', 'judge:heldout', 'judge:hard', 'judge:program']).map((k) => this.store.kvGet(k, null)).filter((s) => s?.accuracy && s.items);
     if (!studies.length) return null;
     const out = {};
     for (const id of new Set(studies.flatMap((s) => Object.keys(s.accuracy)))) {
@@ -848,20 +850,28 @@ ${final}`);
   #voices() {
     const cfg = this.cfg?.skills || {};
     let local = [cfg.secondOpinion || 'lumen', cfg.thirdOpinion || 'forge_keeper'];
+    // Phase 20: the program voice (two independent local programs that must agree) joins the pool; the voice study
+    // decides its rank like any other voice. Unmeasured, it is asked after the configured agents.
+    if (cfg.programVoice !== false) local.push('program');
     // Measured order (Phase 17), over every measured local agent (Phase 19): measured on 40 tasks, forge_keeper 95%,
     // tycho 60%, lumen 55%. With forge_keeper answering first (Phase 18), a fixed pair left only lumen as a local voice.
     const acc = cfg.voiceOrder !== 'fixed' ? this.measuredAccuracy() : null;
-    if (acc) local = [...new Set([...local, ...Object.keys(acc).filter((v) => v !== 'gemini')])].sort((x, y) => (acc[y] ?? -1) - (acc[x] ?? -1)).slice(0, 3);
+    if (acc) local = [...new Set([...local, ...Object.keys(acc).filter((v) => v !== 'gemini' && (v !== 'program' || cfg.programVoice !== false))])].sort((x, y) => (acc[y] ?? -1) - (acc[x] ?? -1)).slice(0, 3);
     return cfg.cloudJudge !== false && this.cloudVoice?.available?.() ? ['gemini', ...local] : local;
   }
 
   async #judge(task, out, firstFinal, answer, firstId = null) {
     const inTask = new Set((String(task).match(NUM) || []).map(Number));
     const last = (final) => (String(final ?? '').replace(/,(?=\d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
+    // A fraction and its percentage are the same answer when the task asks for a fraction, percent or proportion
+    // (Phase 20, measured: "what fraction of the original price remains" is answered as 0.675 and as 67.5).
+    const pctTask = /\b(fraction|percent|percentage|proportion)\b|%\s*of the original/i.test(String(task));
+    const close = (a, b) => Math.abs(a - b) <= Math.max(0.01, Math.abs(b) * 0.002);
     const near = (tok, v) => {
       if (tok === undefined) return null;
       const n = Number(tok), dec = (tok.split('.')[1] || '').length;
-      return Math.abs(n - v) <= Math.max(0.01, Math.abs(v) * 0.002) || (dec <= 2 && Math.abs(n - Number(v.toFixed(dec))) < 1e-9);
+      if (Math.abs(n - v) <= Math.max(0.01, Math.abs(v) * 0.002) || (dec <= 2 && Math.abs(n - Number(v.toFixed(dec))) < 1e-9)) return true;
+      return pctTask && v !== 0 && (Math.abs(n - v * 100) <= Math.max(0.01, Math.abs(v * 100) * 0.002) || close(n * 100, v));
     };
     const first = last(firstFinal);
     const row = { skillOut: out, agentAnswer: first === undefined ? null : Number(first), second: null, third: null, agree: null };
@@ -902,6 +912,20 @@ ${final}`);
     if (near(third, out)) return { ...row, agree: true, by: 'third opinion sided with the skill' };
     if (near(third, Number(first)) || near(first, Number(third))) return { ...row, agree: false, corroborated: Number(first), by: 'third opinion corroborated the first' };
     if (near(third, Number(second)) || near(second, Number(third))) return { ...row, agree: false, corroborated: Number(second), by: 'third opinion corroborated the second' };
+    // Still a three-way split: keep asking the remaining voices (skills.maxVoices, default 4 beyond the first) until two
+    // answers agree. Measured in Phase 20: on "what fraction of the original price remains" the first agent, Gemini and
+    // forge_keeper all differed, and the program voice, ranked next, was never asked. Costs extra only on splits.
+    const heardSoFar = [['first', first], [secondBy, second], [thirdBy, third]];
+    row.extra = [];
+    for (let k = 3; k < (this.cfg?.skills?.maxVoices ?? 4); k++) {
+      const { id, tok } = await ask();
+      if (tok === undefined) break;
+      row.extra.push({ by: id, answer: Number(tok) });
+      if (near(tok, out)) return { ...row, agree: true, by: `${id} sided with the skill` };
+      const match = heardSoFar.find(([, t]) => near(tok, Number(t)) || near(t, Number(tok)));
+      if (match) return { ...row, agree: false, corroborated: Number(match[1]), by: `${id} corroborated ${match[0]}` };
+      heardSoFar.push([id, tok]);
+    }
     return row;
   }
 
@@ -937,7 +961,8 @@ ${final}`);
 
   /**
    * Re-verify positives recorded before wording was verified: those using wording rare among positives (under 25%)
-   * are judged like a shadow verdict. Only a refutation corroborated by a second agent demotes one to a negative.
+   * are judged like a shadow verdict. A refutation corroborated by a second agent demotes one to a negative; so does a
+   * split where at least skills.unsupportedMin (4) voices answered and none matched the skill (Phase 20b).
    * `answer(task, agentId?)` returns the agent loop's final text (skill-first off).
    */
   async auditWording(skillName, answer) {
@@ -955,10 +980,21 @@ ${final}`);
       const r = await this.#run(skill.code, e.input, []);
       if (r.error || typeof r.out !== 'number') { rows.push({ task: e.task, rare: words_, agree: null }); continue; }
       const j = await this.#judge(e.task, r.out, await answer(e.task), answer, this.cfg?.skills?.auditAgent || 'tycho');
+      // No voice supports the positive (Phase 20b). A split leaves agree null: two voices must agree before an answer
+      // is taught. But a positive is itself a claim (the skill computed this task's answer), and the audit's question is
+      // whether anything still backs it. Measured in Phase 20: on "$80 jacket ... what fraction of the original price
+      // remains" the skill said 54 and four independent voices said 65, 27, 40 and 0.675 (the program, correct).
+      // When at least skills.unsupportedMin (default 4) voices answered and none matched the skill, the positive is
+      // demoted. No gap is recorded: no answer was corroborated. The failure this can cause is a refusal (that
+      // wording goes back to the agents), never a wrong answer.
+      if (j.agree === null) {
+        const heard = [j.agentAnswer, j.second, j.third, ...(j.extra || []).map((x) => x.answer)].filter((x) => x != null);
+        if (heard.length >= (this.cfg?.skills?.unsupportedMin ?? 4)) { j.agree = false; j.unsupported = heard.length; j.by = `no voice supported the skill (${heard.length} answers, none matched)`; }
+      }
       if (j.agree === false) { this.store.run("UPDATE skill_examples SET label = 'neg', input = NULL WHERE id = ?", e.id); if (j.corroborated != null) this.#recordGap(skillName, e.task, j.corroborated); }
       rows.push({ task: e.task, rare: words_, ...j });
     }
-    this.ledger.append('binder.audit_wording', { skill: skillName, checked: rows.length, demoted: rows.filter((x) => x.agree === false).length }, 'crystallizer');
+    this.ledger.append('binder.audit_wording', { skill: skillName, checked: rows.length, demoted: rows.filter((x) => x.agree === false).length, unsupported: rows.filter((x) => x.unsupported).length }, 'crystallizer');
     return rows;
   }
 

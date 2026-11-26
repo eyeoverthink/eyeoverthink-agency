@@ -10,7 +10,8 @@ import { ModelRouter } from './llm/router.js';
 import { Memory } from './memory/memory.js';
 import { Approvals } from './guard/approvals.js';
 import { ToolRegistry } from './tools/registry.js';
-import { registerBuiltinTools } from './tools/builtin.js';
+import { registerBuiltinTools, runSandboxedJs } from './tools/builtin.js';
+import { programVoice } from './evolve/program-voice.js';
 import { Membrane, detect } from './guard/membrane.js';
 import { AgentRegistry } from './agents/registry.js';
 import { AgentRuntime } from './agents/runtime.js';
@@ -27,7 +28,7 @@ import { Crystallizer, relevance } from './evolve/crystallizer.js';
 import { Mesh } from './protocols/mesh.js';
 import { McpClient } from './protocols/mcp.js';
 import { Continuity } from './continuity/continuity.js';
-import { newId, nowIso, errorMessage, truncate } from './core/util.js';
+import { newId, nowIso, errorMessage, truncate, sha256 } from './core/util.js';
 
 export class Agency {
   constructor(overrides = {}) {
@@ -80,7 +81,7 @@ export class Agency {
     // The wording audit re-checks old positives against the agent loop's own answer (skill-first off).
     // Phase 16: a task no owned skill could take looks for one among trusted peers (the task text never leaves).
     this.crystallizer.seeker = (task, final, opts) => this.seekSkills(task, final, opts);
-    this.crystallizer.agentAnswer = async (task, agentId = this.cfg.skills?.auditAgent || 'tycho') => (agentId === 'gemini' ? this.geminiAnswer(task) : (await this.runtime.run(agentId, task, { skillFirst: false, check: false })).final);
+    this.crystallizer.agentAnswer = async (task, agentId = this.cfg.skills?.auditAgent || 'tycho') => (agentId === 'gemini' ? this.geminiAnswer(task) : agentId === 'program' ? this.programAnswer(task) : (await this.runtime.run(agentId, task, { skillFirst: false, check: false })).final);
     // Phase 17: Gemini through Firebase AI Logic as an independent judge voice, only while a dashboard tab serves as an edge worker.
     this.crystallizer.cloudVoice = { available: () => this.cfg.skills?.cloudJudge !== false && this.edge.available };
     this.crystalQueue = Promise.resolve();
@@ -263,6 +264,17 @@ export class Agency {
    * work reaches it, and judging never happens for private or sealed tasks. The reply counts only if it really came
    * from the edge: the router's local fallback would silently be a different (local) voice, so it is discarded.
    */
+  /**
+   * The program voice (Phase 20): two independent local programs must agree on one number (a third decides 2 of 3).
+   * Returns "FINAL <n>" or null. Every verdict is ledgered with the task's hash, never its text.
+   */
+  async programAnswer(task) {
+    if (this.cfg.skills?.programVoice === false) return null;
+    const r = await programVoice(task, { router: this.router, sandbox: runSandboxedJs });
+    this.ledger.append('judge.program', { taskSha256: sha256(String(task)), verdict: r.verdict, answer: r.answer, votes: r.votes.map((v) => ({ role: v.role, model: v.model || null, answer: v.answer ?? null, error: v.error || null })) }, 'agency');
+    return r.answer == null ? null : `FINAL ${r.answer}`;
+  }
+
   async geminiAnswer(task) {
     // Guard before the cloud (Phase 17, from the Chandra analysis): judged work is never private, but its text may still
     // hold a value the membrane would withhold (a key, an email, an owner term). Then Gemini is not asked at all.
