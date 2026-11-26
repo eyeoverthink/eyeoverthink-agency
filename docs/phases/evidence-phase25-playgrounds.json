@@ -1,0 +1,18 @@
+{
+  "phase": 25,
+  "title": "Zero-Backend Interactive Browser Playgrounds",
+  "date": "2026-11-26",
+  "branch": "phase-25-browser-playgrounds",
+  "nodeVersion": "v24.11.1",
+  "measurements": {
+    "playgroundsCount": 3,
+    "htmlFiles": ["playgrounds/index.html", "playgrounds/receipt-lab.html", "playgrounds/membrane-lab.html", "playgrounds/skill-lab.html"],
+    "externalCdnRequests": 0,
+    "nodeImportsInBrowserLibs": 0,
+    "receiptTamperAttacksCaught": { "caught": 6, "total": 6 },
+    "membraneParityWithSrc": true,
+    "binderInductionByteParityWithSrc": true,
+    "skillNearMissTrapsRefused": { "refused": 3, "total": 3 },
+    "remoteModelCalls": 0
+  }
+}
