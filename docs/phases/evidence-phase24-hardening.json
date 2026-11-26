@@ -1,0 +1,22 @@
+{
+  "phase": 24,
+  "title": "Adversarial Audit Hardening & RFC 6962 / RFC 8785 Cryptography",
+  "date": "2026-11-26",
+  "branch": "phase-24-audit-hardening",
+  "nodeVersion": "v24.11.1",
+  "auditFindingsClosed": ["C1", "C2", "C3", "C4", "C5", "H4", "H5", "H6", "H9", "M1"],
+  "redTeamHardeningApplied": [
+    "captured primordials + strict pure-compute module allowlist (blocks Set.prototype.has tamper & _http_client/_tls_wrap)",
+    "lstatSync dangling-symlink workspace escape check",
+    "IPv4-translated, RFC 8215 NAT64, 6to4, site-local IPv6, and allowLoopback private-IP isolation",
+    "Ledger.verifyProof v1 downgrade root-as-leaf rejection",
+    "verifyReceipt statement.type/missionId/hash format validation",
+    "sentinel fixed-point </untrusted> strip + BOM/soft-hyphen/bidi coverage"
+  ],
+  "measurements": {
+    "sandboxNetworkProbesBlocked": { "blocked": 13, "total": 13 },
+    "ssrfPrivateVectorsBlocked": { "blocked": 23, "total": 23, "publicAllowed": 5 },
+    "receiptTamperAndCompletenessAttacksBlocked": { "blocked": 5, "total": 5, "cve2012_2459Eliminated": true },
+    "remoteModelCalls": 0
+  }
+}

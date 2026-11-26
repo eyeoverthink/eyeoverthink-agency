@@ -66,10 +66,11 @@ export class Continuity {
     return { file, strandSha: plasmid.strandSha, sizes: { agents: chr1.agents.length, missions: chr2.missions.length, memories: chr3.memories.length } };
   }
 
-  /** Restore from a snapshot: verifies the plasmid, then merges (never overwrites) agents, workflows and memories. */
-  restore(file) {
+  /** Restore from a snapshot: verifies the plasmid (and optional trusted signer), then merges agents, workflows and memories. */
+  restore(file, { trustSigner = null } = {}) {
     const plasmid = JSON.parse(fs.readFileSync(file, 'utf8'));
     const opened = openPlasmid(plasmid, verifyWith);
+    if (trustSigner && plasmid.signer !== trustSigner) throw new Error('Snapshot signer does not match trusted signer');
     const records = opened.parts['organism.fasta'].toString('utf8').split(/^>/m).filter(Boolean);
     const chrom = {};
     for (const rec of records) {
@@ -78,10 +79,16 @@ export class Continuity {
     }
     const s = this.a.store;
     const counts = { agents: 0, workflows: 0, memories: 0 };
+    const AGENT_COLS = new Set([
+      'id', 'name', 'role', 'description', 'model_role', 'tools', 'system_prompt', 'genome',
+      'traits', 'source', 'generation', 'fitness', 'runs', 'enabled', 'public_key', 'created', 'updated',
+    ]);
     s.tx(() => {
       for (const ag of chrom.chr1_genome?.agents || []) {
+        if (!ag || typeof ag !== 'object' || !ag.id) continue;
         if (s.get('SELECT id FROM agents WHERE id = ?', ag.id)) continue;
-        const cols = Object.keys(ag);
+        const cols = Object.keys(ag).filter((c) => AGENT_COLS.has(c));
+        if (!cols.length) continue;
         s.run(`INSERT INTO agents (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`, ...cols.map((c) => ag[c]));
         counts.agents++;
       }

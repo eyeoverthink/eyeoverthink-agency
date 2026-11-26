@@ -79,32 +79,108 @@ export function calculate(expr) {
 }
 
 // ---------- workspace sandbox ----------
+function lstatOrNull(p) {
+  try { return fs.lstatSync(p); } catch { return null; }
+}
+
 export function resolveInWorkspace(root, rel) {
-  const target = path.resolve(root, String(rel || '.'));
-  const r = path.resolve(root);
-  if (target !== r && !target.startsWith(r + path.sep)) throw new Error('path escapes the workspace sandbox');
+  const rLex = path.resolve(root);
+  const rReal = fs.existsSync(rLex) ? fs.realpathSync(rLex) : rLex;
+  const target = path.resolve(rLex, String(rel || '.'));
+  if (target !== rLex && !target.startsWith(rLex + path.sep)) throw new Error('path escapes the workspace sandbox');
+  // Check every path component from workspace root down to target using lstatSync (catches dangling symlinks too!).
+  const relFromRoot = path.relative(rLex, target);
+  let cur = rLex;
+  if (relFromRoot && !relFromRoot.startsWith('..')) {
+    for (const seg of relFromRoot.split(path.sep)) {
+      if (!seg || seg === '.') continue;
+      cur = path.join(cur, seg);
+      const st = lstatOrNull(cur);
+      if (!st) break; // remaining segments do not exist yet
+      if (st.isSymbolicLink()) throw new Error('symlink access is forbidden inside the workspace sandbox');
+      const real = fs.realpathSync(cur);
+      if (real !== rReal && !real.startsWith(rReal + path.sep)) throw new Error('path escapes the workspace sandbox via symlink');
+    }
+  }
+  const targetSt = lstatOrNull(target);
+  if (targetSt) {
+    if (targetSt.isSymbolicLink()) throw new Error('symlink access is forbidden inside the workspace sandbox');
+    const realTarget = fs.realpathSync(target);
+    if (realTarget !== rReal && !realTarget.startsWith(rReal + path.sep)) throw new Error('path escapes the workspace sandbox via symlink');
+    return realTarget;
+  }
   return target;
 }
 
 // ---------- web (SSRF-guarded) ----------
-function isPrivateIp(ip) {
+export function isPrivateIp(rawIp) {
+  const ip = String(rawIp || '').trim().toLowerCase().replace(/^\[|\]$/g, '').split('%')[0];
+  if (!ip) return true;
   if (net.isIPv4(ip)) {
     const [a, b] = ip.split('.').map(Number);
-    return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127);
+    return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31)
+      || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
   }
-  return ip === '::1' || /^f[cd]/i.test(ip) || /^fe80/i.test(ip);
+  if (!net.isIPv6(ip)) return true;
+  const mappedQuad = ip.match(/^(?:::ffff:|(?:0{1,4}:){5}ffff:)(\d+\.\d+\.\d+\.\d+)$/);
+  if (mappedQuad) return isPrivateIp(mappedQuad[1]);
+  const halves = ip.split('::');
+  if (halves.length > 2) return true;
+  const left = halves[0] ? halves[0].split(':') : [];
+  const right = halves.length === 2 && halves[1] ? halves[1].split(':') : [];
+  const lastRight = right.at(-1);
+  if (lastRight && net.isIPv4(lastRight)) {
+    const oct = lastRight.split('.').map(Number);
+    right.pop();
+    right.push(((oct[0] << 8) | oct[1]).toString(16), ((oct[2] << 8) | oct[3]).toString(16));
+  }
+  const missing = halves.length === 2 ? 8 - (left.length + right.length) : 0;
+  if (missing < 0 || left.length + missing + right.length !== 8) return true;
+  const groups = [...left, ...Array(missing).fill('0'), ...right].map((g) => parseInt(g || '0', 16));
+  if (groups.some((g) => Number.isNaN(g) || g < 0 || g > 0xffff)) return true;
+  const allZero = groups.every((g) => g === 0);
+  const loopback = groups.slice(0, 7).every((g) => g === 0) && groups[7] === 1;
+  if (allZero || loopback) return true;
+  const v4From = (hi, lo) => `${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`;
+  // IPv4-mapped (::ffff:w.x.y.z), IPv4-translated (::ffff:0:w.x.y.z), IPv4-compatible (::w.x.y.z),
+  // NAT64 well-known (64:ff9b::w.x.y.z) and RFC 8215 local-use NAT64 (64:ff9b:1::/48)
+  const isV4Mapped = groups.slice(0, 5).every((g) => g === 0) && groups[5] === 0xffff;
+  const isV4Translated = groups.slice(0, 4).every((g) => g === 0) && groups[4] === 0xffff && groups[5] === 0;
+  const isV4Compat = groups.slice(0, 6).every((g) => g === 0);
+  const isNat64WellKnown = groups[0] === 0x0064 && groups[1] === 0xff9b && groups.slice(2, 6).every((g) => g === 0);
+  const isNat64Local = groups[0] === 0x0064 && groups[1] === 0xff9b && groups[2] === 0x0001;
+  if (isNat64Local) return true;
+  if (isV4Mapped || isV4Translated || isV4Compat || isNat64WellKnown) {
+    return isPrivateIp(v4From(groups[6], groups[7]));
+  }
+  // 6to4 (2002::/16 embeds IPv4 in groups[1]..groups[2])
+  if (groups[0] === 0x2002) return isPrivateIp(v4From(groups[1], groups[2]));
+  // Unique local (fc00::/7), link-local (fe80::/10), deprecated site-local (fec0::/10), multicast (ff00::/8)
+  if ((groups[0] & 0xfe00) === 0xfc00) return true;
+  if ((groups[0] & 0xffc0) === 0xfe80) return true;
+  if ((groups[0] & 0xffc0) === 0xfec0) return true;
+  if ((groups[0] & 0xff00) === 0xff00) return true;
+  return false;
 }
 
-async function guardUrl(raw, allowlist) {
+export async function guardUrl(raw, allowlist, { allowLoopback = false, lookup = dns.lookup } = {}) {
   let u;
   try { u = new URL(raw); } catch { throw new Error('invalid URL'); }
   if (!['http:', 'https:'].includes(u.protocol)) throw new Error('only http(s) URLs are allowed');
-  const host = u.hostname.toLowerCase();
-  const allowed = allowlist.some((d) => host === d || host.endsWith('.' + d));
+  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  const allowed = allowlist.some((d) => {
+    const clean = String(d || '').toLowerCase();
+    return host === clean || host.endsWith('.' + clean);
+  });
   if (!allowed) throw new Error(`host ${host} is not on the allowlist (config.security.httpAllowlist)`);
-  const local = host === 'localhost' || host === '127.0.0.1';
-  if (!local) {
-    const addrs = await dns.lookup(host, { all: true });
+  const isLoopbackHost = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  if (isLoopbackHost && !allowLoopback) throw new Error(`loopback host ${host} is blocked unless security.allowLoopback is true`);
+  if (net.isIP(host)) {
+    if (isPrivateIp(host) && !(allowLoopback && isLoopbackHost)) throw new Error(`host ${host} is a private address`);
+    return u;
+  }
+  if (!isLoopbackHost) {
+    const addrs = await lookup(host, { all: true });
     if (addrs.some((a) => isPrivateIp(a.address))) throw new Error(`host ${host} resolves to a private address`);
   }
   return u;
@@ -144,8 +220,73 @@ export function parseDuckDuckGo(html, max = 8) {
 }
 
 // ---------- sandboxed code execution ----------
+// Strict pure-compute allowlist with bound exotic primordials (immune to Function.prototype.call/apply, Set.prototype, String.prototype tampering, and legacy _http_client/_tls_wrap builtins).
+const SANDBOX_LOCKDOWN = `;(function __svaSandboxLockdown(){
+  const _Object = Object;
+  const _String = String;
+  const _Error = Error;
+  const _bind = Function.prototype.bind;
+  const _uncurry = (fn) => _bind.call(Function.prototype.call, fn);
+  const _hasOwn = _uncurry(_Object.prototype.hasOwnProperty);
+  const _startsWith = _uncurry(_String.prototype.startsWith);
+  const _slice = _uncurry(_String.prototype.slice);
+  const _indexOf = _uncurry(_String.prototype.indexOf);
+  const _defineProperty = _Object.defineProperty;
+  const _freeze = _Object.freeze;
+  const _create = _Object.create;
+
+  const ALLOWED = _create(null);
+  const allowNames = ['assert','buffer','crypto','events','path','querystring','stream','string_decoder','timers','url','util','zlib'];
+  for (let i = 0; i < allowNames.length; i++) ALLOWED[allowNames[i]] = true;
+  _freeze(ALLOWED);
+
+  const isAllowed = (spec) => {
+    if (typeof spec !== 'string') return false;
+    let s = _startsWith(spec, 'node:') ? _slice(spec, 5) : spec;
+    const slash = _indexOf(s, '/');
+    if (slash >= 0) s = _slice(s, 0, slash);
+    return _hasOwn(ALLOWED, s);
+  };
+  const deny = (name) => { throw new _Error('sandbox blocked restricted API: ' + _String(name)); };
+  const Module = require('node:module');
+  const _origLoad = _bind.call(Function.prototype.apply, Module._load);
+  Module._load = function(request, parent, isMain) {
+    if (!isAllowed(request)) deny(request);
+    return _origLoad(this, arguments);
+  };
+  if (typeof Module.registerHooks === 'function') {
+    Module.registerHooks({
+      resolve(specifier, context, nextResolve) {
+        if (!isAllowed(specifier)) deny(specifier);
+        return nextResolve(specifier, context);
+      },
+    });
+  }
+  const lock = (obj, prop, val) => {
+    try { _defineProperty(obj, prop, { value: val, writable: false, configurable: false, enumerable: false }); } catch {}
+  };
+  const netGlobals = ['fetch', 'WebSocket', 'EventSource', 'XMLHttpRequest'];
+  for (let i = 0; i < netGlobals.length; i++) {
+    const g = netGlobals[i];
+    lock(globalThis, g, function blockedNetworkApi() { deny(g); });
+  }
+  if (typeof process.getBuiltinModule === 'function') {
+    const _origGbm = _bind.call(process.getBuiltinModule, process);
+    lock(process, 'getBuiltinModule', function lockedGetBuiltinModule(id) {
+      if (!isAllowed(id)) deny(id);
+      return _origGbm(id);
+    });
+  }
+  lock(process, 'binding', function blockedBinding(id) { deny('process.binding:' + _String(id)); });
+  lock(process, '_linkedBinding', function blockedLinkedBinding(id) { deny('process._linkedBinding:' + _String(id)); });
+  lock(process, 'dlopen', function blockedDlopen() { deny('process.dlopen'); });
+  _freeze(Module);
+})();\n`;
+
 export function runSandboxedJs(code, { timeoutMs = 10000, cwd } = {}) {
   return new Promise((resolve) => {
+    let settled = false;
+    const finish = (res) => { if (!settled) { settled = true; resolve(res); } };
     const child = spawn(process.execPath, ['--permission', '--max-old-space-size=128', '-'], {
       cwd, env: {}, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
     });
@@ -153,12 +294,17 @@ export function runSandboxedJs(code, { timeoutMs = 10000, cwd } = {}) {
     const cap = (s, chunk) => (s.length < 20000 ? s + chunk : s);
     child.stdout.on('data', (d) => { stdout = cap(stdout, d.toString()); });
     child.stderr.on('data', (d) => { stderr = cap(stderr, d.toString()); });
+    child.stdin.on('error', () => { /* ignore EPIPE if child exited early */ });
+    child.on('error', (err) => {
+      clearTimeout(timer);
+      finish({ exitCode: -1, timedOut: false, stdout: '', stderr: truncate(String(err?.message || err), 4000) });
+    });
     const timer = setTimeout(() => { killed = true; child.kill('SIGKILL'); }, timeoutMs);
     child.on('close', (codeExit) => {
       clearTimeout(timer);
-      resolve({ exitCode: codeExit, timedOut: killed, stdout: truncate(stdout, 8000), stderr: truncate(stderr.replace(/\(node:\d+\) ExperimentalWarning[^\n]*\n?/g, ''), 4000) });
+      finish({ exitCode: codeExit, timedOut: killed, stdout: truncate(stdout, 8000), stderr: truncate(stderr.replace(/\(node:\d+\) ExperimentalWarning[^\n]*\n?/g, ''), 4000) });
     });
-    child.stdin.end(String(code));
+    child.stdin.end(SANDBOX_LOCKDOWN + String(code));
   });
 }
 
@@ -177,6 +323,7 @@ function runShell(command, { cwd, timeoutMs = 60000 }) {
 export function registerBuiltinTools(registry, { cfg, memory, ledger }) {
   const ws = cfg.workspaceDir;
   const allow = cfg.security.httpAllowlist;
+  const allowLoopback = Boolean(cfg.security.allowLoopback);
 
   registry.register({
     name: 'calc', description: 'Evaluate a math expression exactly (+ - * / % ^, sqrt, log, ln, sin, cos, min, max, pi, e, phi).',
@@ -254,7 +401,7 @@ export function registerBuiltinTools(registry, { cfg, memory, ledger }) {
     name: 'http_get', description: 'Fetch a web page or API (allowlisted hosts only) and return readable text.', untrusted: true, egress: true, timeoutMs: 20000,
     params: { type: 'object', required: ['url'], properties: { url: { type: 'string', maxLength: 2000 } } },
     run: async ({ url }) => {
-      const u = await guardUrl(url, allow);
+      const u = await guardUrl(url, allow, { allowLoopback });
       const r = await fetchText(u.href);
       const text = /html/i.test(r.contentType) ? htmlToText(r.text) : r.text;
       return `HTTP ${r.status} ${u.href}\n\n${truncate(text, 20000)}`;
@@ -265,7 +412,7 @@ export function registerBuiltinTools(registry, { cfg, memory, ledger }) {
     name: 'http_post', description: 'POST JSON to an allowlisted URL.', risk: 'approval', untrusted: true, egress: true, timeoutMs: 20000,
     params: { type: 'object', required: ['url', 'body'], properties: { url: { type: 'string', maxLength: 2000 }, body: { type: 'object' } } },
     run: async ({ url, body }) => {
-      const u = await guardUrl(url, allow);
+      const u = await guardUrl(url, allow, { allowLoopback });
       const r = await fetchText(u.href, { method: 'POST', body: JSON.stringify(body) });
       return `HTTP ${r.status}\n${truncate(r.text, 20000)}`;
     },

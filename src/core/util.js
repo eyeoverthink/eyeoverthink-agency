@@ -16,13 +16,79 @@ export function newId(prefix = '') {
 
 export const sha256 = (data) => crypto.createHash('sha256').update(data).digest('hex');
 
-/** Deterministic JSON: object keys sorted recursively. Used for hashing and signatures. */
+/**
+ * Deterministic JSON (RFC 8785 JCS compatible for standard JSON values):
+ * object keys sorted by UTF-16 code units, no whitespace, undefined object keys dropped,
+ * undefined array items serialized as null, -0 normalized to 0, Date via toJSON().
+ */
 export function canonical(value) {
   if (value === undefined) return 'null';
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (value === null || typeof value !== 'object') {
+    if (typeof value === 'number' && !Number.isFinite(value)) return 'null';
+    return JSON.stringify(value);
+  }
+  if (typeof value.toJSON === 'function') return canonical(value.toJSON());
   if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
   const keys = Object.keys(value).filter((k) => value[k] !== undefined).sort();
   return '{' + keys.map((k) => JSON.stringify(k) + ':' + canonical(value[k])).join(',') + '}';
+}
+
+/** RFC 6962 domain-separated Merkle hashes: 0x00 for leaves, 0x01 for internal nodes. */
+export const merkleLeafHash = (leafHex) => crypto.createHash('sha256').update(Buffer.from([0x00])).update(String(leafHex), 'utf8').digest('hex');
+export const merkleNodeHash = (leftHex, rightHex) => crypto.createHash('sha256').update(Buffer.from([0x01])).update(String(leftHex), 'utf8').update(String(rightHex), 'utf8').digest('hex');
+
+/**
+ * Build an RFC 6962 domain-separated Merkle tree without odd-leaf duplication (lone odd nodes are promoted).
+ * Returns { root, levels, proofOf(seq) } where seq is 1-based.
+ */
+export function buildMerkleTree(entryHashes) {
+  if (!entryHashes.length) return { root: '0'.repeat(64), levels: [], proofOf: () => [] };
+  const levels = [entryHashes.map(merkleLeafHash)];
+  while (levels.at(-1).length > 1) {
+    const prev = levels.at(-1), next = [];
+    for (let i = 0; i < prev.length; i += 2) {
+      next.push(i + 1 < prev.length ? merkleNodeHash(prev[i], prev[i + 1]) : prev[i]);
+    }
+    levels.push(next);
+  }
+  const root = levels.at(-1)[0];
+  const proofOf = (seq) => {
+    let idx = seq - 1;
+    if (!Number.isInteger(idx) || idx < 0 || idx >= entryHashes.length) throw new Error(`No ledger entry ${seq}`);
+    const path = [];
+    for (let l = 0; l < levels.length - 1; l++) {
+      const level = levels[l];
+      if (idx % 2 === 0 && idx + 1 === level.length) {
+        // Lone odd node is promoted directly to the next level; no sibling hash emitted.
+        idx = Math.floor(idx / 2);
+        continue;
+      }
+      const sibling = idx % 2 === 0 ? level[idx + 1] : level[idx - 1];
+      path.push({ hash: sibling, left: idx % 2 === 1 });
+      idx = Math.floor(idx / 2);
+    }
+    return path;
+  };
+  return { root, levels, proofOf };
+}
+
+/** Deterministic expected left/right step sequence for 1-based seq in a tree of size leaves. */
+export function expectedMerkleSteps(seq, size, version = 2) {
+  if (!Number.isInteger(seq) || !Number.isInteger(size) || seq < 1 || size < 1 || seq > size) return null;
+  const steps = [];
+  let idx = seq - 1;
+  let len = size;
+  while (len > 1) {
+    if (version >= 2 && idx % 2 === 0 && idx + 1 === len) {
+      idx = Math.floor(idx / 2);
+      len = Math.ceil(len / 2);
+      continue;
+    }
+    steps.push(idx % 2 === 1);
+    idx = Math.floor(idx / 2);
+    len = Math.ceil(len / 2);
+  }
+  return steps;
 }
 
 export const nowIso = () => new Date().toISOString();

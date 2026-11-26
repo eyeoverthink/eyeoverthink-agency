@@ -44,6 +44,19 @@ async function readJson(req, limit = 2_000_000) {
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new HttpError(400, 'invalid JSON body'); }
 }
 
+/** Resolve a static pathname strictly within baseDir (blocks sibling-prefix traversal, null bytes, bad URI). */
+export function resolveStaticFile(baseDir, pathname) {
+  let decoded;
+  try { decoded = decodeURIComponent(String(pathname || '/')); } catch { return { error: 400, reason: 'malformed URI encoding' }; }
+  if (decoded.includes('\0')) return { error: 400, reason: 'invalid path' };
+  const base = path.resolve(baseDir);
+  const basePrefix = base.endsWith(path.sep) ? base : base + path.sep;
+  const candidate = path.resolve(base, '.' + (decoded.startsWith('/') ? decoded : '/' + decoded));
+  if (candidate !== base && !candidate.startsWith(basePrefix)) return { file: path.join(base, 'index.html'), fallback: true };
+  if (!fs.existsSync(candidate) || fs.statSync(candidate).isDirectory()) return { file: path.join(base, 'index.html'), fallback: true };
+  return { file: candidate, fallback: false };
+}
+
 export function createServer(agency) {
   const routes = [];
   const add = (method, pattern, handler, opts = {}) => {
@@ -86,6 +99,7 @@ export function createServer(agency) {
 
   // ---------- agents ----------
   add('GET', '/api/agents', ({ url }) => a.agents.list({ includeDisabled: url.searchParams.get('all') === '1' }));
+  add('GET', '/api/agents/pick', ({ url }) => a.pickAnswerer(need(url.searchParams.get('task'), 'task required')));
   add('GET', '/api/agents/:id', ({ params }) => found(a.agents.get(params.id), 'agent'));
   add('POST', '/api/agents', ({ body }) => a.agents.upsert({ ...body, source: 'custom' }));
   add('POST', '/api/agents/:id/enabled', ({ params, body }) => a.agents.setEnabled(params.id, Boolean(body.enabled)));
@@ -114,7 +128,6 @@ export function createServer(agency) {
     return { started: true, items: items.length, key: opts.store };
   });
   add('GET', '/api/skills/voice-study', ({ url }) => { const k = url.searchParams.get('key'); return a.store.kvGet(/^judge:[a-z]{3,20}$/.test(String(k || '')) ? k : url.searchParams.get('heldout') ? 'judge:heldout' : 'judge:study', null); });
-  add('GET', '/api/agents/pick', ({ url }) => a.pickAnswerer(need(url.searchParams.get('task'), 'task required')));
   add('GET', '/api/skills/lineage', () => { const l = a.crystallizer.lineage(); const peers = a.mesh.peers(); for (const n of l.nodes) if (n.kind === 'peer') { const p = peers.find((x) => (n.signer && x.public_key === n.signer) || (n.peerId && x.id === n.peerId)); n.name = p?.name || n.id; } return l; });
   add('POST', '/api/skills/compose', async ({ body }) => a.crystallizer.composeChain(need(body.signature, 'signature required')));
   add('POST', '/api/skills/:name/learn-gap', async ({ params }) => a.crystallizer.learnGap(params.name));
@@ -288,13 +301,17 @@ export function createServer(agency) {
 
   const distDir = path.join(ROOT, 'web', 'dist');
   const serveStatic = (res, pathname) => {
-    const base = fs.existsSync(path.join(distDir, 'index.html')) ? distDir : null;
+    const base = fs.existsSync(path.join(distDir, 'index.html')) ? path.resolve(distDir) : null;
     if (!base) {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       return res.end(`<!doctype html><meta charset="utf-8"><title>EyeOverThink Agency</title><body style="font:15px system-ui;background:#0e0d0b;color:#eee;padding:40px"><h1>EyeOverThink Agency API is running</h1><p>The dashboard is not built yet. Run <code>npm run build</code> in the repository, then reload.</p><p>API token file: <code>${a.cfg.home.replace(/</g, '')}${path.sep}api-token</code></p></body>`);
     }
-    let file = path.join(base, decodeURIComponent(pathname));
-    if (!file.startsWith(base) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(base, 'index.html');
+    const resolved = resolveStaticFile(base, pathname);
+    if (resolved.error) {
+      res.writeHead(resolved.error, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ error: resolved.reason }));
+    }
+    const file = resolved.file;
     res.writeHead(200, { 'content-type': MIME[path.extname(file)] || 'application/octet-stream', 'cache-control': file.endsWith('index.html') ? 'no-cache' : 'public, max-age=3600' });
     fs.createReadStream(file).pipe(res);
   };

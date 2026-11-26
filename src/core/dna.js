@@ -222,19 +222,28 @@ export function buildPlasmid(label, parts, identity) {
 
 /** Decode and verify a plasmid. Throws on any integrity failure. Returns { label, parts: {name: Buffer} }. */
 export function openPlasmid(plasmid, verify) {
+  if (!plasmid || typeof plasmid !== 'object' || typeof plasmid.strand !== 'string') throw new Error('Malformed plasmid');
   if (sha256(plasmid.strand) !== plasmid.strandSha) throw new Error('Plasmid strand hash mismatch');
-  if (plasmid.sig && verify && !verify(plasmid.signer, plasmid.strandSha, plasmid.sig)) throw new Error('Plasmid signature invalid');
+  if (verify) {
+    if (!plasmid.sig || !plasmid.signer) throw new Error('Plasmid missing required signature or signer');
+    if (!verify(plasmid.signer, plasmid.strandSha, plasmid.sig)) throw new Error('Plasmid signature invalid');
+  }
   const text = decodeDna(plasmid.strand).toString('utf8');
   const lines = text.split('\n');
   const head = lines[0].split('|');
   if (head[0] !== 'FRAYPLASMID') throw new Error('Not a plasmid payload');
-  const parts = {};
+  const parts = Object.create(null);
+  const FORBIDDEN_PARTS = new Set(['__proto__', 'constructor', 'prototype']);
   for (let i = 1; i < lines.length - 1; i += 2) {
     const m = lines[i].match(/^>>>PART (\S+) bytes=(\d+) sha256=([0-9a-f]{64})$/);
     if (!m) throw new Error(`Malformed plasmid part header at line ${i + 1}`);
+    const partName = m[1];
+    if (!/^[\w.\-/]{1,120}$/.test(partName) || partName.includes('..') || FORBIDDEN_PARTS.has(partName)) {
+      throw new Error(`Invalid plasmid part name: ${partName}`);
+    }
     const buf = Buffer.from(lines[i + 1], 'base64');
-    if (buf.length !== Number(m[2]) || sha256(buf) !== m[3]) throw new Error(`Plasmid part ${m[1]} failed integrity check`);
-    parts[m[1]] = buf;
+    if (buf.length !== Number(m[2]) || sha256(buf) !== m[3]) throw new Error(`Plasmid part ${partName} failed integrity check`);
+    parts[partName] = buf;
   }
   return { label: head[2], created: head[3], parts };
 }
