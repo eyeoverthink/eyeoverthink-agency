@@ -33,8 +33,8 @@ function renderTraits(t) {
 }
 
 export class AgentRuntime {
-  constructor({ cfg, router, tools, memory, approvals, ledger, bus, agents }) {
-    Object.assign(this, { cfg, router, tools, memory, approvals, ledger, bus, agents });
+  constructor({ cfg, router, tools, memory, approvals, ledger, bus, agents, auditor = null }) {
+    Object.assign(this, { cfg, router, tools, memory, approvals, ledger, bus, agents, auditor });
   }
 
   systemPrompt(agent, toolList, contextText) {
@@ -259,11 +259,18 @@ export class AgentRuntime {
       }
       // Nothing checked this answer (no skill, so no shadow or trial): one more voice does (Phase 19). Only in the
       // measured domain, never for private work, seeded runs, judge voices (check: false) or missions (their critic).
-      const checkable = !shadow && opts.check !== false && !opts.missionId && !Number.isInteger(opts.seed) && (opts.privacy || 'normal') === 'normal'
+      const privacy = opts.privacy || 'normal';
+      const checkable = !shadow && opts.check !== false && !opts.missionId && !Number.isInteger(opts.seed) && privacy === 'normal'
         && (String(task).match(/\d+(?:\.\d+)?/g) || []).length >= 2 && this.crystallizer?.checkAnswer;
       if (checkable) {
         const c = await this.crystallizer.checkAnswer(task, final, { agentId: agent.id, missionId: opts.missionId }).catch(() => null);
         if (c?.final) { final = c.final; if (c.outcome === 'corrected' || c.outcome === 'confirmed') confidence = Math.max(confidence, 0.9); if (c.outcome === 'split' || c.outcome === 'disputed') confidence = Math.min(confidence, 0.4); }
+      }
+      // Phase 22: private and sealed replies bypass cloud judges and get a 100% local deterministic + numeric audit.
+      if (this.auditor && !shadow && opts.check !== false && !opts.missionId && !Number.isInteger(opts.seed) && (privacy === 'private' || privacy === 'sealed')) {
+        const audit = await this.auditor.auditPrivateReply(task, final, { agentId: agent.id, privacy, signal: opts.signal }).catch(() => null);
+        if (audit?.note) final = `${final}\n\n${audit.note}`;
+        if (audit && !audit.ok) confidence = Math.min(confidence, 0.45);
       }
       // No owned skill could take this task: look among trusted peers in the background (never delays the answer).
       if (seekable && this.crystallizer.seeker && (opts.privacy || 'normal') === 'normal') {
