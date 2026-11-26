@@ -54,10 +54,18 @@ const NUM = /(?<![\w.])-?\d+(?:\.\d+)?/g; // "2026-11" is 2026 and 11, not -11
  */
 export function extractAnswerNumber(text, task = '') {
   const raw = String(text ?? '');
-  const bold = raw.match(/\*\*Answer:\s*\$?\s*(-?[\d,]+(?:\.\d+)?)\*\*/i);
-  if (bold) return bold[1].replace(/,(?=\d{3}\b)/g, '');
-  const finals = [...raw.matchAll(/\bFINAL:?\s*\$?\s*(-?[\d,]+(?:\.\d+)?)/gi)];
-  if (finals.length) return finals.at(-1)[1].replace(/,(?=\d{3}\b)/g, '');
+  const cleanNum = (s) => {
+    const c = String(s).replace(/,(?=\d{3}\b)/g, '');
+    return Number.isFinite(Number(c)) ? c : null;
+  };
+  const bold = raw.match(/\*\*Answer:\s*\$?\s*(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\*\*/i);
+  if (bold) { const v = cleanNum(bold[1]); if (v !== null) return v; }
+  // Require uppercase FINAL when colon is omitted so prose like "final 20% discount" never hijacks extraction.
+  const finals = [
+    ...raw.matchAll(/\bFINAL\s*:?\s*\$?\s*(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)/g),
+    ...raw.matchAll(/\bfinal\s*:\s*\$?\s*(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)/gi),
+  ].sort((a, b) => a.index - b.index);
+  if (finals.length) { const v = cleanNum(finals.at(-1)[1]); if (v !== null) return v; }
   const inTask = new Set((String(task).replace(/,(?=\d{3}\b)/g, '').match(NUM) || []).map(Number));
   return (raw.replace(/,(?=\d{3})/g, '').match(NUM) || []).filter((x) => !inTask.has(Number(x))).at(-1);
 }

@@ -42,27 +42,29 @@ export function normalizeProgram(p) {
     .replace(/^(?:javascript|js)\s*\n/i, '').trim();
 }
 
-const WORD_NUMS = {
+const WORD_NUMS = Object.assign(Object.create(null), {
   zero: 0, one: 1, two: 2, twice: 2, double: 2, doubles: 2, three: 3, triple: 3, triples: 3,
   four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, dozen: 12,
   thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
   twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
   hundred: 100, thousand: 1000, half: 0.5, quarter: 0.25,
-};
+});
 
-/** Verify each numeric parameter appears in the task (directly, as a number word, or as exact percent/decimal v*100 or v/100). */
+/** Verify each numeric parameter appears in the task (directly, as a number word, or as exact percent/decimal of a percent token). */
 export function paramsGrounded(params, task) {
-  if (!Array.isArray(params) || !params.length) return false;
+  if (!Array.isArray(params) || !params.length || params.length > 24) return false;
   const clean = String(task ?? '').replace(/(?<=\d),(?=\d{3}\b)/g, '');
   const taskNums = (clean.match(/(?<![\w.])-?\d+(?:\.\d+)?/g) || []).map(Number).filter(Number.isFinite);
+  const pctNums = [...clean.matchAll(/(-?\d+(?:\.\d+)?)\s*(?:%|percent\b)/gi)].map((m) => Number(m[1])).filter(Number.isFinite);
   for (const w of clean.toLowerCase().match(/\b[a-z]+\b/g) || []) {
-    if (w in WORD_NUMS) taskNums.push(WORD_NUMS[w]);
+    if (Object.hasOwn(WORD_NUMS, w)) taskNums.push(WORD_NUMS[w]);
   }
   if (!taskNums.length) return false;
   const approx = (a, b) => Math.abs(a - b) <= Math.max(1e-9, Math.abs(b) * 1e-9);
   return params.every((v) => {
     if (typeof v !== 'number' || !Number.isFinite(v)) return false;
-    return taskNums.some((n) => approx(v, n) || approx(v * 100, n) || approx(v / 100, n));
+    return taskNums.some((n) => approx(v, n))
+      || pctNums.some((p) => approx(v * 100, p) || approx(v / 100, p));
   });
 }
 
