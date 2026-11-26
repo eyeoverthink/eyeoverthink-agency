@@ -357,6 +357,14 @@ test('red-team regressions (P21-1..P21-4): harness forgery, prose final, false-p
   const floorRes = await checkProgramInvariants('function solve(box, items) { return Math.floor(items / box); }', [100, 250], floorTask);
   assert.equal(floorRes.ok, true, `floor step function must pass sensitivity via wide probe, got ${floorRes.vetoReason}`);
 
+  // P21-1b: Host-realm escape via console.log.constructor('return process/fetch')() is blocked.
+  const escapeAttempt = await checkProgramInvariants(
+    'function solve(a, b) { try { const F = console.log.constructor; const f = F("return fe"+"tch")(); if (typeof f === "function") return 12; } catch {} return 1 / (1 / a + 1 / b); }',
+    [10, 15],
+    'A tractor drives to a field at 10 mph and back at 15 mph on the same road. What is the average speed for the round trip?',
+  );
+  assert.equal(escapeAttempt.ok, false, 'VM host-realm escape must not recover fetch');
+
   // P21-4: paramsGrounded blocks prototype lookups and non-percent 100x scaling.
   assert.equal(paramsGrounded([1000, 1500], 'A car goes 10 mph and 15 mph.'), false);
   assert.equal(paramsGrounded([0.2], 'A jacket is 20% off.'), true);

@@ -285,19 +285,19 @@ export async function checkProgramInvariants(program, params, task, { sandbox = 
   const nonce = crypto.randomBytes(12).toString('hex');
   const marker = `__INV_${nonce}__:`;
 
-  // Parameterless path: execute inside vm.runInNewContext (no process/fetch/require) and collect printed output.
+  // Parameterless path: execute inside a clean vm.Context with ZERO host-realm objects/functions.
   if (!parameterized) {
+    const vmSetup = 'const __lines = []; Object.defineProperty(globalThis, "console", { value: Object.freeze({ log: (...a) => __lines.push(a.map(String).join(" ")), info(){}, warn(){}, error(){} }), writable: false, configurable: false });';
     const isolated = [
       'const vm = require("node:vm");',
       'const __write = process.stdout.write.bind(process.stdout);',
-      'const __lines = [];',
-      'const __safeConsole = Object.freeze({',
-      '  log: (...a) => __lines.push(a.map(String).join(" ")),',
-      '  info: () => {}, warn: () => {}, error: () => {},',
-      '});',
-      'const __ctx = vm.createContext({ console: __safeConsole });',
+      'for (const k of ["fetch", "WebSocket", "XMLHttpRequest", "EventSource"]) { try { Object.defineProperty(globalThis, k, { value: undefined, writable: false, configurable: false }); } catch {} }',
+      'try { Object.defineProperty(process, "getBuiltinModule", { value: undefined, writable: false, configurable: false }); } catch {}',
+      'const __ctx = vm.createContext(Object.create(null));',
+      `vm.runInContext(${JSON.stringify(vmSetup)}, __ctx, { timeout: 500 });`,
       `vm.runInContext(${JSON.stringify(src)}, __ctx, { timeout: ${Math.min(timeoutMs, 3500)} });`,
-      '__write(__lines.join("\\n") + "\\n");',
+      'const __out = String(vm.runInContext("__lines.join(\'\\\\n\')", __ctx, { timeout: 500 }));',
+      '__write(__out + "\\n");',
     ].join('\n');
     const run = await sandbox(isolated, { timeoutMs });
     if (run.exitCode !== 0 || run.timedOut) {
@@ -367,15 +367,20 @@ export async function checkProgramInvariants(program, params, task, { sandbox = 
   }
 
   const vmTimeout = Math.min(timeoutMs, 3000);
-  // Double-isolated harness: candidate code executes inside a clean vm.Context with NO process, NO fetch,
-  // NO console output channel, and NO access to the random per-call marker or outer JSON.stringify.
+  // Double-isolated harness: ZERO host-realm objects/functions enter vm.createContext (blocks
+  // console.log.constructor('return process')() host-realm escapes), host fetch/getBuiltinModule
+  // are neutralized before execution, and probe args pass purely as JSON literals.
+  const vmSetup = 'Object.defineProperty(globalThis, "console", { value: Object.freeze({ log(){}, info(){}, warn(){}, error(){} }), writable: false, configurable: false });';
   const harness = [
     'const vm = require("node:vm");',
     'const __stringify = JSON.stringify;',
     'const __write = process.stdout.write.bind(process.stdout);',
-    'const __silentConsole = Object.freeze({ log(){}, info(){}, warn(){}, error(){} });',
-    'const __ctx = vm.createContext({ console: __silentConsole });',
-    `const __solve = vm.runInContext(${JSON.stringify(src + '\n; typeof solve === "function" ? solve : null;')}, __ctx, { timeout: ${vmTimeout} });`,
+    'for (const k of ["fetch", "WebSocket", "XMLHttpRequest", "EventSource"]) { try { Object.defineProperty(globalThis, k, { value: undefined, writable: false, configurable: false }); } catch {} }',
+    'try { Object.defineProperty(process, "getBuiltinModule", { value: undefined, writable: false, configurable: false }); } catch {}',
+    'const __ctx = vm.createContext(Object.create(null));',
+    `vm.runInContext(${JSON.stringify(vmSetup)}, __ctx, { timeout: 500 });`,
+    `vm.runInContext(${JSON.stringify(src)}, __ctx, { timeout: ${vmTimeout} });`,
+    'const __hasSolve = Boolean(vm.runInContext("typeof solve === \'function\'", __ctx, { timeout: 500 }));',
     'const __toNum = (v) => {',
     '  if (typeof v === "number") return Number.isFinite(v) ? v : null;',
     '  if (typeof v === "string" && /^-?\\d+(?:\\.\\d+)?$/.test(v.trim())) { const n = Number(v.trim()); return Number.isFinite(n) ? n : null; }',
@@ -383,15 +388,14 @@ export async function checkProgramInvariants(program, params, task, { sandbox = 
     '};',
     'const __call = (args) => {',
     '  try {',
-    '    __ctx.__a = args;',
-    `    const out = vm.runInContext("__solve(...__a)", Object.assign(__ctx, { __solve }), { timeout: ${Math.min(vmTimeout, 1500)} });`,
+    `    const out = vm.runInContext("solve(..." + __stringify(args) + ")", __ctx, { timeout: ${Math.min(vmTimeout, 1500)} });`,
     '    const n = __toNum(out);',
     '    return n === null ? { err: "non-finite output" } : { val: n };',
     '  } catch (e) {',
     '    return { err: e && e.name ? String(e.name).slice(0, 40) : "Error" };',
     '  }',
     '};',
-    'const __res = { hasSolve: typeof __solve === "function", probes: {} };',
+    'const __res = { hasSolve: __hasSolve, probes: {} };',
     'if (__res.hasSolve) {',
     `  const __base = ${JSON.stringify(params)};`,
     '  __res.run1 = __call(__base);',
