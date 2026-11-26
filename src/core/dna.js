@@ -222,8 +222,8 @@ export function buildPlasmid(label, parts, identity) {
 
 /** Decode and verify a plasmid. Throws on any integrity failure. Returns { label, parts: {name: Buffer} }. */
 export function openPlasmid(plasmid, verify) {
-  if (sha256(plasmid.strand) !== plasmid.strandSha) throw new Error('Plasmid strand hash mismatch');
-  if (plasmid.sig && verify && !verify(plasmid.signer, plasmid.strandSha, plasmid.sig)) throw new Error('Plasmid signature invalid');
+  if (!plasmid || typeof plasmid.strand !== 'string' || sha256(plasmid.strand) !== plasmid.strandSha) throw new Error('Plasmid strand hash mismatch');
+  if (verify && (!plasmid.sig || !plasmid.signer || !verify(plasmid.signer, plasmid.strandSha, plasmid.sig))) throw new Error('Plasmid signature missing or invalid');
   const text = decodeDna(plasmid.strand).toString('utf8');
   const lines = text.split('\n');
   const head = lines[0].split('|');

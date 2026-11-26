@@ -26,6 +26,7 @@ import { Evolution } from './evolve/evolution.js';
 import { Examiner } from './evolve/examiner.js';
 import { Crystallizer, relevance } from './evolve/crystallizer.js';
 import { Mesh } from './protocols/mesh.js';
+import { ImmuneSystem } from './protocols/immune.js';
 import { McpClient } from './protocols/mcp.js';
 import { Continuity } from './continuity/continuity.js';
 import { newId, nowIso, errorMessage, truncate, sha256 } from './core/util.js';
@@ -95,6 +96,12 @@ export class Agency {
       });
     });
     this.mesh = new Mesh({ cfg: this.cfg, store: this.store, keyring: this.keyring, ledger: this.ledger, bus: this.bus, memory: this.memory, runtime: this.runtime, agents: this.agents, crystallizer: this.crystallizer });
+    this.immune = new ImmuneSystem({
+      store: this.store, mesh: this.mesh, crystallizer: this.crystallizer, router: this.router,
+      ledger: this.ledger, bus: this.bus, cfg: this.cfg, membrane: this.membrane, sandbox: runSandboxedJs,
+      verifyOutput: (task) => programVoice(task, { router: this.router, sandbox: runSandboxedJs }),
+    });
+    this.mesh.immune = this.immune;
     this.continuity = new Continuity(this);
     this.mcpClients = [];
     this.timers = [];

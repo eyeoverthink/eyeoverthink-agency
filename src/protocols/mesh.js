@@ -12,8 +12,8 @@ import { wrapUntrusted } from '../guard/sentinel.js';
 const WINDOW_MS = 300000;
 
 export class Mesh {
-  constructor({ cfg, store, keyring, ledger, bus, memory, runtime, agents, crystallizer = null }) {
-    Object.assign(this, { cfg, store, keyring, ledger, bus, memory, runtime, agents, crystallizer });
+  constructor({ cfg, store, keyring, ledger, bus, memory, runtime, agents, crystallizer = null, immune = null }) {
+    Object.assign(this, { cfg, store, keyring, ledger, bus, memory, runtime, agents, crystallizer, immune });
     this.catalogs = new Map(); // peerId -> { at, skills }
   }
 
@@ -53,7 +53,8 @@ export class Mesh {
     const peer = this.store.get('SELECT * FROM peers WHERE id = ?', peerId);
     if (!peer) throw new Error('unknown peer');
     const env = this.envelope(peer.public_key, type, body);
-    const res = await fetch(`${peer.url}/mesh/inbox`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(env), signal: AbortSignal.timeout(15000) });
+    const timeoutMs = type === 'skill.advisory' ? (this.cfg?.mesh?.advisoryTimeoutMs ?? 180000) : 15000;
+    const res = await fetch(`${peer.url}/mesh/inbox`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(env), signal: AbortSignal.timeout(timeoutMs) });
     const reply = await res.json().catch(() => ({}));
     this.store.run('INSERT INTO messages (id, channel, sender, recipient, type, body, sig, verified, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       newId('msg'), `peer:${peerId}`, 'self', peer.public_key, type, body, env.sig, 1, nowIso());
@@ -121,6 +122,10 @@ export class Mesh {
         const r = await this.crystallizer.importSkill(env.body?.plasmid, { trustSigner: env.from });
         this.ledger.append('mesh.skill_in', { peer: peer.id, imported: r.imported, reason: truncate(r.reason, 200), how: 'offer' }, 'agency');
         return { ok: true, ...r };
+      }
+      case 'skill.advisory': {
+        if (!this.immune) throw new Error('immune system is not enabled here');
+        return await this.immune.handleAdvisory(peer, env.body);
       }
       default: throw new Error(`unsupported envelope type ${env.type}`);
     }
