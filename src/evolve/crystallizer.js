@@ -1498,6 +1498,7 @@ ${final}`;
       else if (e.kind === 'skill.import') { const p = peer(d.signer); for (const n of d.skills || []) { note(n, e, 'imported'); if (nodes.has(n)) edges.push({ from: p, to: n, kind: 'imported', label: 'signed plasmid', ...ref(e) }); } }
       else if (e.kind === 'skill.adopt') note(d.name, e, d.via ? `adopted with ${d.via}` : 'adopted after local trials');
       else if (e.kind === 'skill.export') note(d.name, e, 'exported');
+      else if (e.kind === 'skill.quarantine') note(d.name, e, 'quarantined');
       else if (e.kind === 'mesh.skill_out') { const id = `peer:${String(d.peer).slice(0, 12)}`; if (!nodes.has(id)) nodes.set(id, { id, kind: 'peer', peerId: d.peer, status: 'peer', events: [] }); edges.push({ from: d.name, to: id, kind: 'shared', label: d.how === 'offer' ? 'offered' : 'requested by peer', ...ref(e) }); }
       else if (e.kind === 'skill.retire') note(d.name, e, 'retired');
       else if (e.kind === 'skill.import_reject' && d.name) note(d.name, e, 'rejected after local trials');
