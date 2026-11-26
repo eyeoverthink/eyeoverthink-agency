@@ -414,6 +414,19 @@ test('red-team regressions (P22-1..P22-4): VM network isolation, frozen assert, 
   assert.equal(noNet.checked, 1);
   assert.equal(noNet.passed, 1, `VM context must not expose fetch/process: ${JSON.stringify(noNet.findings)}`);
 
+  // P22-1b: Host-realm escape via console.assert.constructor('return process/fetch')() fails cleanly.
+  const hostEscape = await auditCodeBlocks([
+    '```js',
+    'const F = console.assert.constructor;',
+    'let escaped = false;',
+    'try { if (typeof F("return fe" + "tch")() === "function") escaped = true; } catch {}',
+    'try { const p = F("return pro" + "cess")(); if (p) p.exit(0); } catch {}',
+    'console.assert(!escaped, "host realm escaped");',
+    'console.assert(2 + 2 === 5, "must still fail");',
+    '```',
+  ].join('\n'));
+  assert.equal(hostEscape.failed, 1, 'host-realm escape must not bypass console.assert or access process/fetch');
+
   // P22-2: numbersAgree rejects 1 vs 0.6 and 0.6 vs 0.55.
   const { numbersAgree } = await import('../src/orchestrator/auditor.js');
   assert.equal(numbersAgree(1, 0.6), false);

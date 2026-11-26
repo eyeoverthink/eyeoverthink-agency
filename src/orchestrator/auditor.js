@@ -71,8 +71,9 @@ function summarizeSandboxError(run, timeoutMs) {
  */
 function buildIsolatedHarness(code, timeoutMs) {
   const vmTimeout = Math.max(500, Math.min(timeoutMs, 3500));
-  return [
-    'const vm = require("node:vm");',
+  // Define console + non-writable/non-configurable assert INSIDE the VM realm so zero host-realm
+  // functions enter the context (blocks console.assert.constructor('return process/fetch')() escapes).
+  const vmSetup = [
     'const __assert = (c, ...r) => {',
     '  if (!c) {',
     '    const msg = r.length ? r.map((x) => { if (typeof x === "string") return x; try { return JSON.stringify(x); } catch { return String(x); } }).join(" ") : "console.assert failed";',
@@ -84,13 +85,20 @@ function buildIsolatedHarness(code, timeoutMs) {
     'const __console = Object.create(null);',
     'Object.defineProperties(__console, {',
     '  assert: { value: __assert, writable: false, configurable: false, enumerable: true },',
-    '  log: { value: (...a) => console.log(...a), writable: false, configurable: false, enumerable: true },',
+    '  log: { value: () => {}, writable: false, configurable: false, enumerable: true },',
     '  info: { value: () => {}, writable: false, configurable: false, enumerable: true },',
     '  warn: { value: () => {}, writable: false, configurable: false, enumerable: true },',
     '  error: { value: () => {}, writable: false, configurable: false, enumerable: true },',
     '});',
     'Object.freeze(__console);',
-    'const __ctx = vm.createContext({ console: __console });',
+    'Object.defineProperty(globalThis, "console", { value: __console, writable: false, configurable: false });',
+  ].join('\n');
+  return [
+    'const vm = require("node:vm");',
+    'for (const k of ["fetch", "WebSocket", "XMLHttpRequest", "EventSource"]) { try { Object.defineProperty(globalThis, k, { value: undefined, writable: false, configurable: false }); } catch {} }',
+    'try { Object.defineProperty(process, "getBuiltinModule", { value: undefined, writable: false, configurable: false }); } catch {}',
+    'const __ctx = vm.createContext(Object.create(null));',
+    `vm.runInContext(${JSON.stringify(vmSetup)}, __ctx, { timeout: 500 });`,
     `vm.runInContext(${JSON.stringify(code)}, __ctx, { timeout: ${vmTimeout}, importModuleDynamically: () => { throw new Error("dynamic import disabled"); } });`,
   ].join('\n');
 }
@@ -539,7 +547,12 @@ export class ClaimAuditor {
             ],
           });
           let res;
-          if (typeof this.router.metered === 'function') {
+          const outer = this.router.meters?.getStore?.();
+          if (outer) {
+            const before = outer.remote || 0;
+            res = await call();
+            measuredRemoteCalls = (outer.remote || 0) - before;
+          } else if (typeof this.router.metered === 'function') {
             const metered = await this.router.metered(call);
             res = metered.result;
             measuredRemoteCalls = metered.meter?.remote ?? 0;
