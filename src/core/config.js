@@ -52,7 +52,8 @@ export const DEFAULTS = Object.freeze({
   security: {
     // Tools that never run without a human approval in the dashboard or CLI.
     approvalTools: ['shell', 'fs_write', 'http_post', 'mesh_send'],
-    httpAllowlist: ['duckduckgo.com', 'html.duckduckgo.com', 'en.wikipedia.org', 'api.github.com', 'raw.githubusercontent.com', 'localhost', '127.0.0.1'],
+    httpAllowlist: ['duckduckgo.com', 'html.duckduckgo.com', 'en.wikipedia.org', 'api.github.com', 'raw.githubusercontent.com'],
+    allowLoopback: false,
   },
   manifestDirs: [],
   peers: [],
