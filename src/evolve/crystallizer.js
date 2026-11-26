@@ -334,7 +334,10 @@ export class Crystallizer {
     const library = this.list('active').filter((x) => x.name !== name);
     const r = await this.#run(s.code, input, library);
     this.store.run(`UPDATE skills SET ${r.error ? 'failures = failures + 1' : 'uses = uses + 1'}, updated = ? WHERE id = ?`, nowIso(), s.id);
-    if (r.error) throw new Error(`skill ${name} failed: ${r.error}`);
+    if (r.error) {
+      if (this.onSkillRefuted) Promise.resolve(this.onSkillRefuted({ skill: s, kind: 'crash', input, error: r.error })).catch(() => {});
+      throw new Error(`skill ${name} failed: ${r.error}`);
+    }
     return r.out;
   }
 
@@ -1458,6 +1461,17 @@ ${final}`;
     return ok;
   }
 
+  quarantine(name, reason = 'immune advisory', meta = {}) {
+    const ok = this.store.run("UPDATE skills SET status = 'quarantined', updated = ? WHERE name = ? AND status IN ('active', 'probation')", nowIso(), name).changes > 0;
+    if (ok) {
+      this.tools.tools?.delete(`skill_${name}`);
+      this.retireBinder(name, reason);
+      this.ledger.append('skill.quarantine', { name, reason, ...meta }, 'crystallizer');
+      this.bus?.publish('skill.quarantine', { name, reason });
+    }
+    return ok;
+  }
+
   /**
    * Skill family tree (Phase 17): where every skill came from, built ONLY from signed ledger entries. Nodes are skills
    * (and peer agencies); each edge is one ledger entry (seq + hash), so every link can be checked against the chain.
@@ -1467,7 +1481,7 @@ ${final}`;
    *   shared   : this agency exported a skill (skill.export, mesh.skill_out)
    */
   lineage() {
-    const entries = this.store.all("SELECT seq, ts, kind, data, hash FROM ledger WHERE kind IN ('skill.admit','skill.gap_learned','skill.compose','skill.import','skill.adopt','skill.export','skill.retire','skill.import_reject','mesh.skill_out') ORDER BY seq")
+    const entries = this.store.all("SELECT seq, ts, kind, data, hash FROM ledger WHERE kind IN ('skill.admit','skill.gap_learned','skill.compose','skill.import','skill.adopt','skill.export','skill.retire','skill.quarantine','skill.import_reject','mesh.skill_out') ORDER BY seq")
       .map((r) => ({ ...r, data: JSON.parse(r.data) }));
     const skills = this.list();
     const ref = (e) => ({ seq: e.seq, hash: e.hash, ts: e.ts });
@@ -1484,6 +1498,7 @@ ${final}`;
       else if (e.kind === 'skill.import') { const p = peer(d.signer); for (const n of d.skills || []) { note(n, e, 'imported'); if (nodes.has(n)) edges.push({ from: p, to: n, kind: 'imported', label: 'signed plasmid', ...ref(e) }); } }
       else if (e.kind === 'skill.adopt') note(d.name, e, d.via ? `adopted with ${d.via}` : 'adopted after local trials');
       else if (e.kind === 'skill.export') note(d.name, e, 'exported');
+      else if (e.kind === 'skill.quarantine') note(d.name, e, 'quarantined');
       else if (e.kind === 'mesh.skill_out') { const id = `peer:${String(d.peer).slice(0, 12)}`; if (!nodes.has(id)) nodes.set(id, { id, kind: 'peer', peerId: d.peer, status: 'peer', events: [] }); edges.push({ from: d.name, to: id, kind: 'shared', label: d.how === 'offer' ? 'offered' : 'requested by peer', ...ref(e) }); }
       else if (e.kind === 'skill.retire') note(d.name, e, 'retired');
       else if (e.kind === 'skill.import_reject' && d.name) note(d.name, e, 'rejected after local trials');
@@ -1568,10 +1583,16 @@ ${final}`;
     for (const s of skills) {
       if (!NAME.test(String(s.name)) || typeof s.code !== 'string' || !s.params) return fail(`skill ${s.name}: malformed`);
       if (sha256(s.code) !== s.code_sha256) return fail(`skill ${s.name}: code hash mismatch`);
+      if (this.store.get("SELECT id FROM skill_advisories WHERE code_sha256 = ? AND verdict = 'confirmed' LIMIT 1", String(s.code_sha256).toLowerCase())
+        || this.store.get("SELECT id FROM skills WHERE code_sha256 = ? AND status = 'quarantined' LIMIT 1", String(s.code_sha256).toLowerCase())) {
+        return fail(`skill ${s.name}: quarantined by confirmed immune advisory`);
+      }
       const a = s.admission;
-      if (!a || a.signer !== plasmid.signer || Ledger.entryHash(a) !== a.hash || !verifyWith(a.signer, a.hash, a.sig) || a.data?.codeSha256 !== s.code_sha256) return fail(`skill ${s.name}: no valid signed admission entry from the sender`);
+      if (!a || !['skill.admit', 'skill.compose', 'skill.adopt'].includes(a.kind) || a.signer !== plasmid.signer || Ledger.entryHash(a) !== a.hash || !verifyWith(a.signer, a.hash, a.sig) || a.data?.codeSha256 !== s.code_sha256) return fail(`skill ${s.name}: no valid signed admission entry from the sender`);
       const mine = local.find((x) => x.name === s.name);
       if (mine && mine.code_sha256 !== s.code_sha256) return fail(`skill ${s.name}: a different skill with this name already exists here`);
+      if (mine && mine.status === 'quarantined') return fail(`skill ${s.name}: quarantined locally`);
+      if (mine && !['active', 'probation'].includes(mine.status)) return fail(`skill ${s.name}: local skill is ${mine.status}`);
       if (mine) { rows.push({ name: s.name, owned: mine.status }); lib.push(mine); continue; }
       // Reproduce the sender's verification rows here, with the bundle's earlier skills as the library.
       const vr = s.verification?.rows || [];
@@ -1657,6 +1678,7 @@ ${final}`;
       for (const g of group) this.#maybeLearn(g.name);
     } else if (status === 'rejected') {
       this.ledger.append('skill.import_reject', { name: s.name, reason: `refuted on a local task (agents corroborated ${j.corroborated}, the skill computed ${shadow.out})`, signer: v.imported?.signer }, 'crystallizer');
+      if (this.onSkillRefuted) Promise.resolve(this.onSkillRefuted({ skill: s, kind: 'wrong_output', input: shadow.input, task, expectedAnswer: j.corroborated })).catch(() => {});
     }
     return { ...j, trial: true, status };
   }

@@ -204,6 +204,7 @@ export function createServer(agency) {
   add('POST', '/api/mesh/peers/:id/skills/offer', async ({ params, body }) => a.mesh.offerSkill(params.id, need(body.name, 'name required')));
   add('POST', '/api/mesh/peers/:id/trust', ({ params, body }) => { a.mesh.setTrust(params.id, body.trust); return { ok: true }; });
   add('GET', '/api/mesh/inbox', () => a.mesh.inbox());
+  add('GET', '/api/mesh/immune', () => a.immune ? a.immune.status() : { advisories: [], quarantinedSkills: [], peers: [] });
 
   // ---------- DNA lab ----------
   add('POST', '/api/dna/encode', ({ body }) => {

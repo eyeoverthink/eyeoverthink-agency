@@ -153,6 +153,15 @@ const MIGRATIONS = [
     composed TEXT, created TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS skill_chains_sig ON skill_chains(signature, label);`,
+  // v9 — cross-agency immune system: verified skill revocations and peer reputation (Phase 23).
+  `CREATE TABLE IF NOT EXISTS skill_advisories (
+    id TEXT PRIMARY KEY, code_sha256 TEXT NOT NULL, skill_name TEXT NOT NULL, sender_key TEXT NOT NULL,
+    kind TEXT NOT NULL, counterexample TEXT NOT NULL, verdict TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '{}',
+    created TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS skill_advisories_sha ON skill_advisories(code_sha256, verdict);
+  ALTER TABLE peers ADD COLUMN rep_confirmed INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE peers ADD COLUMN rep_false_flags INTEGER NOT NULL DEFAULT 0;`,
 ];
 
 export class Store {
